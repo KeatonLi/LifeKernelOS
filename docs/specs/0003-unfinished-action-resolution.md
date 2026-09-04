@@ -13,7 +13,7 @@
 
 ### In scope
 
-- 延后行动到指定本地日期。
+- 延后行动到指定的账号时区业务日期。
 - 将行动拆成更小的行动。
 - 放弃行动并从当前可用列表移除。
 - 标记卡住并记录阻力。
@@ -32,7 +32,7 @@
 
 ### Action 增量字段
 
-- `scheduledFor`：可选，本地日期；仅 deferred 使用。
+- `scheduledFor`：可选，当前用户账号时区下的业务日期；仅 deferred 使用。
 - `blockerNote`：可选，长度不超过 500 个字符；仅 blocked 使用。
 - `dropReason`：可选，长度不超过 500 个字符；仅 dropped 使用。
 
@@ -46,7 +46,7 @@ available → dropped
 available → available（拆小后更新）
 ```
 
-- deferred 在 `scheduledFor <= 今天` 时，由今日页面显式调用 `activateDueActions` 恢复为 available；普通读取用例不修改数据。
+- deferred 在 `scheduledFor <= 账号时区下的今天` 时，由今日页面显式调用 `activateDueActions` 恢复为 available；普通读取用例不修改数据。
 - dropped 是当前主线中的终态，不出现在可用列表。
 - blocked 不出现在候选列表，但保留在行动记录中。
 - 拆小沿用原 Action ID，更新名称和预计耗时，状态保持 available；不建立父子关系。
@@ -66,10 +66,11 @@ activateDueActions(date: string): Promise<number>;
 
 - `deferAction`、`splitAction`、`dropAction`、`blockAction` 只允许作用于 available Action。
 - `resumeAction` 只允许作用于 blocked Action；`activateDueActions` 只处理到期的 deferred Action。
-- 延后日期必须是合法本地日期，且必须晚于今天。
+- 延后日期必须是合法业务日期，且必须晚于当前用户账号时区下的今天。
 - 拆小后的预计耗时必须小于原预计耗时，且仍为 1—480 的正整数。
 - 标记卡住时阻力说明必填；恢复后清空 `blockerNote`。
 - 放弃后不能重新进入 available；如果用户想重新尝试，应新建行动。
+- 如果行动是当天的 `selectedActionId`，完成、延后、卡住或放弃时必须在同一事务中清除选择；拆小行动仍为 available，可以保留选择。
 - 所有状态变更必须持久化成功后再更新页面状态。
 
 ## 6. 验收场景
@@ -149,12 +150,21 @@ Then Action 状态变为 available
 And blockerNote 被清空
 ```
 
+### 场景 I：处理当前行动后清理选择
+
+```gherkin
+Given 今天选中的行动仍为 available
+When 用户将它延后、标记卡住或放弃
+Then 系统在同一事务中更新行动状态并清理 DailyState.selectedActionId
+And 页面提示用户选择下一条行动
+```
+
 ## 7. 技术实现与测试
 
 - Domain：实现状态转换和字段约束，不在页面中自行判断。
 - Application：每个处理动作使用独立用例，避免一个“大而全”的更新接口。
 - Persistence：为 `userId`、`status`、`scheduledFor` 增加索引；`activateDueActions` 作为显式幂等命令使用事务。
-- 集成测试覆盖每条状态转换、非法输入和刷新恢复。
+- 集成测试覆盖每条状态转换、非法输入、当前行动选择清理和刷新恢复。
 - 端到端测试覆盖延后、拆小、卡住恢复和放弃。
 
 ## 8. Definition of Done

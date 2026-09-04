@@ -67,8 +67,8 @@
 
 ## 5. 领域规则
 
-- 系统最多允许一条 `active` Focus。
-- 已有 active Focus 时，不能通过本规格再创建第二条 active Focus。
+- 每个用户最多允许一条 `active` Focus。
+- 当前用户已有 active Focus 时，不能通过本规格再创建第二条 active Focus。
 - Action 必须关联 Focus；关联不存在时拒绝写入。
 - 空白字符串在校验前统一执行首尾空白清理。
 - Action 只能从 `available` 转为 `completed`。
@@ -129,7 +129,7 @@ And 页面提示主线名称为必填项
 ### 场景 D：不创建第二条 active 主线
 
 ```gherkin
-Given 系统已经存在一条 active Focus
+Given 当前用户已经存在一条 active Focus
 When 用户再次提交新的主线
 Then 系统拒绝创建第二条 active Focus
 And 页面提示当前已经存在一条主线
@@ -273,7 +273,7 @@ completeAction(actionId: string): Promise<Action>;
 5. 实现 Setup 和 Today 页面。
 6. 使用 Playwright 执行本规格的端到端场景。
 7. 逐条完成验收并记录结果。
-8. 验收通过后，将规格状态从 `Proposed` 改为 `Verified`。
+8. 代码和自动化测试完成后，将规格状态改为 `Implemented`；验收通过后再改为 `Verified`。
 
 ## 11. Definition of Done
 

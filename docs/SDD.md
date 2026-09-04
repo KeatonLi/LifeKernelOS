@@ -121,7 +121,7 @@ Proposed → Accepted → Implementing → Implemented → Verified
 3. 先为领域校验和状态转换编写测试，再实现 SQLite 仓储、API 和页面。
 4. 用端到端测试执行“首次进入 → 创建主线 → 创建行动 → 完成行动”。
 5. 逐条勾选规格验收清单，记录未做项和偏差。
-6. 只有验证完成后，才把规格状态改为 `Verified`，并提交中文 commit。
+6. 代码和自动化测试完成后，先把规格状态改为 `Implemented`；逐条验收通过后再改为 `Verified`，并提交中文 commit。
 
 ## 9. Definition of Done
 

@@ -2,7 +2,7 @@
 
 > 状态：Proposed
 > 对应 PRD：MVP 场景四
-> 依赖：`SPEC-0001`、`SPEC-0002`、`SPEC-0008`
+> 依赖：`SPEC-0001`～`SPEC-0003`、`SPEC-0008`
 > 目标：让用户用不超过 1 分钟结束一天，留下推进、阻力和明天最小一步。
 
 ## 1. 用户目标
@@ -13,7 +13,7 @@
 
 ### In scope
 
-- 查看指定本地日期的主线、行动、状态和当前行动。
+- 查看指定账号时区业务日期的主线、行动、状态和当前行动。
 - 填写三个可选文本：推进、阻力或消耗、明天最小一步。
 - 保存和修改当天的 `DailyClose`。
 - 一天最多一条收束记录，重复保存执行更新。
@@ -39,13 +39,21 @@ DailyClose {
 }
 ```
 
-- `date` 使用用户本地日期，不使用服务器日期。
+- `date` 使用当前用户账号时区下的业务日期，不使用服务器时区或设备时区。
 - 三个字段都可以为空；三个字段都为空时不创建记录，已有记录可被清空后删除。
 - 记录只反映用户主动输入，不把系统推断写入正文。
 
 ## 4. 用例契约
 
 ```typescript
+type DailyContext = {
+  date: string;
+  focus: Focus | null;
+  actions: Action[];
+  dailyState: DailyState | null;
+  selectedAction: Action | null;
+};
+
 getDailyContext(date: string): Promise<DailyContext>;
 getDailyClose(date: string): Promise<DailyClose | null>;
 saveDailyClose(input: {
@@ -122,7 +130,7 @@ Then 页面仍然展示相同内容
 
 ## 6. 技术实现与测试
 
-- Domain：文本长度校验和本地日期校验。
+- Domain：文本长度校验和账号时区下的业务日期校验。
 - Application：`GetDailyContext` 聚合只读数据，`SaveDailyClose` 负责 upsert。
 - Persistence：`daily_closes` 以 `userId + date` 为唯一键。
 - 集成测试覆盖新增、更新、删除和同日期唯一性。

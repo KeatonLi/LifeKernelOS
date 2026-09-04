@@ -116,7 +116,7 @@ MVP 只验证这一个假设，不同时验证价值观管理、AI 复盘、跨�
 
 ## 7. 信息架构
 
-首版只保留三个主要页面：
+首版只保留四个主要页面：
 
 1. 登录：完成最小身份验证。
 2. 当前主线：设置当前主线和行动。
@@ -135,7 +135,7 @@ MVP 只验证这一个假设，不同时验证价值观管理、AI 复盘、跨�
 - `status`：active / completed / archived
 - `created_at`、`updated_at`
 
-首版同时只允许一条 active 主线。
+首版对每个用户同时只允许一条 active 主线。
 
 ### Action：行动
 
@@ -147,7 +147,7 @@ MVP 只验证这一个假设，不同时验证价值观管理、AI 复盘、跨�
 - `status`：available / completed
 - `created_at`、`updated_at`
 
-当前 MVP 只实现 `available → completed`。`inbox`、`deferred`、`dropped`、`blocked` 和计划时间由后续规格分别引入；“今日选中的行动”不属于 Action 状态。
+第一条业务切片 `SPEC-0001` 只实现 `available → completed`。`inbox`、`deferred`、`dropped`、`blocked` 和计划时间由后续规格分别引入；“今日选中的行动”不属于 Action 状态。
 
 ### DailyState：每日状态
 
@@ -169,6 +169,7 @@ MVP 只验证这一个假设，不同时验证价值观管理、AI 复盘、跨�
 MVP 只提供受控的个人账号，不开放公开注册、组织和角色权限。业务数据都属于当前登录用户，由服务端按用户隔离。
 
 - `User`：`id`、`email`、密码摘要、创建时间。
+- `User.timezone`：必填的 IANA 时区标识，例如 `Asia/Shanghai`；所有“今天”和周边界计算都以此为准。
 - `Session`：`id`、`user_id`、过期时间、创建时间。
 
 ## 9. 核心规则
@@ -206,6 +207,7 @@ MVP 只提供受控的个人账号，不开放公开注册、组织和角色权�
 - React 只通过 API 访问业务数据，不直接连接服务端数据库。
 - 服务端是数据事实源；浏览器端不承担跨设备同步和最终持久化责任。
 - API 通过 HttpOnly 会话 Cookie 识别当前用户，所有业务查询和写入都必须带用户边界。
+- 用户账号保存唯一的 IANA 时区；跨设备访问时，日和周的业务边界保持一致。
 - MVP 部署为后端服务加持久化 SQLite 文件；前端构建产物可以由同一个后端服务提供。
 - 服务端不记录用户正文到第三方分析平台，也不引入 AI 调用。
 

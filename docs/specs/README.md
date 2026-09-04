@@ -8,10 +8,10 @@
 | `SPEC-0001` | 当前主线与行动 | MVP P0 | 场景一、场景三完成分支 | `SPEC-0008` | Proposed |
 | `SPEC-0002` | 根据状态选择下一步 | MVP P0 | 场景二 | `SPEC-0001`、`SPEC-0008` | Proposed |
 | `SPEC-0003` | 处理未完成行动 | MVP P0 | 场景三 | `SPEC-0001`、`SPEC-0008` | Proposed |
-| `SPEC-0004` | 日终收束 | MVP P0 | 场景四 | `SPEC-0001`、`SPEC-0002`、`SPEC-0008` | Proposed |
+| `SPEC-0004` | 日终收束 | MVP P0 | 场景四 | `SPEC-0001`～`SPEC-0003`、`SPEC-0008` | Proposed |
 | `SPEC-0005` | 快速捕捉 | P1 | 场景五 | `SPEC-0001`、`SPEC-0008` | Proposed |
-| `SPEC-0006` | 周复盘 | 后续验证 | 场景六 | `SPEC-0001`～`SPEC-0004`、`SPEC-0008` | Proposed |
-| `SPEC-0007` | 数据导出与清空 | MVP 基础能力 P0 | MVP 基础能力 | `SPEC-0001`、`SPEC-0008` | Proposed |
+| `SPEC-0006` | 周复盘 | P1 / 后续验证 | 场景六 | `SPEC-0001`～`SPEC-0004`、`SPEC-0008` | Proposed |
+| `SPEC-0007` | 数据导出与清空 | MVP 基础能力 P0 | MVP 基础能力 | `SPEC-0001`～`SPEC-0004`、`SPEC-0008` | Proposed |
 
 ## 开发顺序
 

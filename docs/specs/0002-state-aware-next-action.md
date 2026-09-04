@@ -32,7 +32,7 @@
 
 ### DailyState
 
-- `date`：用户本地日期 `YYYY-MM-DD`。
+- `date`：当前用户账号时区下的业务日期 `YYYY-MM-DD`，由服务端 `Clock` 计算。
 - `energy`：`low` / `medium` / `high`。
 - `availableMinutes`：`15` / `30` / `60`。
 - `selectedActionId`：可选，当前日期最多一条。
@@ -42,7 +42,7 @@
 - 精力等级顺序固定为 `low < medium < high`。
 - 行动进入候选的条件是 `status = available`、`estimatedMinutes <= availableMinutes`，且 `energyRequired <= energy`。
 - 候选按预计耗时升序展示；相同耗时按创建时间升序。
-- 用户可以查看并手动选择全部 `available` 行动，手动选择不受候选规则限制。
+- 用户可以查看并手动选择当前 active Focus 下的全部 `available` 行动，手动选择不受候选规则限制。
 - `60` 表示当前可投入约 60 分钟；超过 60 分钟的行动不自动进入候选。
 - 没有候选时不显示“推荐失败”，而是提示创建更小行动或查看全部行动。
 
@@ -58,7 +58,7 @@ type DailyStateInput = {
 setDailyState(input: DailyStateInput): Promise<DailyState>;
 getDailyState(date: string): Promise<DailyState | null>;
 listCandidateActions(date: string): Promise<Action[]>;
-listAllAvailableActions(): Promise<Action[]>;
+listAllAvailableActions(date: string): Promise<Action[]>;
 selectAction(date: string, actionId: string): Promise<DailyState>;
 clearSelectedAction(date: string): Promise<DailyState>;
 ```
@@ -103,6 +103,8 @@ Then DailyState.selectedActionId 更新为该行动 ID
 And 页面只展示一条当前行动
 ```
 
+被选择的行动必须属于当前用户的 active Focus，且状态仍为 `available`；不满足时拒绝选择并刷新今日数据。
+
 ### 场景 E：更换当前行动
 
 ```gherkin
@@ -124,11 +126,13 @@ And 页面提供“创建更小行动”和“查看全部行动”入口
 ### 场景 G：完成后清理选择
 
 ```gherkin
-Given 今天选中的行动已被标记为 completed
-When 今日页面重新加载
-Then 系统清理指向已完成行动的 selectedActionId
+Given 今天选中的行动仍为 available
+When 行动被完成
+Then 系统在同一事务中清理 selectedActionId
 And 页面提示用户选择下一条行动
 ```
+
+`SPEC-0003` 接入后，延后、卡住和放弃也必须遵守同一清理约束；本规格不重复实现这些状态处理。
 
 ### 场景 H：刷新后恢复
 
@@ -140,10 +144,10 @@ Then 今日状态和当前行动仍然存在
 
 ## 6. 技术实现与测试
 
-- Domain：实现精力等级比较、时间匹配和候选排序纯函数。
+- Domain：实现账号时区日期、精力等级比较、时间匹配和候选排序纯函数。
 - Application：`SetDailyState`、`ListCandidateActions`、`SelectAction`。
 - Persistence：新增 `daily_states` 表，按 `userId + date` 建立唯一约束。
-- 集成测试覆盖状态 upsert、候选过滤、选择唯一性和已完成行动清理。
+- 集成测试覆盖状态 upsert、候选过滤、active Focus 归属、选择唯一性和完成后的选择清理。
 - 端到端测试覆盖记录状态、选择行动、无候选空状态和刷新恢复。
 
 ## 7. Definition of Done

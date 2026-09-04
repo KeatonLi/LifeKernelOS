@@ -159,18 +159,20 @@ SQLite 是服务端的持久化事实源，不是前端缓存。MVP 开启外键
 | `id` | `text` | UUID 主键，服务端生成 |
 | `email` | `text` | 非空、规范化后唯一 |
 | `password_hash` | `text` | 非空，不返回客户端 |
+| `timezone` | `text` | 非空，合法 IANA 时区 |
 | `created_at` | `text` | 非空，UTC ISO 8601 |
 
 ### 5.2 sessions
 
 | 字段 | 类型 | 约束 |
 | --- | --- | --- |
-| `id` | `text` | 随机值摘要后的主键 |
+| `id` | `text` | UUID 主键，服务端生成 |
+| `token_hash` | `text` | 非空、唯一，数据库只保存 Token 摘要 |
 | `user_id` | `text` | 外键 `users.id`，级联删除 |
 | `expires_at` | `text` | 非空，UTC ISO 8601 |
 | `created_at` | `text` | 非空，UTC ISO 8601 |
 
-浏览器 Cookie 保存原始随机 Session Token，数据库只保存 Token 的摘要。数据库泄露时，不能直接使用表中的值伪造会话。
+浏览器 Cookie 保存原始随机 Session Token，数据库的 `token_hash` 只保存摘要。数据库泄露时，不能直接使用表中的值伪造会话。
 
 ### 5.3 focuses
 
@@ -222,7 +224,7 @@ WHERE status = 'active';
 
 ### 6.1 账号创建
 
-MVP 不开放注册页面。部署时通过受控脚本创建一个个人账号，密码只以交互式输入或安全的临时方式提供，服务端只保存密码摘要。
+MVP 不开放注册页面。部署时通过 `db:seed` 受控命令创建第一个个人账号，输入邮箱、密码和 IANA 时区；密码只以交互式输入或安全的临时方式提供，服务端只保存密码摘要。已有用户时命令失败且不修改数据。
 
 ### 6.2 登录
 
@@ -241,12 +243,20 @@ MVP 不开放注册页面。部署时通过受控脚本创建一个个人账号�
 type UserContext = {
   userId: string;
   sessionId: string;
+  timezone: string;
 };
 ```
 
 受保护路由必须先获得 `UserContext`。业务 Application 用例接收它或接收其中的 `userId`，禁止从请求 Body 接受 `userId` 作为所有权依据。
 
-### 6.4 安全边界
+### 6.4 业务日期
+
+- `User.timezone` 是账号级业务配置，不跟随每台设备变化。
+- 服务端 `Clock` 使用账号时区计算今天、延期到期日和周一至周日边界。
+- 客户端可以展示设备本地时间，但不能用设备时区覆盖业务日期。
+- 跨设备请求同一天的数据时，使用相同的账号时区和 `YYYY-MM-DD` 业务主键。
+
+### 6.5 安全边界
 
 - 修改数据的请求检查 `Origin`，不开放跨域写入。
 - Session 过期或不存在时返回 `401`，并清理无效 Cookie。
@@ -407,6 +417,10 @@ COMMIT
 ```
 
 `SPEC-0002` 接入后，清理 `DailyState.selectedActionId` 的动作加入同一事务；在 `SPEC-0001` 阶段不提前创建 DailyState。
+
+### 其他状态处理
+
+`SPEC-0003` 接入后，`deferred`、`blocked`、`dropped` 与 `completed` 一样都属于离开 `available` 的状态。如果该行动是当天的 `selectedActionId`，状态变更和清理选择必须在同一 SQLite 事务中完成；`splitAction` 保持 `available`，可以保留选择。
 
 ## 11. 前端调用设计
 

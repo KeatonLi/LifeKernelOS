@@ -95,7 +95,7 @@ db/
 
 ### 5.1 Focus
 
-当前主线。MVP 同时只能有一条 `active` 主线。
+当前主线。MVP 对每个用户同时只能有一条 `active` 主线。
 
 ```text
 Focus {
@@ -127,7 +127,7 @@ Action {
 
 ### 5.3 DailyState 与 DailyClose
 
-两者均以用户本地日期 `YYYY-MM-DD` 为业务主键。首版不保存用户时区历史，日期转换统一由一个 `Clock` 接口负责。
+两者均以账号时区下的 `YYYY-MM-DD` 为业务主键。`User.timezone` 保存唯一的 IANA 时区，日期转换统一由一个使用账号时区的 `Clock` 接口负责。
 
 ```text
 DailyState {
@@ -152,9 +152,9 @@ DailyClose {
 - `Focus` 的 `title` 不能为空，长度不超过 100 个字符。
 - `Action` 必须关联存在的 `Focus`，且名称不能为空。
 - `estimatedMinutes` 必须是 1—480 的正整数。
-- 不能同时存在两条 `active` 主线。
+- 每个用户不能同时存在两条 `active` 主线。
 - 完成的行动不可再出现在未完成列表中。
-- 所有日期相关行为必须使用统一的本地日期工具，禁止在页面中自行拼接日期。
+- 所有日期相关行为必须使用统一的账号时区 `Clock`，禁止在页面中自行拼接日期或使用设备时区覆盖业务日期。
 
 ### 5.5 后续规格实体
 
@@ -316,7 +316,7 @@ MVP 使用明确受控的网络数据通道：
 | `SPEC-0001` | Focus、Action、校验、完成转换 | 创建/读取主线、创建/列表/完成行动 | Focus/Action SQLite 仓储 | Setup、Today |
 | `SPEC-0002` | 精力等级、时间匹配、候选排序 | 保存状态、列候选、选择行动 | DailyState SQLite 仓储、Clock | Today 状态面板 |
 | `SPEC-0003` | 行动状态机、到期判断 | 延后、拆小、放弃、卡住、恢复、显式激活 | Action 扩展 SQLite 仓储 | Today 行动处理菜单 |
-| `SPEC-0004` | 本地日期、文本校验 | 日上下文、收束 upsert/delete | DailyClose SQLite 仓储 | Daily Close |
+| `SPEC-0004` | 账号时区日期、文本校验 | 日上下文、收束 upsert/delete | DailyClose SQLite 仓储 | Daily Close |
 | `SPEC-0005` | Capture 状态和类型 | 捕捉、类型更新、转换、归档、删除 | Capture SQLite 仓储、事务 | 全局捕捉入口、Inbox |
 | `SPEC-0006` | 周边界、复盘字段校验 | 周摘要、复盘 upsert | WeeklyReview SQLite 仓储 | Review |
 | `SPEC-0007` | 导出 payload 校验 | 导出、清空 | JSON 序列化、事务清空 | Settings |
@@ -334,7 +334,7 @@ TodayRoute
   → 返回 TodayViewModel
 ```
 
-到期行动激活仍然是显式命令，由 Application 在 `SPEC-0003` 启用后调用；普通查询不修改数据。第一切片尚未启用延期状态时，该步骤不装配。
+到期行动激活仍然是显式命令，由 Application 在 `SPEC-0003` 启用后调用，并使用当前用户的账号时区；普通查询不修改数据。第一切片尚未启用延期状态时，该步骤不装配。
 
 ### 14.2 完成今日选中行动
 
@@ -348,7 +348,7 @@ CompleteAction(actionId)
   → 返回最新状态
 ```
 
-在 `SPEC-0001` 单独实现时，只有前两步；`SPEC-0002` 接入后增加选择清理，避免留下悬空 ID。
+在 `SPEC-0001` 单独实现时，只有前两步；`SPEC-0002` 接入后增加选择清理。`SPEC-0003` 接入后，完成、延后、卡住和放弃都必须清理离开 `available` 行动的选择，避免留下悬空 ID；拆小行动保持选择。
 
 ### 14.3 Capture 转 Action
 
@@ -371,20 +371,20 @@ Domain 只定义实体和规则，Application 依赖仓储端口：
 
 ```typescript
 interface FocusRepository {
-  getActive(): Promise<Focus | null>;
-  create(focus: Focus): Promise<void>;
+  getActive(userId: string): Promise<Focus | null>;
+  create(userId: string, focus: Focus): Promise<void>;
 }
 
 interface ActionRepository {
-  getById(id: string): Promise<Action | null>;
-  listByFocus(focusId: string, status?: ActionStatus): Promise<Action[]>;
-  create(action: Action): Promise<void>;
-  update(action: Action): Promise<void>;
+  getById(userId: string, id: string): Promise<Action | null>;
+  listByFocus(userId: string, focusId: string, status?: ActionStatus): Promise<Action[]>;
+  create(userId: string, action: Action): Promise<void>;
+  update(userId: string, action: Action): Promise<void>;
 }
 
 interface DailyStateRepository {
-  get(date: LocalDate): Promise<DailyState | null>;
-  save(state: DailyState): Promise<void>;
+  get(userId: string, date: LocalDate): Promise<DailyState | null>;
+  save(userId: string, state: DailyState): Promise<void>;
 }
 ```
 
@@ -457,6 +457,8 @@ Domain 单元测试
 - [ ] 确认响应式 Web 单体作为 MVP 形态。
 - [ ] 确认 React + TypeScript + Vite + Fastify + SQLite + Drizzle 技术基线。
 - [ ] 确认服务端持久化、最小身份验证和当前用户数据隔离。
+- [ ] 确认账号时区是所有日/周边界的唯一业务依据。
+- [ ] 确认 Action 离开 `available` 时按规格清理 `DailyState.selectedActionId`。
 - [ ] 确认 Web UI / API / Application / Domain / Infrastructure 依赖方向。
 - [ ] 确认 `SPEC-0008`、`SPEC-0001`～`SPEC-0004` 加 `SPEC-0007` 为 MVP 交付范围。
 - [ ] 确认 `SPEC-0005` 为 P1，`SPEC-0006` 等真实数据验证后再决定。
