@@ -36,7 +36,7 @@ LifeKernelOS（人生内核 OS）当前只验证一个 MVP 假设：当用户感
 
 - 采用轻量 SDD：先写并审查规格，再实现、测试和验收。
 - 未进入 `Accepted` 的规格不开始开发；未进入 `Verified` 的规格不宣称完成。
-- 当前技术基线是响应式 Web 单体、React + TypeScript + Vite、本地优先 IndexedDB、无后端 MVP。
+- 当前拟议技术基线是响应式 Web 单体、React + TypeScript + Vite、本地优先 IndexedDB、无后端 MVP，仍需在架构评审后确认。
 - 需求变更同步更新 PRD；跨规格的架构变化先补充 ADR。
-- 当前第一条开发规格是 `SPEC-0001`，先实现“当前主线与行动”。
+- 当前第一条开发规格是 `SPEC-0001`，待其进入 `Accepted` 后实现“当前主线与行动”。
 - 提交信息使用中文，并清楚说明变更内容。

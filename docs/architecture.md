@@ -131,7 +131,7 @@ Action {
 DailyState {
   date: LocalDate
   energy: low | medium | high
-  availableMinutes: 15 | 30 | 60+
+  availableMinutes: 15 | 30 | 60
   selectedActionId?: UUID
 }
 

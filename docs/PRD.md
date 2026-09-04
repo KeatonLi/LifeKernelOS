@@ -73,7 +73,7 @@ MVP 只验证这一个假设，不同时验证价值观管理、AI 复盘、跨�
 状态选项保持简单：
 
 - 精力：低 / 中 / 高。
-- 时间：15 分钟 / 30 分钟 / 60 分钟以上。
+- 时间：15 分钟 / 30 分钟 / 60 分钟。
 
 验收标准：系统展示行动时说明匹配依据；用户始终可以查看全部行动并手动选择，不被自动排序限制。
 
@@ -141,10 +141,10 @@ MVP 只验证这一个假设，不同时验证价值观管理、AI 复盘、跨�
 - `title`
 - `estimated_minutes`
 - `energy_required`：low / medium / high
-- `status`：inbox / available / selected / completed / deferred / dropped / blocked
-- `scheduled_for`
-- `blocker_note`
+- `status`：available / completed
 - `created_at`、`updated_at`
+
+当前 MVP 只实现 `available → completed`。`inbox`、`deferred`、`dropped`、`blocked` 和计划时间由后续规格分别引入；“今日选中的行动”不属于 Action 状态。
 
 ### DailyState：每日状态
 
@@ -163,7 +163,8 @@ MVP 只验证这一个假设，不同时验证价值观管理、AI 复盘、跨�
 
 ## 9. 核心规则
 
-- 选中的当前行动最多一条；用户可以主动更换。
+- 今日选中的当前行动最多一条，由 `DailyState.selected_action_id` 表示；用户可以主动更换。
+- Action 不使用 `selected` 状态，避免把每日上下文和行动生命周期混为一谈。
 - 只有预计耗时不超过可用时间、且精力要求不高于当前精力的行动，才作为默认候选。
 - 没有匹配候选时，系统只提示“查看全部”或“新建更小行动”，不强行推荐。
 - 完成、延后、拆小、放弃和卡住都属于有效结果。

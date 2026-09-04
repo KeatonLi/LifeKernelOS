@@ -107,6 +107,7 @@ Proposed → Accepted → Implementing → Implemented → Verified
 4. `SPEC-0004`：日终收束。
 5. `SPEC-0005`：快速捕捉，验证确有需要后再做。
 6. `SPEC-0006`：周复盘，等日常闭环有真实使用数据后再做。
+7. `SPEC-0007`：数据导出和清空，作为本地优先 MVP 的基础能力补齐。
 
 前四个规格完成并验证前，不引入价值观体系、AI、同步、日历或社交能力。
 
