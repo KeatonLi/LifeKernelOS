@@ -198,7 +198,7 @@ And 页面不得展示保存成功或伪造已持久化状态
 - `domain/action`：Action 类型、字段校验和完成状态转换。
 - `application/focus`：`CreateFocus`、`GetActiveFocus`。
 - `application/action`：`CreateAction`、`ListActions`、`CompleteAction`。
-- `apps/api/src/infrastructure/persistence`：PostgreSQL 的 Focus、Action 仓储实现。
+- `apps/api/src/infrastructure/persistence`：SQLite 的 Focus、Action 仓储实现。
 - `features/setup`：主线创建和行动创建交互。
 - `features/today`：主线、未完成行动和已完成行动展示。
 
@@ -230,7 +230,7 @@ completeAction(actionId: string): Promise<Action>;
 
 ### 8.3 仓储和持久化
 
-- PostgreSQL 表：`focuses`、`actions`；所有记录都带当前用户的 `userId`。
+- SQLite 表：`focuses`、`actions`；所有记录都带当前用户的 `userId`。
 - `focuses.status = active` 最多一条，由 application/domain 双重保护。
 - `actions.focusId` 必须指向存在的 Focus。
 - ID 使用服务端 `crypto.randomUUID()` 生成。
@@ -261,14 +261,14 @@ completeAction(actionId: string): Promise<Action>;
 | F 非法行动拒绝 | 字段校验 | 不产生记录 | 字段显示错误 |
 | G 完成行动 | 状态转换 | Action 更新 | 移入已完成列表 |
 | H 重复完成 | 状态转换幂等性 | 不新增记录 | 页面无重复项 |
-| I 刷新恢复 | — | PostgreSQL 读写 | 刷新后状态保持 |
+| I 刷新恢复 | — | SQLite 读写 | 刷新后状态保持 |
 | J 持久化失败 | — | 模拟写入失败 | 显示未保存 |
 
 ## 10. 实现顺序
 
 1. 建立 TypeScript 工程和测试运行环境。
 2. 实现 Focus、Action 领域类型、校验和规则测试。
-3. 实现 PostgreSQL 仓储和持久化集成测试。
+3. 实现 SQLite 仓储和持久化集成测试。
 4. 实现 application 用例和错误映射测试。
 5. 实现 Setup 和 Today 页面。
 6. 使用 Playwright 执行本规格的端到端场景。

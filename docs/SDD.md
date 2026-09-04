@@ -118,7 +118,7 @@ Proposed → Accepted → Implementing → Implemented → Verified
 
 1. 在规格中写清楚当前主线、行动字段、状态转换和验收场景。
 2. 在架构中确认页面只能通过 API 调用 `CreateFocus`、`CreateAction`、`CompleteAction` 等用例。
-3. 先为领域校验和状态转换编写测试，再实现 PostgreSQL 仓储、API 和页面。
+3. 先为领域校验和状态转换编写测试，再实现 SQLite 仓储、API 和页面。
 4. 用端到端测试执行“首次进入 → 创建主线 → 创建行动 → 完成行动”。
 5. 逐条勾选规格验收清单，记录未做项和偏差。
 6. 只有验证完成后，才把规格状态改为 `Verified`，并提交中文 commit。

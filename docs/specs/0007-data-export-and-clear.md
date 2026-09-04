@@ -129,7 +129,7 @@ And 不得展示清空成功
 
 - Application：集中读取当前用户各仓储并组装版本化 payload。
 - API：以附件响应返回 JSON，不能把其他用户数据放入 payload。
-- Infrastructure：导出由服务端序列化；清空使用 PostgreSQL 事务删除当前用户数据。
+- Infrastructure：导出由服务端序列化；清空使用 SQLite 事务删除当前用户数据。
 - 清空前后都通过 API 重新读取确认结果，不能只清空页面状态。
 - 单元测试覆盖导出结构和空数组。
 - 集成测试覆盖导出完整性、清空原子性和失败反馈。

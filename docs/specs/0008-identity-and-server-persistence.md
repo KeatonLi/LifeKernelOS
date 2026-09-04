@@ -18,7 +18,7 @@
 - 获取当前登录用户信息。
 - 主动退出登录并使当前会话失效。
 - 所有业务数据按当前用户隔离。
-- 服务端使用 PostgreSQL 持久化用户和业务数据。
+- 服务端使用 SQLite 文件持久化用户和业务数据。
 - 数据库迁移、连接失败和未登录状态有明确错误。
 
 ### Out of scope
@@ -136,7 +136,7 @@ And 页面回到登录状态
 ### 场景 G：数据库不可用
 
 ```gherkin
-Given PostgreSQL 不可连接
+Given SQLite 数据库文件不可打开
 When 用户尝试读取或保存业务数据
 Then 页面提示服务暂不可用或数据未保存
 And 页面不得伪造成功状态
@@ -146,9 +146,9 @@ And 页面不得伪造成功状态
 
 - `apps/api/src/http/auth`：登录、当前用户、退出路由和会话 Hook。
 - `apps/api/src/application/identity`：认证用例和 `UserContext` 装配。
-- `apps/api/src/infrastructure/persistence`：User、Session 和业务仓储的 PostgreSQL 实现。
+- `apps/api/src/infrastructure/persistence`：User、Session 和业务仓储的 SQLite 实现。
 - 使用密码摘要算法保存密码，禁止保存明文密码。
-- 使用数据库迁移创建 `users`、`sessions` 及业务表；测试环境使用隔离 PostgreSQL。
+- 使用数据库迁移创建 `users`、`sessions` 及业务表；测试环境使用临时 SQLite 文件。
 - API 单元测试覆盖成功、失败、401 和 Cookie 行为。
 - 集成测试覆盖会话失效、用户隔离、数据库事务和连接失败。
 - Playwright 覆盖登录、刷新、登出和核心业务 API 受保护流程。

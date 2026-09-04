@@ -18,3 +18,8 @@ build/
 target/
 coverage/
 
+# SQLite runtime data
+data/
+*.db
+*.db-shm
+*.db-wal

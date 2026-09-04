@@ -23,12 +23,12 @@ MVP 的技术架构只服务四个目标：
 | 应用形态 | 响应式 Web + 后端模块化单体 | 同时覆盖桌面和移动端，避免微服务带来的早期复杂度 |
 | 前端 | React + TypeScript + Vite | 适合快速迭代，构建产物由后端或反向代理提供 |
 | 后端 | Node.js + TypeScript + Fastify | 与前端统一语言，足够轻量，适合 API 和模块化用例 |
-| 数据存储 | PostgreSQL | 服务端可靠持久化，支持约束、事务和未来扩展 |
-| 数据访问 | Repository + Drizzle ORM | 隔离 PostgreSQL 细节，保留类型安全和迁移能力 |
+| 数据存储 | SQLite 文件 | MVP 部署简单、零数据库服务，支持约束和事务 |
+| 数据访问 | Repository + Drizzle ORM + better-sqlite3 | 隔离 SQLite 细节，保留类型安全和迁移能力 |
 | 页面状态 | React 页面状态和用例服务 | MVP 数据关系简单，暂不引入全局状态库 |
 | 样式 | 原生 CSS / CSS Modules | 减少 UI 工程依赖，先保证流程清晰和响应式 |
 | 测试 | Vitest、React Testing Library、Playwright | 分别覆盖规则、组件交互和完整用户流程 |
-| 部署 | Fastify 服务 + PostgreSQL | API、页面和数据边界统一，支持登录和跨设备访问 |
+| 部署 | Fastify 服务 + 持久化 SQLite 文件 | API、页面和数据边界统一，支持登录和跨设备访问 |
 
 详细理由记录在 [ADR-0003 服务端持久化](decisions/0003-server-backed-mvp.md)。前两份本地优先决策保留为历史记录。
 
@@ -57,17 +57,17 @@ MVP 的技术架构只服务四个目标：
                        │ Repository ports
 ┌──────────────────────▼──────────────────────┐
 │ Infrastructure 层                            │
-│ PostgreSQL / Drizzle / Session / File Export  │
+│ SQLite / Drizzle / Session / File Export       │
 └─────────────────────────────────────────────┘
 ```
 
 依赖方向只能由上到下：
 
-- Web UI 不直接依赖 PostgreSQL，也不包含业务写入规则。
+- Web UI 不直接依赖 SQLite，也不包含业务写入规则。
 - API 层负责认证、输入校验、调用用例和 HTTP 响应，不承载业务状态转换。
 - Domain 不依赖 React、Fastify、浏览器 API 或数据库。
 - Application 通过接口依赖 Infrastructure，不导入 Drizzle 或具体 SQL 实现。
-- Infrastructure 负责 PostgreSQL、会话、序列化和文件下载等外部能力。
+- Infrastructure 负责 SQLite、会话、序列化和文件下载等外部能力。
 
 ## 4. 推荐目录
 
@@ -80,12 +80,12 @@ apps/
         ├── http/           # routes、hooks、错误映射
         ├── application/    # 用例编排
         ├── domain/         # 纯业务规则
-        └── infrastructure/ # PostgreSQL、会话、导出
+        └── infrastructure/ # SQLite、会话、导出
 packages/
 ├── contracts/              # API 输入输出 Schema 和类型
 └── shared/                 # 仅放稳定且真正跨应用复用的能力
 db/
-└── migrations/             # PostgreSQL 迁移
+└── migrations/             # SQLite 迁移
 ```
 
 不要一开始建立通用 `utils` 大杂烩；只有跨两个以上领域且语义稳定的能力才进入 `shared`。
@@ -195,7 +195,7 @@ DailyClose {
 
 ## 7. 持久化设计
 
-首版使用 PostgreSQL，第一条切片至少包含以下表：
+首版使用 SQLite 文件，第一条切片至少包含以下表：
 
 - `users`：受控个人账号。
 - `sessions`：HttpOnly 会话 Cookie 对应的服务端会话。
@@ -212,8 +212,8 @@ DailyClose {
 - ID 由服务端生成，避免客户端伪造跨用户数据引用。
 - 时间统一保存为 ISO 8601 字符串。
 - 所有业务表包含 `user_id`，仓储查询必须带当前用户上下文。
-- 写操作使用 PostgreSQL 事务，避免主线已创建但行动写入一半的状态。
-- 数据库连接或迁移失败时，服务端不得启动为“看似可用”的状态；页面显示可理解的错误。
+- 写操作使用 SQLite 事务，避免主线已创建但行动写入一半的状态。
+- 数据库文件无法打开或迁移失败时，服务端不得启动为“看似可用”的状态；页面显示可理解的错误。
 - 认证使用服务端会话和 HttpOnly Cookie；MVP 不使用浏览器保存的 JWT。
 - JSON 导出包含 `schemaVersion`，为未来迁移保留入口。
 - MVP 不实现导入，避免把外部脏数据处理带入首轮范围。
@@ -229,6 +229,8 @@ DailyClose {
 | 后续验证 | `weekly_reviews` | `SPEC-0006` |
 
 `SPEC-0007` 的导出和清空覆盖当前用户已经存在的所有业务表；尚未启用的表在导出中输出空数组。
+
+SQLite 数据库文件必须放在服务端持久化目录，不能提交到 Git，也不能部署到会被重建的临时磁盘。MVP 只运行一个 API 实例；多实例、高并发和独立数据库服务属于后续评估范围。
 
 ## 8. 页面与路由
 
@@ -267,11 +269,11 @@ API 统一使用 `/api` 前缀，第一批资源边界如下：
 
 ### 单元测试
 
-覆盖领域校验、状态转换、active 主线唯一性和日期工具。测试不依赖浏览器或真实 PostgreSQL。
+覆盖领域校验、状态转换、active 主线唯一性和日期工具。测试不依赖浏览器或真实部署数据库。
 
 ### 集成测试
 
-使用隔离的测试 PostgreSQL 验证仓储实现、用户隔离、事务、刷新后的恢复和导出内容。
+使用临时 SQLite 数据库验证仓储实现、用户隔离、事务、刷新后的恢复和导出内容。
 
 ### 端到端测试
 
@@ -301,7 +303,7 @@ MVP 使用明确受控的网络数据通道：
 本架构仍是 `Proposed`。开始实现前需要确认：
 
 - 采用 React + TypeScript + Vite 的技术基线。
-- 采用 Node.js + TypeScript + Fastify + PostgreSQL 的服务端基线。
+- 采用 Node.js + TypeScript + Fastify + SQLite + Drizzle 的服务端基线。
 - `SPEC-0008` 的身份和用户隔离边界可以作为服务端基础规格。
 - `SPEC-0001` 的字段和验收场景可以作为第一条业务实现规格。
 
@@ -310,12 +312,12 @@ MVP 使用明确受控的网络数据通道：
 | 规格 | Domain | Application | Infrastructure | UI |
 | --- | --- | --- | --- | --- |
 | `SPEC-0008` | 身份凭据、会话边界 | 登录、当前用户、登出 | User/Session 仓储、会话存储 | Login、路由守卫 |
-| `SPEC-0001` | Focus、Action、校验、完成转换 | 创建/读取主线、创建/列表/完成行动 | Focus/Action PostgreSQL 仓储 | Setup、Today |
-| `SPEC-0002` | 精力等级、时间匹配、候选排序 | 保存状态、列候选、选择行动 | DailyState PostgreSQL 仓储、Clock | Today 状态面板 |
-| `SPEC-0003` | 行动状态机、到期判断 | 延后、拆小、放弃、卡住、恢复、显式激活 | Action 扩展 PostgreSQL 仓储 | Today 行动处理菜单 |
-| `SPEC-0004` | 本地日期、文本校验 | 日上下文、收束 upsert/delete | DailyClose PostgreSQL 仓储 | Daily Close |
-| `SPEC-0005` | Capture 状态和类型 | 捕捉、类型更新、转换、归档、删除 | Capture PostgreSQL 仓储、事务 | 全局捕捉入口、Inbox |
-| `SPEC-0006` | 周边界、复盘字段校验 | 周摘要、复盘 upsert | WeeklyReview PostgreSQL 仓储 | Review |
+| `SPEC-0001` | Focus、Action、校验、完成转换 | 创建/读取主线、创建/列表/完成行动 | Focus/Action SQLite 仓储 | Setup、Today |
+| `SPEC-0002` | 精力等级、时间匹配、候选排序 | 保存状态、列候选、选择行动 | DailyState SQLite 仓储、Clock | Today 状态面板 |
+| `SPEC-0003` | 行动状态机、到期判断 | 延后、拆小、放弃、卡住、恢复、显式激活 | Action 扩展 SQLite 仓储 | Today 行动处理菜单 |
+| `SPEC-0004` | 本地日期、文本校验 | 日上下文、收束 upsert/delete | DailyClose SQLite 仓储 | Daily Close |
+| `SPEC-0005` | Capture 状态和类型 | 捕捉、类型更新、转换、归档、删除 | Capture SQLite 仓储、事务 | 全局捕捉入口、Inbox |
+| `SPEC-0006` | 周边界、复盘字段校验 | 周摘要、复盘 upsert | WeeklyReview SQLite 仓储 | Review |
 | `SPEC-0007` | 导出 payload 校验 | 导出、清空 | JSON 序列化、事务清空 | Settings |
 
 ## 14. 核心流程时序
@@ -327,7 +329,7 @@ TodayRoute
   → API Client: GET /api/today
   → API Hook: 校验会话和日期
   → GetDailyContext(UserContext, today)
-  → 读取 PostgreSQL
+  → 读取 SQLite
   → 返回 TodayViewModel
 ```
 
@@ -340,7 +342,7 @@ CompleteAction(actionId)
   → API 校验会话和输入
   → Application 读取当前用户的 Action
   → Domain 校验 Action 状态
-  → PostgreSQL 事务更新 Action = completed
+  → SQLite 事务更新 Action = completed
   → 如果 DailyState.selectedActionId == actionId，则清除选择
   → 返回最新状态
 ```
@@ -357,7 +359,7 @@ ConvertCaptureToAction
   → 创建 Action
   → 更新 Capture = converted
   → 保存 convertedActionId
-  → PostgreSQL 同一事务提交
+  → SQLite 同一事务提交
 ```
 
 转换的两个写入必须原子成功；任一失败都保留原始 inbox Capture。
@@ -385,7 +387,7 @@ interface DailyStateRepository {
 }
 ```
 
-实际的 PostgreSQL/Drizzle 仓储实现不得向 Web UI 暴露。以下操作必须具备事务边界：
+实际的 SQLite/Drizzle 仓储实现不得向 Web UI 暴露。以下操作必须具备事务边界：
 
 - 创建主线时检查 active 唯一性。
 - 完成行动并清理当日选择。
@@ -410,7 +412,7 @@ ready → saving → ready
               ↘ error
 ```
 
-写操作成功前不乐观更新核心数据；成功后用 API 返回值或重新查询刷新页面，避免本地显示与 PostgreSQL 不一致。
+写操作成功前不乐观更新核心数据；成功后用 API 返回值或重新查询刷新页面，避免本地显示与 SQLite 不一致。
 
 ## 17. 工程与测试结构
 
@@ -420,7 +422,7 @@ ready → saving → ready
 dev       启动本地开发服务器
 build     类型检查并构建 Web 和 API
 test      运行 Domain、Application 和 API 单元测试
-test:db   运行 PostgreSQL 仓储集成测试
+test:db   运行 SQLite 仓储集成测试
 test:e2e  运行 Playwright 核心流程
 db:migrate 执行数据库迁移
 lint      检查代码质量
@@ -431,7 +433,7 @@ lint      检查代码质量
 ```text
 Domain 单元测试
   → Application 用例测试（内存仓储）
-    → API / Infrastructure 集成测试（测试 PostgreSQL）
+    → API / Infrastructure 集成测试（临时 SQLite）
       → Playwright 用户流程测试
 ```
 
@@ -452,7 +454,7 @@ Domain 单元测试
 ## 19. 架构评审通过条件
 
 - [ ] 确认响应式 Web 单体作为 MVP 形态。
-- [ ] 确认 React + TypeScript + Vite + Fastify + PostgreSQL 技术基线。
+- [ ] 确认 React + TypeScript + Vite + Fastify + SQLite + Drizzle 技术基线。
 - [ ] 确认服务端持久化、最小身份验证和当前用户数据隔离。
 - [ ] 确认 Web UI / API / Application / Domain / Infrastructure 依赖方向。
 - [ ] 确认 `SPEC-0008`、`SPEC-0001`～`SPEC-0004` 加 `SPEC-0007` 为 MVP 交付范围。
