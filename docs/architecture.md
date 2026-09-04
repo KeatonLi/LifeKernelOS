@@ -154,9 +154,16 @@ DailyClose {
 - 完成的行动不可再出现在未完成列表中。
 - 所有日期相关行为必须使用统一的本地日期工具，禁止在页面中自行拼接日期。
 
+### 5.5 后续规格实体
+
+以下实体属于已规划规格，不进入 `SPEC-0001` 的实现：
+
+- `Capture`：由 `SPEC-0005` 引入，独立于 Action，转换成功后保留原始捕捉记录。
+- `WeeklyReview`：由 `SPEC-0006` 引入，保存用户确认后的周复盘内容，统计从原始记录实时计算。
+
 ## 6. 用例边界
 
-首轮只实现以下应用用例：
+应用层按规格提供以下边界；当前只有 `SPEC-0001` 允许进入实现：
 
 | 用例 | 输入 | 输出 |
 | --- | --- | --- |
@@ -165,6 +172,16 @@ DailyClose {
 | `CreateAction` | Focus ID、名称、耗时、精力要求 | 新建的 available Action |
 | `ListActions` | Focus ID、状态过滤 | 行动列表 |
 | `CompleteAction` | Action ID | completed Action |
+| `SetDailyState` | 日期、精力、可用时间 | 当日 DailyState |
+| `ListCandidateActions` | 日期 | 符合条件的行动 |
+| `SelectAction` | 日期、Action ID | 更新后的 DailyState |
+| `ResolveAction` | Action ID、处理方式 | 更新后的 Action |
+| `GetDailyContext` | 日期 | 当日聚合上下文 |
+| `SaveDailyClose` | 日期、三个文本 | DailyClose 或空 |
+| `CreateCapture` | 一句话内容、可选类型 | inbox Capture |
+| `ConvertCaptureToAction` | Capture、Focus、行动属性 | Capture 和 Action |
+| `GetWeeklySummary` | 周起始日期 | 事实摘要 |
+| `SaveWeeklyReview` | 周期、复盘决策 | WeeklyReview 或空 |
 | `ExportData` | 无 | 版本化 JSON |
 | `ClearData` | 用户确认 | 清空结果 |
 
@@ -172,13 +189,17 @@ DailyClose {
 
 ## 7. 持久化设计
 
-IndexedDB 至少包含以下 object store：
+当前第一条切片至少包含以下 object store：
 
 - `focuses`
 - `actions`
-- `dailyStates`
-- `dailyCloses`
 - `metadata`：保存 `schemaVersion`
+
+后续规格接受后再增加：
+
+- `dailyStates`、`dailyCloses`：`SPEC-0002`、`SPEC-0004`。
+- `captures`：`SPEC-0005`。
+- `weeklyReviews`：`SPEC-0006`。
 
 要求：
 
