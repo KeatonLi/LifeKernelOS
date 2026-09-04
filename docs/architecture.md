@@ -21,14 +21,14 @@ MVP 的技术架构只服务三个目标：
 | --- | --- | --- |
 | 应用形态 | 响应式 Web 单体 | 同时覆盖桌面和移动端，保持一个实现 |
 | 前端 | React + TypeScript + Vite | 适合快速迭代和静态部署，不引入服务端依赖 |
-| 数据存储 | 浏览器 IndexedDB，本地优先 | 隐私边界清晰，无需账号和后端即可验证产品假设 |
+| 数据存储 | 浏览器 IndexedDB + Dexie 适配器，本地优先 | 隐私边界清晰，无需账号和后端即可验证产品假设 |
 | 数据访问 | 仓储接口 + IndexedDB 适配器 | 让领域和用例不依赖具体存储，未来可替换为云端 |
 | 页面状态 | React 页面状态和用例服务 | MVP 数据关系简单，暂不引入全局状态库 |
 | 样式 | 原生 CSS / CSS Modules | 减少 UI 工程依赖，先保证流程清晰和响应式 |
 | 测试 | Vitest、React Testing Library、Playwright | 分别覆盖规则、组件交互和完整用户流程 |
 | 部署 | 静态资源部署 | MVP 无后端，部署和回滚成本最低 |
 
-详细理由记录在 [ADR-0001 本地优先](decisions/0001-local-first-mvp.md)。
+详细理由记录在 [ADR-0001 本地优先](decisions/0001-local-first-mvp.md) 和 [ADR-0002 Web 技术栈](decisions/0002-web-stack.md)。
 
 ## 3. 总体结构
 
@@ -161,6 +161,8 @@ DailyClose {
 - `Capture`：由 `SPEC-0005` 引入，独立于 Action，转换成功后保留原始捕捉记录。
 - `WeeklyReview`：由 `SPEC-0006` 引入，保存用户确认后的周复盘内容，统计从原始记录实时计算。
 
+`DailyState`、`DailyClose` 是核心 MVP 的 P0 实体；`Capture`、`WeeklyReview` 是后续规格实体。它们都通过同一套 application 和 persistence 边界接入，不在页面中直接互相依赖。
+
 ## 6. 用例边界
 
 应用层按规格提供以下边界；当前只有 `SPEC-0001` 允许进入实现：
@@ -209,6 +211,17 @@ DailyClose {
 - 数据库初始化失败时，页面显示可理解的错误，并不得假装保存成功。
 - JSON 导出包含 `schemaVersion`，为未来迁移保留入口。
 - MVP 不实现导入，避免把外部脏数据处理带入首轮范围。
+
+完整 MVP 的业务数据 store 规划如下：
+
+| 阶段 | Store | 来源规格 |
+| --- | --- | --- |
+| 第一切片 | `focuses`、`actions`、`metadata` | `SPEC-0001` |
+| 核心 MVP | `dailyStates`、`dailyCloses` | `SPEC-0002`、`SPEC-0004` |
+| P1 | `captures` | `SPEC-0005` |
+| 后续验证 | `weeklyReviews` | `SPEC-0006` |
+
+`SPEC-0007` 的导出和清空覆盖所有已经存在的 store；尚未启用的 store 在导出中输出空数组。
 
 ## 8. 页面与路由
 
@@ -270,3 +283,152 @@ MVP 默认没有网络数据通道：
 - 采用 React + TypeScript + Vite 的技术基线。
 - 采用本地优先 IndexedDB，而非首版后端。
 - `SPEC-0001` 的字段和验收场景可以作为第一条实现规格。
+
+## 13. 规格到技术模块的落位
+
+| 规格 | Domain | Application | Infrastructure | UI |
+| --- | --- | --- | --- | --- |
+| `SPEC-0001` | Focus、Action、校验、完成转换 | 创建/读取主线、创建/列表/完成行动 | Focus/Action 仓储 | Setup、Today |
+| `SPEC-0002` | 精力等级、时间匹配、候选排序 | 保存状态、列候选、选择行动 | DailyState 仓储、Clock | Today 状态面板 |
+| `SPEC-0003` | 行动状态机、到期判断 | 延后、拆小、放弃、卡住、恢复、显式激活 | Action 扩展仓储 | Today 行动处理菜单 |
+| `SPEC-0004` | 本地日期、文本校验 | 日上下文、收束 upsert/delete | DailyClose 仓储 | Daily Close |
+| `SPEC-0005` | Capture 状态和类型 | 捕捉、类型更新、转换、归档、删除 | Capture 仓储、事务 | 全局捕捉入口、Inbox |
+| `SPEC-0006` | 周边界、复盘字段校验 | 周摘要、复盘 upsert | WeeklyReview 仓储 | Review |
+| `SPEC-0007` | 导出 payload 校验 | 导出、清空 | 文件下载、事务清空 | Settings |
+
+## 14. 核心流程时序
+
+### 14.1 打开今日页面
+
+```text
+TodayRoute
+  → Clock.today()
+  → ActivateDueActions(today)       # SPEC-0003 已启用时显式调用
+  → GetActiveFocus()
+  → GetDailyState(today)
+  → ListCandidateActions(today)
+  → 组装 TodayViewModel
+```
+
+`ActivateDueActions` 是显式命令，普通查询不修改数据。第一切片尚未启用延期状态时，该步骤为空操作或不装配。
+
+### 14.2 完成今日选中行动
+
+```text
+CompleteAction(actionId)
+  → 校验 Action 状态
+  → 更新 Action = completed
+  → 如果 DailyState.selectedActionId == actionId，则清除选择
+  → 提交同一事务
+```
+
+在 `SPEC-0001` 单独实现时，只有前两步；`SPEC-0002` 接入后增加选择清理，避免留下悬空 ID。
+
+### 14.3 Capture 转 Action
+
+```text
+ConvertCaptureToAction
+  → 校验 Capture = inbox
+  → 校验 active Focus 和 Action 输入
+  → 创建 Action
+  → 更新 Capture = converted
+  → 保存 convertedActionId
+  → 同一事务提交
+```
+
+转换的两个写入必须原子成功；任一失败都保留原始 inbox Capture。
+
+## 15. 仓储接口与事务边界
+
+Domain 只定义实体和规则，Application 依赖仓储端口：
+
+```typescript
+interface FocusRepository {
+  getActive(): Promise<Focus | null>;
+  create(focus: Focus): Promise<void>;
+}
+
+interface ActionRepository {
+  getById(id: string): Promise<Action | null>;
+  listByFocus(focusId: string, status?: ActionStatus): Promise<Action[]>;
+  create(action: Action): Promise<void>;
+  update(action: Action): Promise<void>;
+}
+
+interface DailyStateRepository {
+  get(date: LocalDate): Promise<DailyState | null>;
+  save(state: DailyState): Promise<void>;
+}
+```
+
+实际的 Dexie 仓储实现不得向 UI 暴露。以下操作必须具备事务边界：
+
+- 创建主线时检查 active 唯一性。
+- 完成行动并清理当日选择。
+- 到期行动批量激活。
+- Capture 转 Action。
+- 清空所有业务 store。
+
+## 16. 前端状态管理
+
+MVP 不引入 Redux 等全局状态库。状态分三类：
+
+- 服务端/持久化状态：由 application 查询，页面在写入成功后重新读取。
+- 页面状态：表单输入、弹窗、加载和错误状态，留在 feature 页面内部。
+- 派生状态：候选行动、未完成列表和空状态由查询结果计算，不单独持久化。
+
+每个 feature 使用统一的状态结构：
+
+```text
+idle → loading → ready
+              ↘ error
+ready → saving → ready
+              ↘ error
+```
+
+写操作成功前不乐观更新核心数据；成功后用返回值或重新查询刷新页面，避免本地显示与 IndexedDB 不一致。
+
+## 17. 工程与测试结构
+
+推荐工程脚本：
+
+```text
+dev       启动本地开发服务器
+build     类型检查并构建静态资源
+test      运行 Domain 和 Application 单元测试
+test:db   运行 IndexedDB 仓储集成测试
+test:e2e  运行 Playwright 核心流程
+lint      检查代码质量
+```
+
+测试分层与规格保持一致：
+
+```text
+Domain 单元测试
+  → Application 用例测试（内存仓储）
+    → Infrastructure 集成测试（fake IndexedDB）
+      → Playwright 用户流程测试
+```
+
+禁止用端到端测试代替领域规则测试；也禁止只测 repository 而不验证完整用户场景。
+
+## 18. 架构边界与未来演进
+
+首版明确不创建以下模块：
+
+- `server/`、API Gateway、账号和鉴权服务。
+- `sync/`、冲突解决和离线同步队列。
+- `ai/`、提示词编排和外部模型调用。
+- `analytics/`、收集用户正文的行为分析。
+- `event-store/`、ActionEvent 和事件溯源。
+
+未来只有在对应需求被验证后，才通过新增 ADR 和 SPEC 引入这些边界。云端同步的正确扩展点是新增 repository adapter 和同步策略，不是让 UI 同时读写两套数据源。
+
+## 19. 架构评审通过条件
+
+- [ ] 确认响应式 Web 单体作为 MVP 形态。
+- [ ] 确认 React + TypeScript + Vite + Dexie 技术基线。
+- [ ] 确认本地优先、无后端和 JSON 导出边界。
+- [ ] 确认 Domain / Application / Infrastructure / UI 依赖方向。
+- [ ] 确认 `SPEC-0001`～`SPEC-0004` 加 `SPEC-0007` 为 MVP 交付范围。
+- [ ] 确认 `SPEC-0005` 为 P1，`SPEC-0006` 等真实数据验证后再决定。
