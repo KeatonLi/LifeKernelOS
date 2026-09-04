@@ -1,10 +1,12 @@
 # LifeKernelOS MVP 详细技术设计
 
-> 版本：0.1
+> 版本：0.2
 > 状态：Proposed
 > 更新时间：2026-09-04
 > 适用范围：`SPEC-0008`、`SPEC-0001`
 > 上游文档：[architecture.md](architecture.md)、[SDD.md](SDD.md)
+
+本版是第一条纵向切片的实现契约：除非后续更新此文档或对应 SPEC，开发不再自行决定认证、会话、数据库约束、API DTO 与事务边界。
 
 ## 1. 设计目标
 
@@ -148,6 +150,19 @@ Fastify → Application → Repository → Drizzle → better-sqlite3 → SQLite
 
 SQLite 是服务端的持久化事实源，不是前端缓存。MVP 开启外键、事务和 WAL；数据库文件使用持久化目录，并通过导出和部署备份保护数据。
 
+### 4.5 第一阶段依赖
+
+采用 npm workspaces；不固定小版本，但第一阶段仅引入下列直接依赖：
+
+| 位置 | 依赖 | 用途 |
+| --- | --- | --- |
+| `apps/web` | `react`、`react-dom`、`react-router-dom`、`vite` | 页面、路由与构建 |
+| `apps/api` | `fastify`、`@fastify/cookie`、`@fastify/static` | HTTP、Cookie、生产静态资源 |
+| `apps/api` | `drizzle-orm`、`better-sqlite3`、`zod` | SQLite 访问、迁移 Schema、HTTP 输入校验 |
+| 根目录开发依赖 | `typescript`、`tsx`、`drizzle-kit`、`vitest`、`playwright`、`eslint` | 脚本、迁移、测试和静态检查 |
+
+第一阶段不加入全局状态库、ORM 以外的数据访问层、JWT、Redis、队列或 UI 组件库。密码摘要使用 Node.js 内置 `crypto.scrypt`，因此不额外引入原生密码库。
+
 ## 5. SQLite 数据设计
 
 第一条迁移只创建 `users`、`sessions`、`focuses`、`actions` 四张表，不提前创建后续规格的表。
@@ -194,6 +209,8 @@ ON focuses (user_id)
 WHERE status = 'active';
 ```
 
+`email` 在写入与查询前先 `trim()` 并转为小写；数据库使用唯一约束作为并发兜底。`status` 仅允许 `active`、`completed`、`archived`，迁移以 `CHECK` 约束保证。
+
 ### 5.4 actions
 
 | 字段 | 类型 | 约束 |
@@ -209,6 +226,8 @@ WHERE status = 'active';
 | `updated_at` | `text` | 非空，UTC ISO 8601 |
 
 `actions` 查询必须同时按 `user_id` 和资源 ID 限定。Application 负责检查 Focus 所属用户，数据库通过外键和迁移约束兜底。
+
+迁移额外创建 `UNIQUE (id, user_id)` 于 `focuses`，并让 `actions (focus_id, user_id)` 以组合外键引用它。这样即使绕过 Application，也不能把用户 A 的 Action 关联到用户 B 的 Focus。`energy_required` 和 `status` 使用 `CHECK` 约束，`estimated_minutes` 使用 `CHECK (estimated_minutes BETWEEN 1 AND 480)`。
 
 ### 5.5 后续迁移
 
@@ -226,6 +245,8 @@ WHERE status = 'active';
 
 MVP 不开放注册页面。部署时通过 `db:seed` 受控命令创建第一个个人账号，输入邮箱、密码和 IANA 时区；密码只以交互式输入或安全的临时方式提供，服务端只保存密码摘要。已有用户时命令失败且不修改数据。
 
+密码摘要格式固定为 `scrypt$N$r$p$salt$derivedKey`：使用随机 16-byte salt、`N=32768`、`r=8`、`p=1`、64-byte derived key 与至少 64 MiB `maxmem`。验证时解析同一格式并使用定时安全比较。密码不得出现在命令行参数、日志、测试快照或 HTTP 响应中。
+
 ### 6.2 登录
 
 1. `POST /api/auth/login` 接收邮箱和密码。
@@ -234,6 +255,8 @@ MVP 不开放注册页面。部署时通过 `db:seed` 受控命令创建第一�
 4. 生成高熵随机 Token，数据库保存 Token 摘要。
 5. 设置 `HttpOnly`、`SameSite=Lax` Cookie；生产环境增加 `Secure`。
 6. 返回不包含密码的当前用户信息。
+
+具体约定：生成 32-byte 随机值并编码为 base64url，Cookie 名称为 `lk_session`；数据库只保存该 Token 的 SHA-256 十六进制摘要。Cookie 的 `path=/`，有效期与 `SESSION_TTL_DAYS` 一致；每次登录创建一条新 Session，不使其他设备的 Session 失效。登出仅删除当前 Session 并用相同 Cookie 属性清除浏览器 Cookie。
 
 ### 6.3 请求身份
 
@@ -263,6 +286,10 @@ type UserContext = {
 - 登录失败不区分“邮箱不存在”和“密码错误”。
 - 日志只记录请求 ID、路由、状态码和耗时，不记录密码、Cookie 或用户正文。
 - MVP 不做公开注册、密码找回、OAuth、团队权限和多因素认证。
+
+### 6.6 SQLite 运行参数
+
+连接建立后按以下顺序配置：`PRAGMA foreign_keys = ON`、`PRAGMA journal_mode = WAL`、`PRAGMA busy_timeout = 5000`、`PRAGMA synchronous = FULL`。启动时运行迁移并执行一次只读与一次可回滚写入检查；任一步失败即退出进程。测试环境一律使用独立临时文件，禁止指向开发或生产数据库。
 
 ## 7. Repository 接口
 
@@ -349,7 +376,48 @@ Application 负责用例编排；Domain 负责字段校验和状态转换；Repo
 | `POST` | `/api/actions` | 创建行动 | `401` |
 | `POST` | `/api/actions/:id/complete` | 完成行动 | `401` |
 
-### 9.3 请求示例
+### 9.3 DTO 与响应语义
+
+HTTP 层使用 Zod 验证输入；API 使用 camelCase，Repository 内部才映射 snake_case 数据库字段。
+
+```typescript
+type PublicUser = { id: string; email: string };
+
+type FocusDto = {
+  id: string;
+  title: string;
+  doneDefinition: string | null;
+  status: 'active' | 'completed' | 'archived';
+  createdAt: string;
+  updatedAt: string;
+};
+
+type ActionDto = {
+  id: string;
+  focusId: string;
+  title: string;
+  estimatedMinutes: number;
+  energyRequired: 'low' | 'medium' | 'high';
+  status: 'available' | 'completed';
+  createdAt: string;
+  updatedAt: string;
+};
+```
+
+| 路由 | 成功响应 | 额外规则 |
+| --- | --- | --- |
+| `POST /api/auth/login` | `200 { user: PublicUser }` 与 Set-Cookie | 无论用户不存在或密码错误都返回 `401 INVALID_CREDENTIALS` |
+| `GET /api/auth/me` | `200 { user: PublicUser }` | 失效 Session 清除 Cookie 后返回 `401` |
+| `POST /api/auth/logout` | `200 { success: true }` | 没有有效 Session 时同样清除 Cookie 并返回 `200` |
+| `GET /api/focuses/active` | `200 { focus: FocusDto | null }` | 只读当前用户 |
+| `POST /api/focuses` | `201 { focus: FocusDto }` | Body 为 `{ title, doneDefinition? }` |
+| `GET /api/actions` | `200 { actions: ActionDto[] }` | `focusId` 必填 UUID；`status` 可选 |
+| `POST /api/actions` | `201 { action: ActionDto }` | Focus 必须归属当前用户且为 `active` |
+| `POST /api/actions/:id/complete` | `200 { action: ActionDto }` | 已完成时返回同一资源，保持幂等 |
+
+所有写入路由只接受 `Content-Type: application/json` 的同源请求；非生产环境允许在配置中声明唯一的 Vite 开发源，用于 Origin 校验。
+
+### 9.4 请求示例
 
 ```json
 POST /api/focuses
@@ -369,7 +437,7 @@ POST /api/actions
 }
 ```
 
-### 9.4 HTTP 状态映射
+### 9.5 HTTP 状态映射
 
 | 领域结果 | HTTP | 错误码 |
 | --- | --- | --- |
@@ -559,6 +627,23 @@ lint            运行代码质量检查
 7. 实现 Login、Setup、Today 页面和路由守卫。
 8. 添加 Domain、API、SQLite 集成和 Playwright 测试。
 9. 按 SPEC-0008、SPEC-0001 逐条验收，再进入下一规格。
+
+### 14.1 可审查交付切片
+
+| 切片 | 可合并产物 | 最低验证 |
+| --- | --- | --- |
+| A：工程骨架 | npm workspace、TypeScript、空 Fastify 与 React 页面 | `lint`、类型检查、空服务启动 |
+| B：数据库基础 | Drizzle Schema、首条迁移、启动自检、`db:seed` | 空库迁移、重复迁移、已有用户拒绝 seed |
+| C：身份边界 | 密码摘要、Session、认证 Hook、三个认证 API | 登录失败、Cookie 属性、登出、两用户隔离 |
+| D：主线与行动后端 | Domain、Application、Repository、Focus/Action API | 字段校验、active 唯一性、归属、完成幂等与事务 |
+| E：首个用户流程 | Login、Setup、Today、路由守卫与 API Client | 从登录到完成行动的 Playwright 流程 |
+| F：验收收口 | 错误态、可访问性基础检查、SPEC 验收记录 | SPEC-0008 与 SPEC-0001 全部场景逐条通过 |
+
+每个切片使用独立中文提交；切片 D 与 E 完成前，不创建 `DailyState`、`DailyClose`、Capture 或 WeeklyReview 的表、路由和页面。
+
+### 14.2 开工与状态变更
+
+开始切片 A 前，`SPEC-0008`、`SPEC-0001` 与本设计必须从 `Proposed` 更新为 `Accepted`。开始时将对应 SPEC 标记为 `Implementing`；完成代码和自动化测试后标记为 `Implemented`；通过所有验收场景后才标记为 `Verified`。
 
 ## 15. 明确不做
 

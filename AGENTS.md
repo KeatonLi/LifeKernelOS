@@ -29,7 +29,7 @@ LifeKernelOS（人生内核 OS）当前只验证一个 MVP 假设：当用户感
 - `docs/PRD.md`：当前 MVP 的产品范围和验收标准。
 - `docs/SDD.md`：规格驱动开发约定。
 - `docs/architecture.md`：MVP 技术架构基线。
-- `docs/technical-design.md`：第一阶段详细技术设计。
+- `docs/technical-design.md`：第一阶段可执行详细技术设计（当前 v0.2，覆盖 `SPEC-0008`、`SPEC-0001`）。
 - `docs/specs/`：可执行功能规格。
 - `docs/decisions/`：跨多个规格的架构决策。
 
@@ -40,4 +40,5 @@ LifeKernelOS（人生内核 OS）当前只验证一个 MVP 假设：当用户感
 - 当前拟议技术基线是响应式 Web + 后端模块化单体、React + TypeScript + Vite、Node.js + TypeScript + Fastify、SQLite + Drizzle；服务端是数据事实源，仍需在架构评审后进入 Accepted。
 - 需求变更同步更新 PRD；跨规格的架构变化先补充 ADR。
 - 当前第一条基础规格是 `SPEC-0008`，随后实现 `SPEC-0001` 的“当前主线与行动”；所有规格待进入 `Accepted` 后开发。
+- 开发第一阶段必须遵守详细设计中固定的 SQLite 约束、scrypt 密码摘要、服务端 Session、HTTP DTO、事务边界和交付切片；变更这些约定先更新设计并重新评审。
 - 提交信息使用中文，并清楚说明变更内容。
