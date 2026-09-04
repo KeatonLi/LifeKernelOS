@@ -1,90 +1,91 @@
 # LifeKernelOS MVP 技术架构基线
 
-> 版本：0.1
+> 版本：0.2
 > 状态：Proposed
 > 更新时间：2026-09-04
 > 对应产品文档：[PRD.md](PRD.md)
 
 ## 1. 架构目标
 
-MVP 的技术架构只服务三个目标：
+MVP 的技术架构只服务四个目标：
 
 1. 让用户快速完成“当前主线 → 下一步行动 → 行动结果”的闭环。
 2. 让核心业务规则可以被自动化测试，不依赖页面操作才能验证。
-3. 让用户数据默认留在本地，并且未来可以在不重写业务规则的情况下替换存储方式。
+3. 让服务端成为可靠的数据事实源，用户登录后可以在不同设备访问同一份数据。
+4. 让身份、业务规则和持久化边界清晰，未来可以增加能力而不把页面改成“大杂烩”。
 
-架构明确不追求：微服务、复杂后端、提前设计的多端同步、插件系统和面向未来的通用平台。
+架构明确不追求：微服务、开放注册、复杂权限、离线同步、插件系统和面向未来的通用平台。
 
 ## 2. 架构决策摘要
 
 | 领域 | MVP 决策 | 原因 |
 | --- | --- | --- |
-| 应用形态 | 响应式 Web 单体 | 同时覆盖桌面和移动端，保持一个实现 |
-| 前端 | React + TypeScript + Vite | 适合快速迭代和静态部署，不引入服务端依赖 |
-| 数据存储 | 浏览器 IndexedDB + Dexie 适配器，本地优先 | 隐私边界清晰，无需账号和后端即可验证产品假设 |
-| 数据访问 | 仓储接口 + IndexedDB 适配器 | 让领域和用例不依赖具体存储，未来可替换为云端 |
+| 应用形态 | 响应式 Web + 后端模块化单体 | 同时覆盖桌面和移动端，避免微服务带来的早期复杂度 |
+| 前端 | React + TypeScript + Vite | 适合快速迭代，构建产物由后端或反向代理提供 |
+| 后端 | Node.js + TypeScript + Fastify | 与前端统一语言，足够轻量，适合 API 和模块化用例 |
+| 数据存储 | PostgreSQL | 服务端可靠持久化，支持约束、事务和未来扩展 |
+| 数据访问 | Repository + Drizzle ORM | 隔离 PostgreSQL 细节，保留类型安全和迁移能力 |
 | 页面状态 | React 页面状态和用例服务 | MVP 数据关系简单，暂不引入全局状态库 |
 | 样式 | 原生 CSS / CSS Modules | 减少 UI 工程依赖，先保证流程清晰和响应式 |
 | 测试 | Vitest、React Testing Library、Playwright | 分别覆盖规则、组件交互和完整用户流程 |
-| 部署 | 静态资源部署 | MVP 无后端，部署和回滚成本最低 |
+| 部署 | Fastify 服务 + PostgreSQL | API、页面和数据边界统一，支持登录和跨设备访问 |
 
-详细理由记录在 [ADR-0001 本地优先](decisions/0001-local-first-mvp.md) 和 [ADR-0002 Web 技术栈](decisions/0002-web-stack.md)。
+详细理由记录在 [ADR-0003 服务端持久化](decisions/0003-server-backed-mvp.md)。前两份本地优先决策保留为历史记录。
 
 ## 3. 总体结构
 
 ```text
-┌─────────────────────────────────────────┐
-│ UI 层                                    │
-│ Setup / Today / Daily Close / Settings   │
-└──────────────────┬──────────────────────┘
-                   │ 调用用例，不直接读写数据库
-┌──────────────────▼──────────────────────┐
-│ Application 层                           │
-│ CreateFocus / CreateAction / Complete... │
-└──────────────────┬──────────────────────┘
-                   │ 依赖抽象仓储和时钟
-┌──────────────────▼──────────────────────┐
-│ Domain 层                                │
-│ 实体、校验、状态转换、不变量、匹配策略   │
-└──────────────────┬──────────────────────┘
-                   │ ports
-┌──────────────────▼──────────────────────┐
-│ Infrastructure 层                        │
-│ IndexedDB / JSON Export / Browser Clock   │
-└─────────────────────────────────────────┘
+┌─────────────────────────────────────────────┐
+│ Browser / Web UI                             │
+│ React：Login / Setup / Today / Close / Settings│
+└──────────────────────┬──────────────────────┘
+                       │ HTTPS JSON API
+┌──────────────────────▼──────────────────────┐
+│ API 层                                       │
+│ Fastify 路由、会话、输入输出校验、错误映射   │
+└──────────────────────┬──────────────────────┘
+                       │ 调用用例，不直接写 SQL
+┌──────────────────────▼──────────────────────┐
+│ Application 层                               │
+│ CreateFocus / CompleteAction / ExportData... │
+└──────────────────────┬──────────────────────┘
+                       │ 依赖领域规则和仓储接口
+┌──────────────────────▼──────────────────────┐
+│ Domain 层                                    │
+│ 实体、校验、状态转换、不变量、匹配策略        │
+└──────────────────────┬──────────────────────┘
+                       │ Repository ports
+┌──────────────────────▼──────────────────────┐
+│ Infrastructure 层                            │
+│ PostgreSQL / Drizzle / Session / File Export  │
+└─────────────────────────────────────────────┘
 ```
 
 依赖方向只能由上到下：
 
-- UI 不直接依赖 IndexedDB。
-- Domain 不依赖 React、浏览器 API 或数据库。
-- Application 通过接口依赖 Infrastructure，不导入具体数据库实现。
-- Infrastructure 负责持久化、序列化和浏览器能力适配。
+- Web UI 不直接依赖 PostgreSQL，也不包含业务写入规则。
+- API 层负责认证、输入校验、调用用例和 HTTP 响应，不承载业务状态转换。
+- Domain 不依赖 React、Fastify、浏览器 API 或数据库。
+- Application 通过接口依赖 Infrastructure，不导入 Drizzle 或具体 SQL 实现。
+- Infrastructure 负责 PostgreSQL、会话、序列化和文件下载等外部能力。
 
 ## 4. 推荐目录
 
 ```text
-src/
-├── app/                    # 应用启动、路由、依赖装配
-├── domain/                 # 纯业务规则
-│   ├── focus/
-│   ├── action/
-│   ├── daily-state/
-│   └── daily-close/
-├── application/            # 用例：命令、查询、错误映射
-│   ├── focus/
-│   ├── action/
-│   └── today/
-├── infrastructure/         # 外部实现
-│   ├── persistence/
-│   ├── export/
-│   └── time/
-├── features/               # 页面和交互编排
-│   ├── setup/
-│   ├── today/
-│   ├── daily-close/
-│   └── settings/
-└── shared/                 # 极少量通用 UI 和基础工具
+apps/
+├── web/                    # React 页面、路由、API client
+│   └── src/features/       # login、setup、today、close、settings
+└── api/                    # Fastify 启动、路由和服务端装配
+    └── src/
+        ├── http/           # routes、hooks、错误映射
+        ├── application/    # 用例编排
+        ├── domain/         # 纯业务规则
+        └── infrastructure/ # PostgreSQL、会话、导出
+packages/
+├── contracts/              # API 输入输出 Schema 和类型
+└── shared/                 # 仅放稳定且真正跨应用复用的能力
+db/
+└── migrations/             # PostgreSQL 迁移
 ```
 
 不要一开始建立通用 `utils` 大杂烩；只有跨两个以上领域且语义稳定的能力才进入 `shared`。
@@ -161,14 +162,17 @@ DailyClose {
 - `Capture`：由 `SPEC-0005` 引入，独立于 Action，转换成功后保留原始捕捉记录。
 - `WeeklyReview`：由 `SPEC-0006` 引入，保存用户确认后的周复盘内容，统计从原始记录实时计算。
 
-`DailyState`、`DailyClose` 是核心 MVP 的 P0 实体；`Capture`、`WeeklyReview` 是后续规格实体。它们都通过同一套 application 和 persistence 边界接入，不在页面中直接互相依赖。
+`DailyState`、`DailyClose` 是核心 MVP 的 P0 实体；`Capture`、`WeeklyReview` 是后续规格实体。它们都通过同一套 application 和 persistence 边界接入，不在页面中直接互相依赖。服务端数据库中的每条业务记录都带 `user_id`，但领域规则通过 `UserContext` 接收身份边界，不把认证细节散落到实体内部。
 
 ## 6. 用例边界
 
-应用层按规格提供以下边界；当前只有 `SPEC-0001` 允许进入实现：
+应用层按规格提供以下边界；当前先实现 `SPEC-0008` 和 `SPEC-0001`：
 
 | 用例 | 输入 | 输出 |
 | --- | --- | --- |
+| `CreateSession` | 账号、凭据 | 当前用户会话 |
+| `GetCurrentUser` | 会话 | 当前用户或未登录 |
+| `DeleteSession` | 会话 | 登出结果 |
 | `CreateFocus` | 名称、完成标准 | 新建的 active Focus |
 | `GetActiveFocus` | 无 | active Focus 或空 |
 | `CreateAction` | Focus ID、名称、耗时、精力要求 | 新建的 available Action |
@@ -187,52 +191,63 @@ DailyClose {
 | `ExportData` | 无 | 版本化 JSON |
 | `ClearData` | 用户确认 | 清空结果 |
 
-页面只能通过这些用例改变数据，不直接组合数据库操作。
+页面只能通过 API 调用这些用例；API 也不能绕过 Application 直接组合数据库操作。
 
 ## 7. 持久化设计
 
-当前第一条切片至少包含以下 object store：
+首版使用 PostgreSQL，第一条切片至少包含以下表：
 
-- `focuses`
-- `actions`
-- `metadata`：保存 `schemaVersion`
+- `users`：受控个人账号。
+- `sessions`：HttpOnly 会话 Cookie 对应的服务端会话。
+- `focuses`、`actions`：`SPEC-0001` 的业务数据。
 
 后续规格接受后再增加：
 
-- `dailyStates`、`dailyCloses`：`SPEC-0002`、`SPEC-0004`。
+- `daily_states`、`daily_closes`：`SPEC-0002`、`SPEC-0004`。
 - `captures`：`SPEC-0005`。
-- `weeklyReviews`：`SPEC-0006`。
+- `weekly_reviews`：`SPEC-0006`。
 
 要求：
 
-- ID 在客户端使用 `crypto.randomUUID()` 生成。
+- ID 由服务端生成，避免客户端伪造跨用户数据引用。
 - 时间统一保存为 ISO 8601 字符串。
-- 写操作使用事务，避免主线已创建但行动写入一半的状态。
-- 数据库初始化失败时，页面显示可理解的错误，并不得假装保存成功。
+- 所有业务表包含 `user_id`，仓储查询必须带当前用户上下文。
+- 写操作使用 PostgreSQL 事务，避免主线已创建但行动写入一半的状态。
+- 数据库连接或迁移失败时，服务端不得启动为“看似可用”的状态；页面显示可理解的错误。
+- 认证使用服务端会话和 HttpOnly Cookie；MVP 不使用浏览器保存的 JWT。
 - JSON 导出包含 `schemaVersion`，为未来迁移保留入口。
 - MVP 不实现导入，避免把外部脏数据处理带入首轮范围。
 
-完整 MVP 的业务数据 store 规划如下：
+完整 MVP 的业务数据表规划如下：
 
-| 阶段 | Store | 来源规格 |
+| 阶段 | 数据表 | 来源规格 |
 | --- | --- | --- |
-| 第一切片 | `focuses`、`actions`、`metadata` | `SPEC-0001` |
-| 核心 MVP | `dailyStates`、`dailyCloses` | `SPEC-0002`、`SPEC-0004` |
+| 身份基础 | `users`、`sessions` | `SPEC-0008` |
+| 第一切片 | `focuses`、`actions` | `SPEC-0001` |
+| 核心 MVP | `daily_states`、`daily_closes` | `SPEC-0002`、`SPEC-0004` |
 | P1 | `captures` | `SPEC-0005` |
-| 后续验证 | `weeklyReviews` | `SPEC-0006` |
+| 后续验证 | `weekly_reviews` | `SPEC-0006` |
 
-`SPEC-0007` 的导出和清空覆盖所有已经存在的 store；尚未启用的 store 在导出中输出空数组。
+`SPEC-0007` 的导出和清空覆盖当前用户已经存在的所有业务表；尚未启用的表在导出中输出空数组。
 
 ## 8. 页面与路由
 
 | 路由 | 页面 | 进入条件 |
 | --- | --- | --- |
+| `/login` | 登录 | 未建立有效会话 |
 | `/setup` | 当前主线和行动创建 | 没有 active Focus，或用户主动进入 |
 | `/today` | 状态、行动列表、当前行动 | 默认入口 |
 | `/close` | 日终收束 | 用户主动进入，或今日有行动结果 |
 | `/settings` | 导出、清空数据 | 用户主动进入 |
 
 如果用户没有 active Focus，访问 `/today` 时引导到 `/setup`；不创建空的默认主线。
+
+API 统一使用 `/api` 前缀，第一批资源边界如下：
+
+- `POST /api/auth/login`、`GET /api/auth/me`、`POST /api/auth/logout`。
+- `GET/POST /api/focuses`、`GET/POST /api/actions`、`POST /api/actions/:id/complete`。
+- `GET/PUT /api/daily-state/:date`、`GET/PUT /api/daily-close/:date`。
+- `GET /api/data/export`、`DELETE /api/data`。
 
 ## 9. 错误处理
 
@@ -241,7 +256,10 @@ DailyClose {
 - `ValidationError`：字段填写不合法，定位到对应字段。
 - `NotFoundError`：目标数据不存在，提示刷新或返回列表。
 - `InvariantError`：数据关系不满足规则，阻止写入并记录开发错误。
-- `PersistenceError`：浏览器存储失败，明确提示数据未保存。
+- `UnauthorizedError`：没有有效会话，跳转登录。
+- `ForbiddenError`：无权访问目标数据，不泄露其他用户数据。
+- `ConflictError`：并发或唯一性约束冲突，提示重新读取。
+- `PersistenceError`：数据库或网络失败，明确提示数据未保存。
 
 不能用空 catch、静默失败或“保存中”状态掩盖写入失败。
 
@@ -249,11 +267,11 @@ DailyClose {
 
 ### 单元测试
 
-覆盖领域校验、状态转换、active 主线唯一性和日期工具。测试不依赖浏览器或真实 IndexedDB。
+覆盖领域校验、状态转换、active 主线唯一性和日期工具。测试不依赖浏览器或真实 PostgreSQL。
 
 ### 集成测试
 
-使用测试数据库验证仓储实现、事务、刷新后的恢复和导出内容。
+使用隔离的测试 PostgreSQL 验证仓储实现、用户隔离、事务、刷新后的恢复和导出内容。
 
 ### 端到端测试
 
@@ -263,38 +281,42 @@ DailyClose {
 2. 刷新页面 → 主线和行动仍然存在。
 3. 完成行动 → 行动进入已完成列表。
 4. 空状态和非法输入有明确反馈。
+5. 登录用户只能看到自己的数据，登出后业务 API 不可访问。
 
 ## 11. 隐私边界
 
-MVP 默认没有网络数据通道：
+MVP 使用明确受控的网络数据通道：
 
-- 不需要登录。
-- 不向服务器发送主线、行动、状态和收束记录。
+- 需要最小身份验证，服务端按用户隔离数据。
+- 浏览器通过 HTTPS API 发送主线、行动、状态和收束记录。
+- 生产环境必须使用安全 Cookie 和 HTTPS。
 - 不引入 AI 调用。
 - 不使用第三方分析记录用户输入内容。
 - 导出和清空数据都由用户主动触发。
 
-如果未来加入同步、账号或 AI，必须新增架构决策和对应 SDD 规格，不能直接扩展现有实现。
+如果未来加入离线同步、开放注册、团队协作或 AI，必须新增架构决策和对应 SDD 规格，不能直接扩展现有实现。
 
 ## 12. 进入开发的前置条件
 
 本架构仍是 `Proposed`。开始实现前需要确认：
 
 - 采用 React + TypeScript + Vite 的技术基线。
-- 采用本地优先 IndexedDB，而非首版后端。
-- `SPEC-0001` 的字段和验收场景可以作为第一条实现规格。
+- 采用 Node.js + TypeScript + Fastify + PostgreSQL 的服务端基线。
+- `SPEC-0008` 的身份和用户隔离边界可以作为服务端基础规格。
+- `SPEC-0001` 的字段和验收场景可以作为第一条业务实现规格。
 
 ## 13. 规格到技术模块的落位
 
 | 规格 | Domain | Application | Infrastructure | UI |
 | --- | --- | --- | --- | --- |
-| `SPEC-0001` | Focus、Action、校验、完成转换 | 创建/读取主线、创建/列表/完成行动 | Focus/Action 仓储 | Setup、Today |
-| `SPEC-0002` | 精力等级、时间匹配、候选排序 | 保存状态、列候选、选择行动 | DailyState 仓储、Clock | Today 状态面板 |
-| `SPEC-0003` | 行动状态机、到期判断 | 延后、拆小、放弃、卡住、恢复、显式激活 | Action 扩展仓储 | Today 行动处理菜单 |
-| `SPEC-0004` | 本地日期、文本校验 | 日上下文、收束 upsert/delete | DailyClose 仓储 | Daily Close |
-| `SPEC-0005` | Capture 状态和类型 | 捕捉、类型更新、转换、归档、删除 | Capture 仓储、事务 | 全局捕捉入口、Inbox |
-| `SPEC-0006` | 周边界、复盘字段校验 | 周摘要、复盘 upsert | WeeklyReview 仓储 | Review |
-| `SPEC-0007` | 导出 payload 校验 | 导出、清空 | 文件下载、事务清空 | Settings |
+| `SPEC-0008` | 身份凭据、会话边界 | 登录、当前用户、登出 | User/Session 仓储、会话存储 | Login、路由守卫 |
+| `SPEC-0001` | Focus、Action、校验、完成转换 | 创建/读取主线、创建/列表/完成行动 | Focus/Action PostgreSQL 仓储 | Setup、Today |
+| `SPEC-0002` | 精力等级、时间匹配、候选排序 | 保存状态、列候选、选择行动 | DailyState PostgreSQL 仓储、Clock | Today 状态面板 |
+| `SPEC-0003` | 行动状态机、到期判断 | 延后、拆小、放弃、卡住、恢复、显式激活 | Action 扩展 PostgreSQL 仓储 | Today 行动处理菜单 |
+| `SPEC-0004` | 本地日期、文本校验 | 日上下文、收束 upsert/delete | DailyClose PostgreSQL 仓储 | Daily Close |
+| `SPEC-0005` | Capture 状态和类型 | 捕捉、类型更新、转换、归档、删除 | Capture PostgreSQL 仓储、事务 | 全局捕捉入口、Inbox |
+| `SPEC-0006` | 周边界、复盘字段校验 | 周摘要、复盘 upsert | WeeklyReview PostgreSQL 仓储 | Review |
+| `SPEC-0007` | 导出 payload 校验 | 导出、清空 | JSON 序列化、事务清空 | Settings |
 
 ## 14. 核心流程时序
 
@@ -302,24 +324,25 @@ MVP 默认没有网络数据通道：
 
 ```text
 TodayRoute
-  → Clock.today()
-  → ActivateDueActions(today)       # SPEC-0003 已启用时显式调用
-  → GetActiveFocus()
-  → GetDailyState(today)
-  → ListCandidateActions(today)
-  → 组装 TodayViewModel
+  → API Client: GET /api/today
+  → API Hook: 校验会话和日期
+  → GetDailyContext(UserContext, today)
+  → 读取 PostgreSQL
+  → 返回 TodayViewModel
 ```
 
-`ActivateDueActions` 是显式命令，普通查询不修改数据。第一切片尚未启用延期状态时，该步骤为空操作或不装配。
+到期行动激活仍然是显式命令，由 Application 在 `SPEC-0003` 启用后调用；普通查询不修改数据。第一切片尚未启用延期状态时，该步骤不装配。
 
 ### 14.2 完成今日选中行动
 
 ```text
 CompleteAction(actionId)
-  → 校验 Action 状态
-  → 更新 Action = completed
+  → API 校验会话和输入
+  → Application 读取当前用户的 Action
+  → Domain 校验 Action 状态
+  → PostgreSQL 事务更新 Action = completed
   → 如果 DailyState.selectedActionId == actionId，则清除选择
-  → 提交同一事务
+  → 返回最新状态
 ```
 
 在 `SPEC-0001` 单独实现时，只有前两步；`SPEC-0002` 接入后增加选择清理，避免留下悬空 ID。
@@ -328,12 +351,13 @@ CompleteAction(actionId)
 
 ```text
 ConvertCaptureToAction
-  → 校验 Capture = inbox
+  → API 校验会话
+  → 校验当前用户的 Capture = inbox
   → 校验 active Focus 和 Action 输入
   → 创建 Action
   → 更新 Capture = converted
   → 保存 convertedActionId
-  → 同一事务提交
+  → PostgreSQL 同一事务提交
 ```
 
 转换的两个写入必须原子成功；任一失败都保留原始 inbox Capture。
@@ -361,19 +385,19 @@ interface DailyStateRepository {
 }
 ```
 
-实际的 Dexie 仓储实现不得向 UI 暴露。以下操作必须具备事务边界：
+实际的 PostgreSQL/Drizzle 仓储实现不得向 Web UI 暴露。以下操作必须具备事务边界：
 
 - 创建主线时检查 active 唯一性。
 - 完成行动并清理当日选择。
 - 到期行动批量激活。
 - Capture 转 Action。
-- 清空所有业务 store。
+- 清空当前用户所有业务表。
 
 ## 16. 前端状态管理
 
 MVP 不引入 Redux 等全局状态库。状态分三类：
 
-- 服务端/持久化状态：由 application 查询，页面在写入成功后重新读取。
+- 服务端/持久化状态：由 API 查询，页面在写入成功后重新读取。
 - 页面状态：表单输入、弹窗、加载和错误状态，留在 feature 页面内部。
 - 派生状态：候选行动、未完成列表和空状态由查询结果计算，不单独持久化。
 
@@ -386,7 +410,7 @@ ready → saving → ready
               ↘ error
 ```
 
-写操作成功前不乐观更新核心数据；成功后用返回值或重新查询刷新页面，避免本地显示与 IndexedDB 不一致。
+写操作成功前不乐观更新核心数据；成功后用 API 返回值或重新查询刷新页面，避免本地显示与 PostgreSQL 不一致。
 
 ## 17. 工程与测试结构
 
@@ -394,10 +418,11 @@ ready → saving → ready
 
 ```text
 dev       启动本地开发服务器
-build     类型检查并构建静态资源
-test      运行 Domain 和 Application 单元测试
-test:db   运行 IndexedDB 仓储集成测试
+build     类型检查并构建 Web 和 API
+test      运行 Domain、Application 和 API 单元测试
+test:db   运行 PostgreSQL 仓储集成测试
 test:e2e  运行 Playwright 核心流程
+db:migrate 执行数据库迁移
 lint      检查代码质量
 ```
 
@@ -406,7 +431,7 @@ lint      检查代码质量
 ```text
 Domain 单元测试
   → Application 用例测试（内存仓储）
-    → Infrastructure 集成测试（fake IndexedDB）
+    → API / Infrastructure 集成测试（测试 PostgreSQL）
       → Playwright 用户流程测试
 ```
 
@@ -416,19 +441,19 @@ Domain 单元测试
 
 首版明确不创建以下模块：
 
-- `server/`、API Gateway、账号和鉴权服务。
+- API Gateway、微服务拆分和多服务编排。
 - `sync/`、冲突解决和离线同步队列。
 - `ai/`、提示词编排和外部模型调用。
 - `analytics/`、收集用户正文的行为分析。
 - `event-store/`、ActionEvent 和事件溯源。
 
-未来只有在对应需求被验证后，才通过新增 ADR 和 SPEC 引入这些边界。云端同步的正确扩展点是新增 repository adapter 和同步策略，不是让 UI 同时读写两套数据源。
+未来只有在对应需求被验证后，才通过新增 ADR 和 SPEC 引入这些边界。后端已经是服务端事实源，未来离线能力应通过明确的缓存、队列和冲突策略扩展，不能让 UI 同时读写两套事实源。
 
 ## 19. 架构评审通过条件
 
 - [ ] 确认响应式 Web 单体作为 MVP 形态。
-- [ ] 确认 React + TypeScript + Vite + Dexie 技术基线。
-- [ ] 确认本地优先、无后端和 JSON 导出边界。
-- [ ] 确认 Domain / Application / Infrastructure / UI 依赖方向。
-- [ ] 确认 `SPEC-0001`～`SPEC-0004` 加 `SPEC-0007` 为 MVP 交付范围。
+- [ ] 确认 React + TypeScript + Vite + Fastify + PostgreSQL 技术基线。
+- [ ] 确认服务端持久化、最小身份验证和当前用户数据隔离。
+- [ ] 确认 Web UI / API / Application / Domain / Infrastructure 依赖方向。
+- [ ] 确认 `SPEC-0008`、`SPEC-0001`～`SPEC-0004` 加 `SPEC-0007` 为 MVP 交付范围。
 - [ ] 确认 `SPEC-0005` 为 P1，`SPEC-0006` 等真实数据验证后再决定。

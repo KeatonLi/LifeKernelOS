@@ -2,7 +2,7 @@
 
 > 状态：Proposed
 > 对应 PRD：MVP 场景三
-> 依赖：`SPEC-0001`
+> 依赖：`SPEC-0001`、`SPEC-0008`
 > 目标：让用户在行动没有完成时，可以轻松调整，而不是积累逾期和失败压力。
 
 ## 1. 用户目标
@@ -153,7 +153,7 @@ And blockerNote 被清空
 
 - Domain：实现状态转换和字段约束，不在页面中自行判断。
 - Application：每个处理动作使用独立用例，避免一个“大而全”的更新接口。
-- Persistence：为 `status`、`scheduledFor` 增加索引；`activateDueActions` 作为显式幂等命令使用事务。
+- Persistence：为 `userId`、`status`、`scheduledFor` 增加索引；`activateDueActions` 作为显式幂等命令使用事务。
 - 集成测试覆盖每条状态转换、非法输入和刷新恢复。
 - 端到端测试覆盖延后、拆小、卡住恢复和放弃。
 

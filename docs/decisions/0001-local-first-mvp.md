@@ -1,8 +1,10 @@
 # ADR-0001：MVP 采用本地优先架构
 
-> 状态：Proposed
+> 状态：Superseded
 > 日期：2026-09-04
 > 影响范围：MVP 全部规格
+
+> 本决策已被 [ADR-0003 服务端持久化 MVP](0003-server-backed-mvp.md) 替代。保留本文用于记录早期取舍。
 
 ## 背景
 

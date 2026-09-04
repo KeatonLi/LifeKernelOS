@@ -2,7 +2,7 @@
 
 > 状态：Proposed
 > 对应 PRD：MVP 场景四
-> 依赖：`SPEC-0001`、`SPEC-0002`
+> 依赖：`SPEC-0001`、`SPEC-0002`、`SPEC-0008`
 > 目标：让用户用不超过 1 分钟结束一天，留下推进、阻力和明天最小一步。
 
 ## 1. 用户目标
@@ -124,7 +124,7 @@ Then 页面仍然展示相同内容
 
 - Domain：文本长度校验和本地日期校验。
 - Application：`GetDailyContext` 聚合只读数据，`SaveDailyClose` 负责 upsert。
-- Persistence：`dailyCloses` 以 `date` 为唯一键。
+- Persistence：`daily_closes` 以 `userId + date` 为唯一键。
 - 集成测试覆盖新增、更新、删除和同日期唯一性。
 - 端到端测试覆盖部分填写、跳过、修改和刷新恢复。
 

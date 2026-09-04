@@ -2,6 +2,7 @@
 
 > 状态：Proposed
 > 对应 PRD：MVP 场景一、场景三的“完成”分支
+> 依赖：`SPEC-0008`
 > 目标：打通“创建主线 → 创建行动 → 查看行动 → 完成行动”的第一个可运行纵向切片。
 
 ## 1. 用户目标
@@ -39,7 +40,7 @@
 - “今日选中的行动”；本规格不创建 `DailyState`，选中行为由 `SPEC-0002` 定义。
 - 延后、拆小、放弃和卡住。
 - 价值观、角色、方向、项目层级和目标树。
-- 登录、云同步、提醒、AI 和第三方集成。
+- 复杂账户、公开注册、提醒、AI 和第三方集成；最小登录和用户数据隔离由 `SPEC-0008` 提供。
 - 数据导出和清空数据；由 MVP 基础能力规格单独验收，不阻塞本切片的主流程。
 
 ## 4. 最小数据
@@ -101,7 +102,7 @@
 ### 场景 A：无主线时进入创建状态
 
 ```gherkin
-Given 本地没有 active Focus
+Given 当前用户没有 active Focus
 When 用户打开应用
 Then 系统展示当前主线创建状态
 And 不自动创建默认主线
@@ -184,7 +185,7 @@ And 已完成 Action 仍不出现在未完成列表
 
 ```gherkin
 Given 用户提交了合法的 Focus 或 Action
-When 本地存储写入失败
+When 服务端数据库或网络写入失败
 Then 页面明确提示数据未保存
 And 页面不得展示保存成功或伪造已持久化状态
 ```
@@ -197,11 +198,11 @@ And 页面不得展示保存成功或伪造已持久化状态
 - `domain/action`：Action 类型、字段校验和完成状态转换。
 - `application/focus`：`CreateFocus`、`GetActiveFocus`。
 - `application/action`：`CreateAction`、`ListActions`、`CompleteAction`。
-- `infrastructure/persistence`：IndexedDB 的 Focus、Action 仓储实现。
+- `apps/api/src/infrastructure/persistence`：PostgreSQL 的 Focus、Action 仓储实现。
 - `features/setup`：主线创建和行动创建交互。
 - `features/today`：主线、未完成行动和已完成行动展示。
 
-页面不直接调用 IndexedDB；所有写操作都经过 application 用例和 domain 规则。
+页面不直接调用数据库；通过 API 调用服务端 application 用例，所有写操作都经过 application 用例和 domain 规则。
 
 ### 8.2 用例契约
 
@@ -229,12 +230,12 @@ completeAction(actionId: string): Promise<Action>;
 
 ### 8.3 仓储和持久化
 
-- object store：`focuses`、`actions`、`metadata`。
+- PostgreSQL 表：`focuses`、`actions`；所有记录都带当前用户的 `userId`。
 - `focuses.status = active` 最多一条，由 application/domain 双重保护。
 - `actions.focusId` 必须指向存在的 Focus。
-- ID 使用 `crypto.randomUUID()` 生成。
+- ID 使用服务端 `crypto.randomUUID()` 生成。
 - 时间使用 ISO 8601 字符串保存。
-- 数据库初始化时写入 `schemaVersion`，当前值为 `1`。
+- 数据库通过迁移管理结构版本，导出 payload 的 `schemaVersion` 当前值为 `1`。
 - 创建和完成操作使用事务，失败时不留下半完成状态。
 - 列表读取按 `createdAt` 升序，已完成列表单独展示。
 
@@ -260,14 +261,14 @@ completeAction(actionId: string): Promise<Action>;
 | F 非法行动拒绝 | 字段校验 | 不产生记录 | 字段显示错误 |
 | G 完成行动 | 状态转换 | Action 更新 | 移入已完成列表 |
 | H 重复完成 | 状态转换幂等性 | 不新增记录 | 页面无重复项 |
-| I 刷新恢复 | — | IndexedDB 读写 | 刷新后状态保持 |
+| I 刷新恢复 | — | PostgreSQL 读写 | 刷新后状态保持 |
 | J 持久化失败 | — | 模拟写入失败 | 显示未保存 |
 
 ## 10. 实现顺序
 
 1. 建立 TypeScript 工程和测试运行环境。
 2. 实现 Focus、Action 领域类型、校验和规则测试。
-3. 实现 IndexedDB 仓储和持久化集成测试。
+3. 实现 PostgreSQL 仓储和持久化集成测试。
 4. 实现 application 用例和错误映射测试。
 5. 实现 Setup 和 Today 页面。
 6. 使用 Playwright 执行本规格的端到端场景。

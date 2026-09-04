@@ -2,7 +2,7 @@
 
 > 状态：Proposed
 > 对应 PRD：MVP 场景五
-> 依赖：`SPEC-0001`
+> 依赖：`SPEC-0001`、`SPEC-0008`
 > 目标：让用户在 10 秒内记录临时想法或任务，不打断当前行动。
 
 ## 1. 用户目标
@@ -141,7 +141,7 @@ And Capture 不再出现在任何收件箱列表中
 
 - Domain：内容、类型和状态校验。
 - Application：转换使用事务，必须同时完成 Action 创建和 Capture 状态更新。
-- Persistence：新增 `captures` store，按状态和创建时间索引。
+- Persistence：新增 `captures` 表，按 `userId`、状态和创建时间建立索引。
 - 集成测试覆盖转换原子性、归档和删除。
 - 端到端测试覆盖快速保存、转换失败保留和刷新恢复。
 

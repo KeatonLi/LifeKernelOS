@@ -2,7 +2,7 @@
 
 > 状态：Proposed
 > 对应 PRD：MVP 场景六
-> 依赖：`SPEC-0001`～`SPEC-0004`
+> 依赖：`SPEC-0001`～`SPEC-0004`、`SPEC-0008`
 > 目标：先用固定、可编辑的模板帮助用户从完成行动和日终记录中做出下周决策。
 
 ## 1. 用户目标
@@ -143,7 +143,7 @@ And 不发送用户内容到外部 AI 服务
 
 - Domain：实现本地周起止计算和周期边界测试。
 - Application：`GetWeeklySummary` 只读聚合，`SaveWeeklyReview` 负责 upsert。
-- Persistence：新增 `weeklyReviews` store，以 `weekStart` 建立唯一索引。
+- Persistence：新增 `weekly_reviews` 表，以 `userId + weekStart` 建立唯一约束。
 - 集成测试覆盖跨周边界、摘要来源、完成行动过滤和同周唯一性。
 - 端到端测试覆盖有数据、无数据、编辑保存和周边界。
 

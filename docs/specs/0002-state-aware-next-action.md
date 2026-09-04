@@ -2,7 +2,7 @@
 
 > 状态：Proposed
 > 对应 PRD：MVP 场景二
-> 依赖：`SPEC-0001`
+> 依赖：`SPEC-0001`、`SPEC-0008`
 > 目标：让用户根据当前精力和可用时间，找到合适的行动并选为今天的当前行动。
 
 ## 1. 用户目标
@@ -142,7 +142,7 @@ Then 今日状态和当前行动仍然存在
 
 - Domain：实现精力等级比较、时间匹配和候选排序纯函数。
 - Application：`SetDailyState`、`ListCandidateActions`、`SelectAction`。
-- Persistence：新增 `dailyStates` store，按本地日期建立唯一键。
+- Persistence：新增 `daily_states` 表，按 `userId + date` 建立唯一约束。
 - 集成测试覆盖状态 upsert、候选过滤、选择唯一性和已完成行动清理。
 - 端到端测试覆盖记录状态、选择行动、无候选空状态和刷新恢复。
 

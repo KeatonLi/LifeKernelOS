@@ -1,8 +1,10 @@
 # ADR-0002：MVP 采用 React + TypeScript + Vite + Dexie
 
-> 状态：Proposed
+> 状态：Superseded
 > 日期：2026-09-04
 > 影响范围：MVP 前端和本地持久化实现
+
+> 本决策中 React、TypeScript 和 Vite 仍然保留；Dexie 和本地持久化部分已被 [ADR-0003 服务端持久化 MVP](0003-server-backed-mvp.md) 替代。本文保留用于记录早期取舍。
 
 ## 背景
 

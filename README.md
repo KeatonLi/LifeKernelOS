@@ -4,7 +4,7 @@
 
 ## 当前状态
 
-项目处于 MVP 规格设计阶段，尚未开始具体功能开发；产品需求见 [docs/PRD.md](docs/PRD.md)。
+项目处于 MVP 规格和技术架构设计阶段，尚未开始具体功能开发；当前采用服务端持久化的模块化单体，产品需求见 [docs/PRD.md](docs/PRD.md)。
 
 ## 产品闭环
 
@@ -17,4 +17,5 @@
 - `docs/PRD.md`：产品需求文档（MVP 版本）
 - `docs/SDD.md`：规格驱动开发约定
 - `docs/architecture.md`：MVP 技术架构基线
+- `docs/decisions/`：跨规格的架构决策记录
 - `docs/specs/`：可执行的功能规格
