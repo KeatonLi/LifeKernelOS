@@ -17,5 +17,6 @@
 - `docs/PRD.md`：产品需求文档（MVP 版本）
 - `docs/SDD.md`：规格驱动开发约定
 - `docs/architecture.md`：MVP 技术架构基线
+- `docs/technical-design.md`：第一阶段详细技术设计
 - `docs/decisions/`：跨规格的架构决策记录
 - `docs/specs/`：可执行的功能规格

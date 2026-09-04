@@ -4,6 +4,7 @@
 > 状态：Proposed
 > 更新时间：2026-09-04
 > 对应产品文档：[PRD.md](PRD.md)
+> 详细实现蓝图：[technical-design.md](technical-design.md)
 
 ## 1. 架构目标
 
@@ -247,7 +248,7 @@ SQLite 数据库文件必须放在服务端持久化目录，不能提交到 Git
 API 统一使用 `/api` 前缀，第一批资源边界如下：
 
 - `POST /api/auth/login`、`GET /api/auth/me`、`POST /api/auth/logout`。
-- `GET/POST /api/focuses`、`GET/POST /api/actions`、`POST /api/actions/:id/complete`。
+- `GET /api/focuses/active`、`POST /api/focuses`、`GET/POST /api/actions`、`POST /api/actions/:id/complete`。
 - `GET/PUT /api/daily-state/:date`、`GET/PUT /api/daily-close/:date`。
 - `GET /api/data/export`、`DELETE /api/data`。
 

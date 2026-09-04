@@ -29,6 +29,7 @@ LifeKernelOS（人生内核 OS）当前只验证一个 MVP 假设：当用户感
 - `docs/PRD.md`：当前 MVP 的产品范围和验收标准。
 - `docs/SDD.md`：规格驱动开发约定。
 - `docs/architecture.md`：MVP 技术架构基线。
+- `docs/technical-design.md`：第一阶段详细技术设计。
 - `docs/specs/`：可执行功能规格。
 - `docs/decisions/`：跨多个规格的架构决策。
 
