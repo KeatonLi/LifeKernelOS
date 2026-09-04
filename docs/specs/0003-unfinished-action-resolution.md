@@ -46,7 +46,7 @@ available → dropped
 available → available（拆小后更新）
 ```
 
-- deferred 在 `scheduledFor <= 今天` 时由读取用例恢复为 available。
+- deferred 在 `scheduledFor <= 今天` 时，由今日页面显式调用 `activateDueActions` 恢复为 available；普通读取用例不修改数据。
 - dropped 是当前主线中的终态，不出现在可用列表。
 - blocked 不出现在候选列表，但保留在行动记录中。
 - 拆小沿用原 Action ID，更新名称和预计耗时，状态保持 available；不建立父子关系。
@@ -64,7 +64,8 @@ activateDueActions(date: string): Promise<number>;
 
 ## 5. 领域规则
 
-- 只有 available Action 可以执行上述处理操作。
+- `deferAction`、`splitAction`、`dropAction`、`blockAction` 只允许作用于 available Action。
+- `resumeAction` 只允许作用于 blocked Action；`activateDueActions` 只处理到期的 deferred Action。
 - 延后日期必须是合法本地日期，且必须晚于今天。
 - 拆小后的预计耗时必须小于原预计耗时，且仍为 1—480 的正整数。
 - 标记卡住时阻力说明必填；恢复后清空 `blockerNote`。
@@ -87,7 +88,7 @@ And Action 不出现在今天的候选列表
 
 ```gherkin
 Given 一条 deferred Action 的 scheduledFor 等于今天
-When 用户打开今日页面
+When 今日页面先显式调用 activateDueActions
 Then 系统将 Action 恢复为 available
 And Action 可以进入候选计算
 ```
@@ -152,7 +153,7 @@ And blockerNote 被清空
 
 - Domain：实现状态转换和字段约束，不在页面中自行判断。
 - Application：每个处理动作使用独立用例，避免一个“大而全”的更新接口。
-- Persistence：为 `status`、`scheduledFor` 增加索引；到期激活使用事务。
+- Persistence：为 `status`、`scheduledFor` 增加索引；`activateDueActions` 作为显式幂等命令使用事务。
 - 集成测试覆盖每条状态转换、非法输入和刷新恢复。
 - 端到端测试覆盖延后、拆小、卡住恢复和放弃。
 

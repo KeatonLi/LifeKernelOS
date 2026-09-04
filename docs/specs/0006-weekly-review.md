@@ -3,7 +3,7 @@
 > 状态：Proposed
 > 对应 PRD：MVP 场景六
 > 依赖：`SPEC-0001`～`SPEC-0004`
-> 目标：用固定、可编辑的模板帮助用户从一周记录中做出下周决策。
+> 目标：先用固定、可编辑的模板帮助用户从完成行动和日终记录中做出下周决策。
 
 ## 1. 用户目标
 
@@ -14,7 +14,7 @@
 ### In scope
 
 - 按用户本地周一至周日确定复盘周期。
-- 展示本周完成、延期、拆小、放弃、卡住的数量和清单。
+- 展示本周完成行动的数量和清单。
 - 展示本周 DailyState 和 DailyClose 的原始记录入口。
 - 生成固定模板草稿。
 - 用户编辑并保存保留、停止、开始、下周主线。
@@ -27,6 +27,7 @@
 - 趋势图、评分和用户排名。
 - 自动修改用户的主线或行动。
 - 跨用户、跨项目和公开分享。
+- 延期、拆小、放弃、卡住等状态的历史统计；需要后续 ActionEvent 规格后再引入。
 
 ## 3. 数据
 
@@ -50,7 +51,7 @@ WeeklyReview {
 ## 4. 固定模板
 
 1. 本周完成与推进：展示 completed Action 和用户可编辑补充。
-2. 反复出现的阻力：展示 blocked、延期和日终阻力记录。
+2. 反复出现的阻力：展示本周日终收束中的阻力记录。
 3. 本周的保留：用户填写。
 4. 本周的停止：用户填写。
 5. 下周的开始：用户填写。
@@ -65,9 +66,7 @@ type WeeklySummary = {
   weekStart: string;
   weekEnd: string;
   completedActions: Action[];
-  deferredActions: Action[];
-  droppedActions: Action[];
-  blockedActions: Action[];
+  dailyStates: DailyState[];
   dailyCloses: DailyClose[];
 };
 
@@ -88,9 +87,10 @@ saveWeeklyReview(input: {
 ### 场景 A：生成有记录的周摘要
 
 ```gherkin
-Given 本周存在已完成和卡住的行动
+Given 本周存在已完成行动和日终收束记录
 When 用户打开周复盘
-Then 系统展示对应的事实清单和数量
+Then 系统展示已完成行动的事实清单和数量
+And 系统展示本周的日终收束记录入口
 And 系统不编造用户没有记录的内容
 ```
 
@@ -144,13 +144,14 @@ And 不发送用户内容到外部 AI 服务
 - Domain：实现本地周起止计算和周期边界测试。
 - Application：`GetWeeklySummary` 只读聚合，`SaveWeeklyReview` 负责 upsert。
 - Persistence：新增 `weeklyReviews` store，以 `weekStart` 建立唯一索引。
-- 集成测试覆盖跨周边界、摘要来源和同周唯一性。
+- 集成测试覆盖跨周边界、摘要来源、完成行动过滤和同周唯一性。
 - 端到端测试覆盖有数据、无数据、编辑保存和周边界。
 
 ## 8. Definition of Done
 
 - [ ] 摘要中的事实均可追溯到原始记录。
-- [ ] 用户可以删除或改写所有系统生成的草稿内容。
+- [ ] 用户可以编辑所有复盘字段；事实摘要不写入不可编辑的正文。
 - [ ] 不调用 AI，不生成心理或价值判断。
+- [ ] 不声称提供延期、拆小、放弃和卡住的历史统计。
 - [ ] 同一周不会产生重复复盘记录。
 - [ ] 所有验收场景通过并记录结果。

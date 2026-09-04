@@ -51,6 +51,7 @@ createCapture(input: {
   type?: Capture['type'];
 }): Promise<Capture>;
 listInboxCaptures(): Promise<Capture[]>;
+updateCaptureType(captureId: string, type?: Capture['type']): Promise<Capture>;
 convertCaptureToAction(input: {
   captureId: string;
   focusId: string;
@@ -125,6 +126,15 @@ And Capture 不再出现在 inbox 列表
 Given 用户已经保存 Capture
 When 用户刷新页面
 Then Capture 仍然出现在正确的列表中
+```
+
+### 场景 H：删除捕捉
+
+```gherkin
+Given 收件箱中存在一条 Capture
+When 用户确认删除
+Then 系统删除该 Capture
+And Capture 不再出现在任何收件箱列表中
 ```
 
 ## 6. 技术实现与测试
