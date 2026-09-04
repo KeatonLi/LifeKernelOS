@@ -1,37 +1,42 @@
-# LifeKernelOS 协作记录
+# ChatGPT project context
 
-## 项目概况
+This directory is a local mirror of the ChatGPT project “人生内核OS”.
 
-LifeKernelOS（人生内核 OS）是一个以个人价值观为核心、以目标和行动为载体、以状态和复盘为反馈的个人生活管理系统。
+- Treat every file under `sources/` as read-only reference material.
+- Do not edit, rename, move, or delete synced project files.
+- These files may be replaced the next time a task is created from this ChatGPT project.
 
-产品希望帮助用户完成这条闭环：
+
+## Project instructions
+
+## LifeKernelOS 项目记录
+
+当前主项目目录已经与 GitHub 仓库 `https://github.com/KeatonLi/LifeKernelOS.git` 关联，默认分支为 `main`。
+
+### 项目定位
+
+LifeKernelOS（人生内核 OS）当前只验证一个 MVP 假设：当用户感到混乱、时间有限或精力不足时，帮助用户找到一个现在真正能做的下一步行动。
+
+当前闭环：
 
 ```text
-价值观与边界 → 目标与项目 → 今日行动 → 状态记录 → 复盘与校准
+当前主线 → 下一步行动 → 根据状态选择 → 完成或调整 → 日终收束
 ```
 
-## 当前状态
+### 重要文档
 
-- 仓库已完成基础初始化。
-- 当前版本已收窄为“根据状态找到下一步行动”的 MVP，尚未开始具体功能开发。
-- 产品需求文档位于 [`docs/PRD.md`](docs/PRD.md)，开发流程约定位于 [`docs/SDD.md`](docs/SDD.md)。
-- 技术架构基线位于 [`docs/architecture.md`](docs/architecture.md)，重要技术选择位于 [`docs/decisions/`](docs/decisions/)。
-- 当前第一份开发规格为 [`docs/specs/0001-current-focus-and-actions.md`](docs/specs/0001-current-focus-and-actions.md)。
-- 项目概览位于 [`README.md`](README.md)。
+- `README.md`：项目概览。
+- `docs/PRD.md`：当前 MVP 的产品范围和验收标准。
+- `docs/SDD.md`：规格驱动开发约定。
+- `docs/architecture.md`：MVP 技术架构基线。
+- `docs/specs/`：可执行功能规格。
+- `docs/decisions/`：跨多个规格的架构决策。
 
-## 协作约定
+### 开发约定
 
-- `docs/PRD.md` 是 MVP 范围和验收标准的主要依据；需求变更应同步更新 PRD。
-- 项目采用轻量 SDD（Spec-Driven Development）：先写并审查规格，再实现和验收；未进入 `Accepted` 的规格不开始开发。
-- 每个可独立交付的小场景在 `docs/specs/` 下使用稳定编号维护，并通过规格、测试和提交信息保持追溯。
-- 技术架构采用前端单体、本地优先和无后端 MVP；跨规格的架构变化必须先补充 ADR。
-- 产品设计遵循隐私优先、轻量记录、允许跳过和可持续复盘的原则。
-- 不把智能摘要当作诊断或绝对结论；涉及用户个人数据的能力必须可解释、可关闭、可导出和可删除。
-- 新增功能应优先服务“内核—方向—目标—行动—状态—复盘”的核心闭环，避免为了增加功能而增加复杂度。
-- 提交信息使用中文，并清楚说明本次变更内容。
-
-## 初始化记录
-
-- 初始仓库：`https://github.com/KeatonLi/LifeKernelOS.git`
-- 本地目录：`~/IdeaProjects/LifeKernelOS`
-- 首次提交包含项目说明、产品需求文档和基础忽略规则。
+- 采用轻量 SDD：先写并审查规格，再实现、测试和验收。
+- 未进入 `Accepted` 的规格不开始开发；未进入 `Verified` 的规格不宣称完成。
+- 当前技术基线是响应式 Web 单体、React + TypeScript + Vite、本地优先 IndexedDB、无后端 MVP。
+- 需求变更同步更新 PRD；跨规格的架构变化先补充 ADR。
+- 当前第一条开发规格是 `SPEC-0001`，先实现“当前主线与行动”。
+- 提交信息使用中文，并清楚说明变更内容。
