@@ -23,3 +23,5 @@ data/
 *.db
 *.db-shm
 *.db-wal
+# Local runtime output
+.DS_Store

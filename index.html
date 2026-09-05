@@ -1,0 +1,160 @@
+<!doctype html>
+<html lang="zh-CN">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <meta name="theme-color" content="#f7f7f5" />
+    <meta
+      name="description"
+      content="LifeKernel OS：当不知道先做什么时，帮你找到一件现在做得完的事。"
+    />
+    <link rel="icon" type="image/png" href="/public/brand/lifekernel-icon.png" />
+    <link rel="stylesheet" href="/styles.css" />
+    <title>LifeKernel OS</title>
+  </head>
+  <body>
+    <div class="app">
+      <header class="site-header">
+        <a class="brand" href="#home" aria-label="LifeKernel OS 首页">
+          <img src="/public/brand/lifekernel-logo.png" alt="LifeKernel OS" />
+        </a>
+        <nav class="site-nav" aria-label="主导航">
+          <a href="#home" data-route-link="home">首页</a>
+          <a href="#today" data-route-link="today">今天</a>
+        </nav>
+        <a class="header-action" href="#today">开始使用 <span aria-hidden="true">→</span></a>
+      </header>
+
+      <main>
+        <section class="view home-view" id="home" aria-labelledby="home-title">
+          <div class="hero">
+            <p class="kicker">LIFEKERNEL OS</p>
+            <h1 id="home-title">不知道先做什么时，<br /><strong>只选一件现在做得完的事。</strong></h1>
+            <p class="hero-copy">人生内核 OS 不替你安排人生。它只在你时间有限、精力不足或脑子很乱时，帮你把下一步变得清楚。</p>
+            <div class="hero-actions">
+              <a class="primary-button" href="#today">从今天开始 <span aria-hidden="true">→</span></a>
+              <button class="plain-button" id="show-how" type="button">先了解怎么用</button>
+            </div>
+          </div>
+
+          <aside class="home-note" aria-label="产品承诺">
+            <span class="note-mark" aria-hidden="true">01</span>
+            <div>
+              <p>今天只需要回答一个问题：</p>
+              <strong>「我现在能完成什么？」</strong>
+            </div>
+          </aside>
+
+          <section class="how-it-works" id="how" aria-labelledby="how-title">
+            <div class="section-intro">
+              <p class="kicker">怎么使用</p>
+              <h2 id="how-title">只需三步，不需要先做好完整计划。</h2>
+            </div>
+            <ol class="steps">
+              <li>
+                <span>1</span>
+                <div>
+                  <h3>看看现在的状态</h3>
+                  <p>选择你现在有多少精力，以及能拿出的时间。</p>
+                </div>
+              </li>
+              <li>
+                <span>2</span>
+                <div>
+                  <h3>选一件合适的行动</h3>
+                  <p>只看当前能完成的事；不合适，就换一件。</p>
+                </div>
+              </li>
+              <li>
+                <span>3</span>
+                <div>
+                  <h3>做完，或轻松调整</h3>
+                  <p>完成就结束；没做完也能延后、拆小或放下。</p>
+                </div>
+              </li>
+            </ol>
+          </section>
+        </section>
+
+        <section class="view today-view" id="today" aria-labelledby="today-title" hidden>
+          <header class="page-heading">
+            <div>
+              <p class="kicker">今天 · 9 月 5 日</p>
+              <h1 id="today-title">先选一件，<strong>现在能做的事。</strong></h1>
+            </div>
+            <a href="#home" class="back-link">← 怎么使用</a>
+          </header>
+
+          <section class="state-section" aria-labelledby="state-title">
+            <div class="state-intro">
+              <h2 id="state-title">你现在是什么状态？</h2>
+              <p>如实选择就好，答案会跟着变化。</p>
+            </div>
+            <div class="state-controls">
+              <fieldset class="choice-group">
+                <legend>精力</legend>
+                <div class="choices" id="energy-control" role="group" aria-label="当前精力">
+                  <button type="button" data-energy="low">低</button>
+                  <button type="button" data-energy="medium" class="selected">中等</button>
+                  <button type="button" data-energy="high">充沛</button>
+                </div>
+              </fieldset>
+              <fieldset class="choice-group">
+                <legend>可用时间</legend>
+                <div class="choices" id="time-control" role="group" aria-label="可用时间">
+                  <button type="button" data-minutes="15">15 分钟</button>
+                  <button type="button" data-minutes="30" class="selected">30 分钟</button>
+                  <button type="button" data-minutes="60">1 小时 +</button>
+                </div>
+              </fieldset>
+            </div>
+          </section>
+
+          <section class="recommendation" aria-labelledby="recommendation-title">
+            <div class="recommendation-label">现在可以做</div>
+            <div class="recommendation-copy">
+              <p class="match-reason" id="matching-note">30 分钟 · 中等精力</p>
+              <h2 id="recommendation-title">整理用户访谈的三条共识</h2>
+              <p id="recommended-copy">打开访谈笔记，只提炼反复出现的三句话；不需要写成完整报告。</p>
+            </div>
+            <button class="primary-button action-button" id="begin-action" type="button">开始这件事 <span aria-hidden="true">→</span></button>
+          </section>
+
+          <section class="alternatives" aria-labelledby="alternatives-title">
+            <div class="list-heading">
+              <div>
+                <p class="kicker">不合适就换</p>
+                <h2 id="alternatives-title">其他可选行动</h2>
+              </div>
+              <p>不需要勉强自己完成不合适的事。</p>
+            </div>
+            <div class="action-list" id="action-list">
+              <article class="action-row" data-title="为登录流程补一段错误文案" data-time="15 分钟" data-energy="低精力">
+                <button class="check-button" type="button" aria-label="完成：为登录流程补一段错误文案"></button>
+                <div><h3>为登录流程补一段错误文案</h3><p>15 分钟 · 低精力</p></div>
+                <button class="row-action" type="button">选这件 <span aria-hidden="true">→</span></button>
+              </article>
+              <article class="action-row" data-title="画出「今天」页的空状态" data-time="30 分钟" data-energy="中等精力">
+                <button class="check-button" type="button" aria-label="完成：画出今天页的空状态"></button>
+                <div><h3>画出「今天」页的空状态</h3><p>30 分钟 · 中等精力</p></div>
+                <button class="row-action" type="button">选这件 <span aria-hidden="true">→</span></button>
+              </article>
+              <article class="action-row" data-title="给技术设计补齐迁移失败的提示" data-time="20 分钟" data-energy="低精力">
+                <button class="check-button" type="button" aria-label="完成：给技术设计补齐迁移失败的提示"></button>
+                <div><h3>给技术设计补齐迁移失败的提示</h3><p>20 分钟 · 低精力</p></div>
+                <button class="row-action" type="button">选这件 <span aria-hidden="true">→</span></button>
+              </article>
+            </div>
+          </section>
+
+          <p class="prototype-note">这是界面原型：当前不连接账号、API 或数据保存。</p>
+        </section>
+      </main>
+
+      <footer class="site-footer">LifeKernel OS · 先做好普通的下一步</footer>
+    </div>
+
+    <div class="toast" id="toast" role="status" aria-live="polite"></div>
+    <script src="/main.js" defer></script>
+  </body>
+</html>
