@@ -1,14 +1,45 @@
 {
-  "name": "lifekernel-os-ui-prototype",
-  "version": "0.1.0",
+  "name": "lifekernel-os",
+  "version": "0.2.0",
   "private": true,
-  "description": "LifeKernel OS 的无后端 UI 视觉原型",
+  "description": "LifeKernel OS：目标期望、当前行动与个人画像。",
   "type": "module",
   "scripts": {
-    "dev": "node scripts/dev-server.mjs",
-    "start": "node scripts/dev-server.mjs"
+    "dev": "concurrently -k \"npm:dev:api\" \"npm:dev:web\"",
+    "dev:api": "tsx watch apps/api/src/server.ts",
+    "dev:web": "vite --host 127.0.0.1",
+    "docs:check": "node scripts/check-doc-links.mjs",
+    "build": "npm run typecheck && vite build",
+    "start": "tsx apps/api/src/server.ts",
+    "db:seed": "tsx apps/api/src/seed.ts",
+    "test": "tsx --test apps/api/src/*.test.ts",
+    "typecheck": "tsc --noEmit"
+  },
+  "dependencies": {
+    "@fastify/cookie": "^11.0.2",
+    "@fastify/static": "^8.1.1",
+    "@phosphor-icons/react": "^2.1.10",
+    "@xyflow/react": "^12.11.6",
+    "better-sqlite3": "^11.7.0",
+    "drizzle-orm": "^0.38.3",
+    "fastify": "^5.2.1",
+    "react": "^19.0.0",
+    "react-dom": "^19.0.0",
+    "react-router-dom": "^7.1.1",
+    "zod": "^3.24.1"
+  },
+  "devDependencies": {
+    "@types/better-sqlite3": "^7.6.12",
+    "@types/node": "^22.10.2",
+    "@types/react": "^19.0.2",
+    "@types/react-dom": "^19.0.2",
+    "@vitejs/plugin-react": "^4.3.4",
+    "concurrently": "^9.1.0",
+    "tsx": "^4.19.2",
+    "typescript": "^5.7.2",
+    "vite": "^6.0.5"
   },
   "engines": {
-    "node": ">=18"
+    "node": ">=22"
   }
 }

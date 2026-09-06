@@ -1,0 +1,22 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 128 128" role="img" aria-labelledby="title">
+  <title id="title">LifeKernel OS</title>
+  <defs>
+    <linearGradient id="navy" x1="18" y1="14" x2="112" y2="116" gradientUnits="userSpaceOnUse">
+      <stop stop-color="#172a4d" />
+      <stop offset="1" stop-color="#0c1934" />
+    </linearGradient>
+    <linearGradient id="seed" x1="43" y1="43" x2="82" y2="86" gradientUnits="userSpaceOnUse">
+      <stop stop-color="#ffc34c" />
+      <stop offset="1" stop-color="#f3a51a" />
+    </linearGradient>
+    <linearGradient id="leaf" x1="86" y1="18" x2="111" y2="52" gradientUnits="userSpaceOnUse">
+      <stop stop-color="#b9e5d8" />
+      <stop offset="1" stop-color="#6db7a7" />
+    </linearGradient>
+  </defs>
+  <path d="M59 16C32 25 15 50 16 78c1 29 24 51 52 52 25 1 47-14 57-37" fill="none" stroke="url(#navy)" stroke-linecap="round" stroke-width="11" transform="translate(-1 -2) scale(.99)" />
+  <path d="M57 33C37 40 25 59 28 81c4 24 26 40 49 37 17-2 31-14 37-29" fill="none" stroke="url(#navy)" stroke-linecap="round" stroke-width="11" />
+  <path d="M84 47c1-16 9-28 25-34 5 16-2 30-18 39-4 2-7 4-10 7 1-4 2-8 3-12Z" fill="url(#leaf)" />
+  <path d="M66 47c12 0 22 9 22 21 0 15-13 28-29 29-12 0-21-9-21-21 0-15 13-29 28-29Z" fill="url(#seed)" transform="rotate(35 63 72)" />
+  <path d="M49 80c5-13 14-23 27-30-8 8-14 18-18 30" fill="#fff8df" opacity=".95" />
+</svg>

@@ -1,0 +1,55 @@
+# LifeKernelOS
+
+> AI-native personal operating system. The product keeps multiple mainline groups, helps a user confirm one current To-do, derives progress from completed To-dos, and aggregates user-confirmed facts into a profile. Human decisions override every document below.
+
+## Start here
+
+- [Agent operating guide](AGENTS.md): mandatory reading order, fact-source precedence, change rules, and verification protocol.
+- [Documentation map](docs/README.md): routes a task to its single authoritative document domain.
+- [Project overview](README.md): product summary, current implementation status, and local verification commands.
+
+## Current product facts
+
+- [Product entry](docs/product/README.md): product-document scope and update rules.
+- [PRD v0.7](docs/product/PRD.md): product intent, mainlines, To-dos, derived progress, profile graph, and acceptance criteria.
+- [ADR-0008: mainline groups and derived To-do progress](docs/architecture/decisions/0008-mainline-groups-derived-todo-progress.md): current core domain decision.
+- [ADR-0007: two-tab console](docs/architecture/decisions/0007-two-tab-console-information-architecture.md): current information architecture decision.
+- [SPEC-0010: mainline To-dos and current action](docs/specs/current/0010-long-term-goals-and-current-action.md): executable contract for the “主线” tab.
+- [SPEC-0011: progress-aware profile graph](docs/specs/current/0011-aggregated-profile-graph.md): executable contract for the “我的画像” tab.
+
+## Architecture and delivery facts
+
+- [Architecture entry](docs/architecture/README.md): architecture-document scope and ADR routing.
+- [System architecture](docs/architecture/system-architecture.md): system boundaries, domain model, module ownership, and persistence rules.
+- [Technical design](docs/architecture/technical-design.md): migrations, DTOs, transactions, API contract, and implementation constraints.
+- [ADR index](docs/architecture/decisions/README.md): all decisions and their lifecycle states.
+- [Spec index](docs/specs/README.md): current, foundation, backlog, and archive specification routing.
+- [Identity and server persistence](docs/specs/foundation/0008-identity-and-server-persistence.md): authentication, sessions, isolation, and server fact-source contract.
+- [Data export](docs/specs/foundation/0007-data-export-and-clear.md): schemaVersion 5 export contract.
+- [Development entry](docs/development/README.md): delivery-document scope.
+- [AI-native SDD protocol](docs/development/SDD.md): lifecycle, change classification, and evidence requirements.
+
+## Historical and deferred context
+
+These documents are part of the repository’s traceable context, but they never override the current product facts above.
+
+- [ADR-0001: local-first MVP](docs/architecture/decisions/0001-local-first-mvp.md): superseded historical architecture rationale.
+- [ADR-0002: early web stack](docs/architecture/decisions/0002-web-stack.md): superseded historical stack rationale.
+- [ADR-0003: server-backed MVP](docs/architecture/decisions/0003-server-backed-mvp.md): implemented server shape, still proposed pending formal architecture review.
+- [ADR-0004: single-mainline workbench](docs/architecture/decisions/0004-single-mainline-workbench-mvp.md): superseded historical product model.
+- [ADR-0005: evidence-based profile](docs/architecture/decisions/0005-evidence-based-profile.md): accepted profile fact and user-confirmation boundary.
+- [SPEC-0007: data export](docs/specs/foundation/0007-data-export-and-clear.md): implemented foundation contract.
+- [SPEC-0008: identity and server persistence](docs/specs/foundation/0008-identity-and-server-persistence.md): implemented foundation contract.
+- [SPEC-0004: daily close](docs/specs/backlog/0004-daily-close.md): deferred; redesign before reuse.
+- [SPEC-0005: quick capture](docs/specs/backlog/0005-quick-capture.md): deferred; redesign before reuse.
+- [SPEC-0006: weekly review](docs/specs/backlog/0006-weekly-review.md): deferred; redesign before reuse.
+- [SPEC-0001: current focus and actions](docs/specs/archive/0001-current-focus-and-actions.md): superseded; migration trace only.
+- [SPEC-0002: state-aware next action](docs/specs/archive/0002-state-aware-next-action.md): superseded; migration trace only.
+- [SPEC-0003: unfinished action resolution](docs/specs/archive/0003-unfinished-action-resolution.md): superseded; migration trace only.
+- [SPEC-0009: mainline profile](docs/specs/archive/0009-mainline-profile.md): superseded; migration trace only.
+
+## Repository boundaries
+
+- `sources/` is synchronized read-only reference material. Do not edit, move, rename, or delete it.
+- Do not infer a third primary tab, a single unique mainline, manual progress percentages, or personality/capability inference. The current product has only “主线” and “我的画像”; settings is an auxiliary account entry.
+- Before changing behavior, locate the owning Product, ADR, and Spec document through the routes above. After changes, run `npm run docs:check` and relevant tests.
