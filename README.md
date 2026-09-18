@@ -83,7 +83,8 @@ docs/
 
 ## 当前状态
 
-- PRD v0.7：`Accepted`
+- PRD v0.8：`Accepted`
+- SPEC-0005 快速收集箱：`Implemented`
 - SPEC-0010 主线：`Implemented`
 - SPEC-0011 我的画像：`Implemented`
 - 浏览器人工验收与真实用户验证完成前，不标记为 `Verified`

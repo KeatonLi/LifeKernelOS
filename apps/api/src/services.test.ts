@@ -1,4 +1,5 @@
 import assert from 'node:assert/strict';
+import { randomUUID } from 'node:crypto';
 import { readFileSync } from 'node:fs';
 import { mkdtemp, rm } from 'node:fs/promises';
 import { tmpdir } from 'node:os';
@@ -74,13 +75,14 @@ test('SPEC-0007：导出当前用户的完整数据，并支持空数据导出',
   const service = new LifeKernelService(database);
   const user = service.provisionInitialAccount('export@lifekernel.local', 'test-password-hash');
   const emptyExport = service.exportData(user.id);
-  assert.equal(emptyExport.schemaVersion, 5);
+  assert.equal(emptyExport.schemaVersion, 6);
   assert.deepEqual(emptyExport.data.goals, []);
   assert.deepEqual(emptyExport.data.actions, []);
   assert.deepEqual(emptyExport.data.goalReflections, []);
   assert.equal(emptyExport.data.profileDescription, null);
   assert.deepEqual(emptyExport.data.knowledgeItems, []);
   assert.deepEqual(emptyExport.data.goalStatusEvents, []);
+  assert.deepEqual(emptyExport.data.captures, []);
 
   const goal = service.createGoal(user.id, { title: '整理个人作品集' });
   const action = service.createGoalAction(user.id, goal.id, { title: '完成项目说明', content: '说明项目解决的问题、做法与结果。' });
@@ -92,7 +94,7 @@ test('SPEC-0007：导出当前用户的完整数据，并支持空数据导出',
   service.createKnowledgeItem(user.id, { goalId: goal.id, title: '项目复盘方法', note: '先记录事实。' });
 
   const exported = service.exportData(user.id);
-  assert.equal(exported.schemaVersion, 5);
+  assert.equal(exported.schemaVersion, 6);
   assert.match(exported.exportedAt, /^\d{4}-\d{2}-\d{2}T/);
   assert.equal(exported.data.goals.length, 1);
   assert.equal(exported.data.actions.length, 1);
@@ -103,6 +105,38 @@ test('SPEC-0007：导出当前用户的完整数据，并支持空数据导出',
   assert.equal(exported.data.goalStatusEvents.length, 1);
   assert.equal(JSON.stringify(exported).includes('password_hash'), false);
   assert.equal(service.findUserCredential(user.email)?.user.id, user.id);
+});
+
+test('SPEC-0005：快速收集、分类、转换、归档与删除保持清楚的生命周期', async (context) => {
+  const directory = await mkdtemp(join(tmpdir(), 'lifekernel-capture-test-'));
+  const database = createDatabase(join(directory, 'lifekernel.sqlite'));
+  context.after(async () => {
+    database.close();
+    await rm(directory, { recursive: true, force: true });
+  });
+
+  const service = new LifeKernelService(database);
+  const user = service.provisionInitialAccount('capture@lifekernel.local', 'test-password-hash');
+  const goal = service.createGoal(user.id, { title: '发布独立产品' });
+  const capture = service.createCapture(user.id, { content: '  采访三位目标用户  ' });
+  assert.equal(capture.content, '采访三位目标用户');
+  assert.equal(service.listCaptures(user.id).length, 1);
+  assert.equal(service.updateCapture(user.id, capture.id, { type: 'task' }).type, 'task');
+
+  assert.throws(() => service.convertCaptureToAction(user.id, capture.id, { goalId: randomUUID(), title: '采访用户' }), /长期目标不存在/);
+  assert.equal(service.listCaptures(user.id)[0]?.status, 'inbox');
+  const converted = service.convertCaptureToAction(user.id, capture.id, { goalId: goal.id, title: '采访三位目标用户' });
+  assert.equal(converted.capture.status, 'converted');
+  assert.equal(converted.capture.convertedActionId, converted.action.id);
+  assert.equal(converted.action.content, '采访三位目标用户');
+  assert.deepEqual(service.listCaptures(user.id), []);
+
+  const archived = service.createCapture(user.id, { content: '以后研究播客形式', type: 'idea' });
+  assert.equal(service.archiveCapture(user.id, archived.id).status, 'archived');
+  assert.equal(service.listCaptures(user.id, 'archived').length, 1);
+  service.deleteCapture(user.id, archived.id);
+  assert.deepEqual(service.listCaptures(user.id, 'archived'), []);
+  assert.equal(service.exportData(user.id).data.captures.length, 1);
 });
 
 test('SPEC-0010：多个目标共享唯一当前行动，并支持匹配与四种行动结果', async (context) => {
@@ -253,10 +287,11 @@ test('SPEC-0010：旧 Focus / Action 数据迁移到产品 0.5 且可重复启�
     await rm(directory, { recursive: true, force: true });
   });
   const service = new LifeKernelService(database);
-  assert.equal(database.sqlite.pragma('user_version', { simple: true }), 5);
+  assert.equal(database.sqlite.pragma('user_version', { simple: true }), 6);
   assert.ok(database.sqlite.prepare("SELECT 1 FROM sqlite_master WHERE type = 'table' AND name = 'current_contexts'").get());
   assert.ok(database.sqlite.prepare("SELECT 1 FROM sqlite_master WHERE type = 'table' AND name = 'goal_status_events'").get());
   assert.ok(database.sqlite.prepare("SELECT 1 FROM pragma_table_info('actions') WHERE name = 'content'").get());
+  assert.ok(database.sqlite.prepare("SELECT 1 FROM sqlite_master WHERE type = 'table' AND name = 'captures'").get());
   assert.equal(service.listGoals('legacy-user')[0]?.status, 'active');
   assert.equal(service.listGoalActions('legacy-user', 'legacy-focus')[0]?.title, '迁移前的行动');
   assert.equal(service.listGoalActions('legacy-user', 'legacy-focus')[0]?.content, null);
@@ -268,7 +303,7 @@ test('SPEC-0010：旧 Focus / Action 数据迁移到产品 0.5 且可重复启�
   database.close();
   databaseClosed = true;
   reopened = createDatabase(databasePath);
-  assert.equal(reopened.sqlite.pragma('user_version', { simple: true }), 5);
+  assert.equal(reopened.sqlite.pragma('user_version', { simple: true }), 6);
   assert.equal((reopened.sqlite.prepare('SELECT COUNT(*) AS count FROM actions').get() as { count: number }).count, 1);
   assert.equal((reopened.sqlite.prepare("SELECT COUNT(*) AS count FROM focuses WHERE goal_status = 'active'").get() as { count: number }).count, 2);
 });

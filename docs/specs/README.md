@@ -16,8 +16,9 @@ Spec 是功能开发与验收的直接契约：它把 [PRD](../product/PRD.md) �
 | --- | --- | --- | --- | --- |
 | [SPEC-0010](current/0010-long-term-goals-and-current-action.md) | 主线：分组 To-do 与当前行动 | 主线 Tab | `SPEC-0008` | Implemented |
 | [SPEC-0011](current/0011-aggregated-profile-graph.md) | 我的画像：进度感知汇聚图谱 | 我的画像 Tab | `SPEC-0010`、`SPEC-0008` | Implemented |
+| [SPEC-0005](current/0005-quick-capture.md) | 快速收集箱 | 全局辅助抽屉 | `SPEC-0008`、`SPEC-0010` | Implemented |
 
-`SPEC-0010` 与 `SPEC-0011` 分别承接当前两个一级 Tab。v0.7 的代码和自动化测试已经完成并进入 `Implemented`；浏览器人工验收和真实用户验证完成前不得标记为 `Verified`。
+`SPEC-0010` 与 `SPEC-0011` 分别承接当前两个一级 Tab，`SPEC-0005` 作为跨页面辅助抽屉补齐入口。v0.8 的代码和自动化测试已经完成并进入 `Implemented`；浏览器人工验收和真实用户验证完成前不得标记为 `Verified`。
 
 ## Foundation：基础能力规格
 
@@ -33,7 +34,6 @@ Spec 是功能开发与验收的直接契约：它把 [PRD](../product/PRD.md) �
 | 编号 | 名称 | 当前状态 | 重新启动前的要求 |
 | --- | --- | --- | --- |
 | [SPEC-0004](backlog/0004-daily-close.md) | 日终收束 | Deferred | 重写为 Goal / Action / CurrentContext 语义 |
-| [SPEC-0005](backlog/0005-quick-capture.md) | 快速捕捉 | Deferred | 明确其与两个 Tab 的归属，不恢复“当前主线”术语 |
 | [SPEC-0006](backlog/0006-weekly-review.md) | 周复盘 | Deferred | 去除“下周唯一主线”，重新定义验证目标 |
 
 ## Archive：历史规格
@@ -51,6 +51,7 @@ Spec 是功能开发与验收的直接契约：它把 [PRD](../product/PRD.md) �
 
 ```text
 基础能力：0008 → 0010 → 0011
+                      ├→ 0005（全局快速收集箱）
                       └→ 0007（导出契约跟随当前数据模型）
 
 历史实现：0008 → 0001 → 0009

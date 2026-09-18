@@ -53,13 +53,14 @@ test('SPEC-0008：HTTP 身份边界保护业务数据，并能创建和失效会
 
   const emptyExportResponse = await app.inject({ method: 'GET', url: '/api/export', headers: { cookie: ownerCookie } });
   assert.equal(emptyExportResponse.statusCode, 200);
-  const emptyExport = emptyExportResponse.json() as { data: { goals: unknown[]; actions: unknown[]; goalReflections: unknown[]; profileDescription: unknown; knowledgeItems: unknown[]; goalStatusEvents: unknown[] } };
+  const emptyExport = emptyExportResponse.json() as { data: { goals: unknown[]; actions: unknown[]; goalReflections: unknown[]; profileDescription: unknown; knowledgeItems: unknown[]; goalStatusEvents: unknown[]; captures: unknown[] } };
   assert.deepEqual(emptyExport.data.goals, []);
   assert.deepEqual(emptyExport.data.actions, []);
   assert.deepEqual(emptyExport.data.goalReflections, []);
   assert.equal(emptyExport.data.profileDescription, null);
   assert.deepEqual(emptyExport.data.knowledgeItems, []);
   assert.deepEqual(emptyExport.data.goalStatusEvents, []);
+  assert.deepEqual(emptyExport.data.captures, []);
 
   const createGoal = await app.inject({
     method: 'POST',
@@ -96,7 +97,7 @@ test('SPEC-0008：HTTP 身份边界保护业务数据，并能创建和失效会
   assert.equal(exportResponse.statusCode, 200);
   assert.match(String(exportResponse.headers['content-disposition']), /lifekernel-export\.json/);
   const exported = exportResponse.json() as { schemaVersion: number; data: { goals: unknown[]; actions: unknown[]; goalReflections: unknown[]; profileDescription: unknown; knowledgeItems: unknown[]; goalStatusEvents: unknown[] } };
-  assert.equal(exported.schemaVersion, 5);
+  assert.equal(exported.schemaVersion, 6);
   assert.equal(exported.data.goals.length, 1);
   assert.equal(exported.data.actions.length, 1);
   assert.equal((exported.data.actions[0] as { content: string | null }).content, '用真实用户反馈补充项目说明。');
@@ -127,6 +128,35 @@ test('SPEC-0008：HTTP 身份边界保护业务数据，并能创建和失效会
   assert.equal(logout.statusCode, 200);
   const afterLogout = await app.inject({ method: 'GET', url: '/api/goals', headers: { cookie: ownerCookie } });
   assert.equal(afterLogout.statusCode, 401);
+});
+
+test('SPEC-0005：HTTP 快速收集接口按用户隔离并原子转换为 To-do', async (context) => {
+  const directory = await mkdtemp(join(tmpdir(), 'lifekernel-capture-http-test-'));
+  const database = createDatabase(join(directory, 'lifekernel.sqlite'));
+  const { app, service } = buildApp(database);
+  context.after(async () => {
+    await app.close();
+    database.close();
+    await rm(directory, { recursive: true, force: true });
+  });
+
+  const user = service.provisionInitialAccount('capture-http@lifekernel.local', await hashPassword('valid-test-password'));
+  const login = await app.inject({ method: 'POST', url: '/api/auth/login', payload: { email: user.email, password: 'valid-test-password' } });
+  const cookie = cookieFrom(login);
+  const goal = service.createGoal(user.id, { title: '完成 MVP' });
+  const created = await app.inject({ method: 'POST', url: '/api/captures', headers: { cookie }, payload: { content: '写出第一版发布说明' } });
+  assert.equal(created.statusCode, 201);
+  const captureId = (created.json() as { capture: { id: string } }).capture.id;
+  assert.equal((await app.inject({ method: 'GET', url: '/api/captures', headers: { cookie } })).json().captures.length, 1);
+
+  const failed = await app.inject({ method: 'POST', url: `/api/captures/${captureId}/convert`, headers: { cookie }, payload: { goalId: randomUUID(), title: '发布说明' } });
+  assert.equal(failed.statusCode, 404);
+  assert.equal((await app.inject({ method: 'GET', url: '/api/captures', headers: { cookie } })).json().captures.length, 1);
+  const converted = await app.inject({ method: 'POST', url: `/api/captures/${captureId}/convert`, headers: { cookie }, payload: { goalId: goal.id, title: '写发布说明' } });
+  assert.equal(converted.statusCode, 200);
+  assert.equal((converted.json() as { capture: { status: string }; action: { goalId: string } }).capture.status, 'converted');
+  assert.equal((converted.json() as { action: { goalId: string } }).action.goalId, goal.id);
+  assert.deepEqual((await app.inject({ method: 'GET', url: '/api/captures', headers: { cookie } })).json().captures, []);
 });
 
 test('SPEC-0010：HTTP API 暴露目标、状态匹配和唯一当前行动', async (context) => {

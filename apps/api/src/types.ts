@@ -4,6 +4,8 @@ export type ActionStatus = 'available' | 'completed' | 'blocked' | 'abandoned' |
 export type Energy = 'low' | 'medium' | 'high';
 export type AvailableMinutes = 5 | 15 | 30 | 60;
 export type KnowledgeStatus = 'in_progress' | 'needs_consolidation' | 'consolidated';
+export type CaptureType = 'idea' | 'task' | 'event' | 'feeling' | 'inspiration';
+export type CaptureStatus = 'inbox' | 'converted' | 'archived';
 
 export type User = {
   id: string;
@@ -104,6 +106,17 @@ export type KnowledgeItem = {
   updatedAt: string;
 };
 
+export type Capture = {
+  id: string;
+  userId: string;
+  content: string;
+  type: CaptureType | null;
+  status: CaptureStatus;
+  convertedActionId: string | null;
+  createdAt: string;
+  updatedAt: string;
+};
+
 export type ProfileGraphNode = {
   id: string;
   type: 'self' | 'goal' | 'knowledge';
@@ -144,7 +157,7 @@ export type ProfileView = {
 };
 
 export type ExportPayload = {
-  schemaVersion: 5;
+  schemaVersion: 6;
   exportedAt: string;
   data: {
     goals: Goal[];
@@ -154,6 +167,7 @@ export type ExportPayload = {
     profileDescription: { content: string; updatedAt: string } | null;
     knowledgeItems: KnowledgeItem[];
     goalStatusEvents: GoalStatusEvent[];
+    captures: Capture[];
   };
 };
 

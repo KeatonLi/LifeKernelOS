@@ -25,7 +25,7 @@
 - [ADR index](docs/architecture/decisions/README.md): all decisions and their lifecycle states.
 - [Spec index](docs/specs/README.md): current, foundation, backlog, and archive specification routing.
 - [Identity and server persistence](docs/specs/foundation/0008-identity-and-server-persistence.md): authentication, sessions, isolation, and server fact-source contract.
-- [Data export](docs/specs/foundation/0007-data-export-and-clear.md): schemaVersion 5 export contract.
+- [Data export](docs/specs/foundation/0007-data-export-and-clear.md): schemaVersion 6 export contract including Captures.
 - [Development entry](docs/development/README.md): delivery-document scope.
 - [AI-native SDD protocol](docs/development/SDD.md): lifecycle, change classification, and evidence requirements.
 
@@ -41,7 +41,7 @@ These documents are part of the repository’s traceable context, but they never
 - [SPEC-0007: data export](docs/specs/foundation/0007-data-export-and-clear.md): implemented foundation contract.
 - [SPEC-0008: identity and server persistence](docs/specs/foundation/0008-identity-and-server-persistence.md): implemented foundation contract.
 - [SPEC-0004: daily close](docs/specs/backlog/0004-daily-close.md): deferred; redesign before reuse.
-- [SPEC-0005: quick capture](docs/specs/backlog/0005-quick-capture.md): deferred; redesign before reuse.
+- [SPEC-0005: quick capture](docs/specs/current/0005-quick-capture.md): implemented global inbox and transactional conversion to To-do.
 - [SPEC-0006: weekly review](docs/specs/backlog/0006-weekly-review.md): deferred; redesign before reuse.
 - [SPEC-0001: current focus and actions](docs/specs/archive/0001-current-focus-and-actions.md): superseded; migration trace only.
 - [SPEC-0002: state-aware next action](docs/specs/archive/0002-state-aware-next-action.md): superseded; migration trace only.

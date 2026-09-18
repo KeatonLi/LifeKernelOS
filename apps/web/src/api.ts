@@ -4,6 +4,8 @@ export type ActionStatus = 'available' | 'completed' | 'blocked' | 'abandoned' |
 export type Energy = 'low' | 'medium' | 'high';
 export type AvailableMinutes = 5 | 15 | 30 | 60;
 export type KnowledgeStatus = 'in_progress' | 'needs_consolidation' | 'consolidated';
+export type CaptureType = 'idea' | 'task' | 'event' | 'feeling' | 'inspiration';
+export type CaptureStatus = 'inbox' | 'converted' | 'archived';
 
 export type Goal = {
   id: string;
@@ -41,6 +43,7 @@ export type CurrentContext = { userId: string; availableMinutes: AvailableMinute
 export type CurrentWorkspace = { context: CurrentContext | null; contextIsStale: boolean; currentAction: GoalAction | null; strictMatches: CandidateAction[]; allAvailable: GoalAction[] };
 export type GoalReflection = { id: string; goalId: string; summary: string; createdAt: string; updatedAt: string };
 export type KnowledgeItem = { id: string; goalId: string; title: string; status: KnowledgeStatus; note: string | null; consolidatedAt: string | null; createdAt: string; updatedAt: string };
+export type Capture = { id: string; userId: string; content: string; type: CaptureType | null; status: CaptureStatus; convertedActionId: string | null; createdAt: string; updatedAt: string };
 export type ProfileGraphNode = { id: string; type: 'self' | 'goal' | 'knowledge'; sourceId: string | null; title: string; subtitle: string; status: GoalStatus | KnowledgeStatus | null; progress: GoalProgress | null };
 export type ProfileGraphEdge = { id: string; source: string; target: string; relation: 'pursues' | 'develops_knowledge' };
 
@@ -98,6 +101,12 @@ export const api = {
   splitCurrent: (input: { title: string; content?: string | null; estimatedMinutes?: AvailableMinutes | null; energyRequired?: Energy | null }) => request<{ original: GoalAction; action: GoalAction }>('/api/current/split', { method: 'POST', body: JSON.stringify(input) }),
   blockCurrent: (blockerNote?: string) => request<{ action: GoalAction }>('/api/current/block', { method: 'POST', body: JSON.stringify({ blockerNote: blockerNote || null }) }),
   abandonCurrent: (outcomeNote?: string) => request<{ action: GoalAction }>('/api/current/abandon', { method: 'POST', body: JSON.stringify({ outcomeNote: outcomeNote || null }) }),
+  captures: (status: CaptureStatus = 'inbox') => request<{ captures: Capture[] }>(`/api/captures?status=${status}`),
+  createCapture: (input: { content: string; type?: CaptureType | null }) => request<{ capture: Capture }>('/api/captures', { method: 'POST', body: JSON.stringify(input) }),
+  updateCapture: (id: string, input: { type: CaptureType | null }) => request<{ capture: Capture }>(`/api/captures/${id}`, { method: 'PATCH', body: JSON.stringify(input) }),
+  convertCapture: (id: string, input: { goalId: string; title: string }) => request<{ capture: Capture; action: GoalAction }>(`/api/captures/${id}/convert`, { method: 'POST', body: JSON.stringify(input) }),
+  archiveCapture: (id: string) => request<{ capture: Capture }>(`/api/captures/${id}/archive`, { method: 'POST' }),
+  deleteCapture: (id: string) => request<{ success: true }>(`/api/captures/${id}`, { method: 'DELETE' }),
   exportData: () => download('/api/export'),
   profile: () => request<{ profile: Profile }>('/api/profile'),
   saveDescription: (content: string) => request<{ description: Profile['description'] }>('/api/profile/description', { method: 'PUT', body: JSON.stringify({ content }) }),

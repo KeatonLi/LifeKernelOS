@@ -30,6 +30,7 @@ const requiredContextFiles = [
   "docs/specs/README.md",
   "docs/specs/current/0010-long-term-goals-and-current-action.md",
   "docs/specs/current/0011-aggregated-profile-graph.md",
+  "docs/specs/current/0005-quick-capture.md",
   "docs/development/SDD.md",
 ];
 
@@ -42,6 +43,7 @@ const requiredAgentRoutes = [
   "docs/architecture/decisions/0007-two-tab-console-information-architecture.md",
   "docs/specs/current/0010-long-term-goals-and-current-action.md",
   "docs/specs/current/0011-aggregated-profile-graph.md",
+  "docs/specs/current/0005-quick-capture.md",
   "docs/development/SDD.md",
 ];
 
@@ -60,7 +62,7 @@ const requiredExternalIndexRoutes = [
   "docs/specs/foundation/0007-data-export-and-clear.md",
   "docs/specs/foundation/0008-identity-and-server-persistence.md",
   "docs/specs/backlog/0004-daily-close.md",
-  "docs/specs/backlog/0005-quick-capture.md",
+  "docs/specs/current/0005-quick-capture.md",
   "docs/specs/backlog/0006-weekly-review.md",
   "docs/specs/archive/0001-current-focus-and-actions.md",
   "docs/specs/archive/0002-state-aware-next-action.md",

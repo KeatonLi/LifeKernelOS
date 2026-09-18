@@ -23,6 +23,8 @@ import {
   api,
   ApiError,
   type AvailableMinutes,
+  type Capture,
+  type CaptureType,
   type GoalAction,
   type GoalStatus,
   type KnowledgeItem,
@@ -126,13 +128,74 @@ function Login({ onAuthenticated }: { onAuthenticated: (user: User) => void }) {
 function WorkspaceShell({ user, onLogout, children }: { user: User; onLogout: () => void; children: ReactNode }) {
   const navigate = useNavigate();
   const [loggingOut, setLoggingOut] = useState(false);
+  const [captureOpen, setCaptureOpen] = useState(false);
+  const [captureCount, setCaptureCount] = useState(0);
+  useEffect(() => { api.captures().then(({ captures }) => setCaptureCount(captures.length)).catch(() => undefined); }, []);
   async function logout() { setLoggingOut(true); try { await api.logout(); onLogout(); navigate('/'); } finally { setLoggingOut(false); } }
   return <div className="workspace-shell">
     <aside className="workspace-sidebar"><Brand /><nav className="workspace-nav" aria-label="主导航">
       <NavLink to="/expectations" className={({ isActive }) => `nav-item ${isActive ? 'active' : ''}`}><ListBulletsIcon size={19} weight="bold" /><span>主线</span></NavLink>
       <NavLink to="/profile" className={({ isActive }) => `nav-item ${isActive ? 'active' : ''}`}><GraphIcon size={19} weight="bold" /><span>我的画像</span></NavLink>
-    </nav><div className="sidebar-bottom"><NavLink to="/settings" className={({ isActive }) => `settings-gear ${isActive ? 'active' : ''}`} aria-label="设置"><GearSixIcon size={20} weight="bold" /></NavLink><div className="sidebar-user"><span title={user.email}>{user.email}</span><button className="text-button" onClick={logout} disabled={loggingOut}>{loggingOut ? '退出中' : '退出登录'}</button></div></div></aside>
+    </nav><button className="capture-launcher" onClick={() => setCaptureOpen(true)}><PlusIcon size={17} weight="bold" /><span>快速记下</span>{captureCount > 0 && <strong aria-label={`${captureCount} 条待整理`}>{captureCount}</strong>}</button><div className="sidebar-bottom"><NavLink to="/settings" className={({ isActive }) => `settings-gear ${isActive ? 'active' : ''}`} aria-label="设置"><GearSixIcon size={20} weight="bold" /></NavLink><div className="sidebar-user"><span title={user.email}>{user.email}</span><button className="text-button" onClick={logout} disabled={loggingOut}>{loggingOut ? '退出中' : '退出登录'}</button></div></div></aside>
     <main className="workspace-main">{children}</main>
+    {captureOpen && <CaptureDrawer onClose={() => setCaptureOpen(false)} onCountChange={setCaptureCount} />}
+  </div>;
+}
+
+const captureTypes: Array<{ value: CaptureType | ''; label: string }> = [
+  { value: '', label: '未分类' }, { value: 'task', label: '任务' }, { value: 'idea', label: '想法' }, { value: 'event', label: '事件' }, { value: 'feeling', label: '感受' }, { value: 'inspiration', label: '灵感' }
+];
+
+function CaptureDrawer({ onClose, onCountChange }: { onClose: () => void; onCountChange: (count: number) => void }) {
+  const [captures, setCaptures] = useState<Capture[]>([]);
+  const [goals, setGoals] = useState<Mainline[]>([]);
+  const [content, setContent] = useState('');
+  const [saving, setSaving] = useState(false);
+  const [error, setError] = useState('');
+  const [convertingId, setConvertingId] = useState<string | null>(null);
+  const [convertGoalId, setConvertGoalId] = useState('');
+  const [convertTitle, setConvertTitle] = useState('');
+
+  async function load() {
+    try {
+      const [{ captures: next }, { goals: nextGoals }] = await Promise.all([api.captures(), api.goals('active')]);
+      setCaptures(next); setGoals(nextGoals); onCountChange(next.length);
+      setConvertGoalId((current) => current || nextGoals[0]?.id || '');
+    } catch (reason) { setError(messageFor(reason)); }
+  }
+  useEffect(() => { void load(); }, []);
+
+  async function submit(event: FormEvent) {
+    event.preventDefault(); setSaving(true); setError('');
+    try { await api.createCapture({ content }); setContent(''); await load(); }
+    catch (reason) { setError(messageFor(reason)); }
+    finally { setSaving(false); }
+  }
+  async function mutate(action: () => Promise<unknown>) {
+    setSaving(true); setError('');
+    try { await action(); setConvertingId(null); await load(); }
+    catch (reason) { setError(messageFor(reason)); }
+    finally { setSaving(false); }
+  }
+  function beginConvert(capture: Capture) {
+    setConvertingId(capture.id);
+    setConvertTitle(capture.content.split('\n')[0]?.slice(0, 200) || '');
+    setConvertGoalId((current) => current || goals[0]?.id || '');
+  }
+
+  return <div className="capture-backdrop" role="presentation" onMouseDown={(event) => { if (event.target === event.currentTarget) onClose(); }}>
+    <aside className="capture-drawer" role="dialog" aria-modal="true" aria-label="快速收集箱">
+      <header><div><p className="eyebrow">QUICK CAPTURE</p><h2>先记下，稍后整理</h2></div><button className="icon-button" onClick={onClose} aria-label="关闭"><XIcon size={20} weight="bold" /></button></header>
+      <form className="capture-form" onSubmit={submit}><textarea autoFocus value={content} onChange={(event) => setContent(event.target.value)} maxLength={2000} required placeholder="想到什么，就写一句……" /><div><span>{content.trim().length} / 2000</span><button className="primary-button" disabled={saving || !content.trim()}><PlusIcon size={16} weight="bold" /> 保存</button></div></form>
+      {error && <p className="page-error">{error}</p>}
+      <section className="capture-inbox"><div className="capture-section-title"><h3>待整理</h3><span>{captures.length} 条</span></div>
+        {captures.length === 0 && <div className="capture-empty"><CheckCircleIcon size={28} weight="thin" /><p>收集箱已经清空。</p></div>}
+        {captures.map((capture) => <article className="capture-card" key={capture.id}><p>{capture.content}</p><div className="capture-meta"><select aria-label="记录类型" value={capture.type ?? ''} disabled={saving} onChange={(event) => void mutate(() => api.updateCapture(capture.id, { type: (event.target.value || null) as CaptureType | null }))}>{captureTypes.map((type) => <option key={type.value} value={type.value}>{type.label}</option>)}</select><time>{new Date(capture.createdAt).toLocaleString('zh-CN', { month: 'numeric', day: 'numeric', hour: '2-digit', minute: '2-digit' })}</time></div>
+          {convertingId === capture.id ? <form className="capture-convert" onSubmit={(event) => { event.preventDefault(); void mutate(() => api.convertCapture(capture.id, { goalId: convertGoalId, title: convertTitle })); }}><label>To-do 标题<input value={convertTitle} onChange={(event) => setConvertTitle(event.target.value)} maxLength={200} required /></label><label>归入主线<select value={convertGoalId} onChange={(event) => setConvertGoalId(event.target.value)} required><option value="">选择主线</option>{goals.map((goal) => <option key={goal.id} value={goal.id}>{goal.title}</option>)}</select></label><div><button type="button" className="text-button" onClick={() => setConvertingId(null)}>取消</button><button className="secondary-button" disabled={saving || !convertGoalId}>转为 To-do</button></div></form> : <div className="capture-actions"><button className="text-link" onClick={() => beginConvert(capture)} disabled={goals.length === 0}>转为 To-do</button><button className="text-button" onClick={() => void mutate(() => api.archiveCapture(capture.id))}>归档</button><button className="text-button danger-text" onClick={() => { if (window.confirm('确定删除这条记录吗？')) void mutate(() => api.deleteCapture(capture.id)); }}>删除</button></div>}
+          {goals.length === 0 && <small>先建立一条 active 主线，才能转为 To-do。</small>}
+        </article>)}
+      </section>
+    </aside>
   </div>;
 }
 

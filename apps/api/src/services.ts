@@ -6,6 +6,9 @@ import {
   type ActionStatus,
   type AvailableMinutes,
   type CandidateAction,
+  type Capture,
+  type CaptureStatus,
+  type CaptureType,
   type CurrentContext,
   type Energy,
   type ExportPayload,
@@ -87,6 +90,17 @@ type GoalStatusEventRow = {
   goal_id: string;
   status: GoalStatus;
   occurred_at: string;
+};
+
+type CaptureRow = {
+  id: string;
+  user_id: string;
+  content: string;
+  type: CaptureType | null;
+  status: CaptureStatus;
+  converted_action_id: string | null;
+  created_at: string;
+  updated_at: string;
 };
 
 export type CurrentWorkspace = {
@@ -196,6 +210,10 @@ function mapContext(row: CurrentContextRow): CurrentContext {
 
 function mapGoalStatusEvent(row: GoalStatusEventRow): GoalStatusEvent {
   return { id: row.id, goalId: row.goal_id, status: row.status, occurredAt: row.occurred_at };
+}
+
+function mapCapture(row: CaptureRow): Capture {
+  return { id: row.id, userId: row.user_id, content: row.content, type: row.type, status: row.status, convertedActionId: row.converted_action_id, createdAt: row.created_at, updatedAt: row.updated_at };
 }
 
 function isContextStale(context: CurrentContext | null): boolean {
@@ -460,6 +478,53 @@ export class LifeKernelService {
     return this.resolveCurrentAction(userId, 'abandoned', { outcomeNote: normalizeOptionalText(outcomeNoteInput, 'outcomeNote', 500) ?? null });
   }
 
+  createCapture(userId: string, input: { content: string; type?: CaptureType | null }): Capture {
+    const content = normalizeText(input.content, 'content', 2000);
+    const createdAt = now();
+    const capture: Capture = { id: randomUUID(), userId, content, type: input.type ?? null, status: 'inbox', convertedActionId: null, createdAt, updatedAt: createdAt };
+    this.sqlite.prepare('INSERT INTO captures (id, user_id, content, type, status, converted_action_id, created_at, updated_at) VALUES (?, ?, ?, ?, ?, NULL, ?, ?)').run(capture.id, userId, content, capture.type, capture.status, createdAt, createdAt);
+    return capture;
+  }
+
+  listCaptures(userId: string, status: CaptureStatus = 'inbox'): Capture[] {
+    const rows = this.sqlite.prepare('SELECT * FROM captures WHERE user_id = ? AND status = ? ORDER BY created_at DESC').all(userId, status) as CaptureRow[];
+    return rows.map(mapCapture);
+  }
+
+  updateCapture(userId: string, captureId: string, input: { type?: CaptureType | null }): Capture {
+    const row = this.getOwnedCaptureRow(userId, captureId);
+    if (row.status !== 'inbox') throw new AppError('CAPTURE_NOT_INBOX', '只有收集箱中的记录可以编辑', 409);
+    const type = input.type === undefined ? row.type : input.type;
+    const updatedAt = now();
+    this.sqlite.prepare('UPDATE captures SET type = ?, updated_at = ? WHERE id = ? AND user_id = ?').run(type, updatedAt, captureId, userId);
+    return mapCapture({ ...row, type, updated_at: updatedAt });
+  }
+
+  convertCaptureToAction(userId: string, captureId: string, input: { goalId: string; title: string }): { capture: Capture; action: Action } {
+    const convert = this.sqlite.transaction(() => {
+      const capture = this.getOwnedCaptureRow(userId, captureId);
+      if (capture.status !== 'inbox') throw new AppError('CAPTURE_NOT_INBOX', '这条记录已经整理过了', 409);
+      const action = this.createGoalAction(userId, input.goalId, { title: input.title, content: capture.content });
+      const updatedAt = now();
+      this.sqlite.prepare("UPDATE captures SET status = 'converted', converted_action_id = ?, updated_at = ? WHERE id = ? AND user_id = ?").run(action.id, updatedAt, captureId, userId);
+      return { capture: mapCapture({ ...capture, status: 'converted', converted_action_id: action.id, updated_at: updatedAt }), action };
+    });
+    return convert();
+  }
+
+  archiveCapture(userId: string, captureId: string): Capture {
+    const row = this.getOwnedCaptureRow(userId, captureId);
+    if (row.status !== 'inbox') throw new AppError('CAPTURE_NOT_INBOX', '只有收集箱中的记录可以归档', 409);
+    const updatedAt = now();
+    this.sqlite.prepare("UPDATE captures SET status = 'archived', updated_at = ? WHERE id = ? AND user_id = ?").run(updatedAt, captureId, userId);
+    return mapCapture({ ...row, status: 'archived', updated_at: updatedAt });
+  }
+
+  deleteCapture(userId: string, captureId: string): void {
+    this.getOwnedCaptureRow(userId, captureId);
+    this.sqlite.prepare('DELETE FROM captures WHERE id = ? AND user_id = ?').run(captureId, userId);
+  }
+
   exportData(userId: string): ExportPayload {
     const read = this.sqlite.transaction(() => {
       const goalRows = this.sqlite.prepare('SELECT * FROM focuses WHERE user_id = ? ORDER BY created_at ASC').all(userId) as FocusRow[];
@@ -468,9 +533,10 @@ export class LifeKernelService {
       const profileDescriptionRow = this.sqlite.prepare('SELECT content, updated_at FROM profile_descriptions WHERE user_id = ?').get(userId) as { content: string; updated_at: string } | undefined;
       const knowledgeItems = (this.sqlite.prepare('SELECT * FROM knowledge_items WHERE user_id = ? ORDER BY created_at ASC').all(userId) as KnowledgeRow[]).map(mapKnowledge);
       const goalStatusEvents = (this.sqlite.prepare('SELECT id, goal_id, status, occurred_at FROM goal_status_events WHERE user_id = ? ORDER BY occurred_at ASC').all(userId) as GoalStatusEventRow[]).map(mapGoalStatusEvent);
-      return { goals: goalRows.map(mapGoal), currentContext: this.getCurrentContext(userId), actions: actionRows.map(mapAction), goalReflections, profileDescription: profileDescriptionRow ? { content: profileDescriptionRow.content, updatedAt: profileDescriptionRow.updated_at } : null, knowledgeItems, goalStatusEvents };
+      const captures = (this.sqlite.prepare('SELECT * FROM captures WHERE user_id = ? ORDER BY created_at ASC').all(userId) as CaptureRow[]).map(mapCapture);
+      return { goals: goalRows.map(mapGoal), currentContext: this.getCurrentContext(userId), actions: actionRows.map(mapAction), goalReflections, profileDescription: profileDescriptionRow ? { content: profileDescriptionRow.content, updatedAt: profileDescriptionRow.updated_at } : null, knowledgeItems, goalStatusEvents, captures };
     });
-    return { schemaVersion: 5, exportedAt: now(), data: read() };
+    return { schemaVersion: 6, exportedAt: now(), data: read() };
   }
 
   getProfileView(userId: string): ProfileView {
@@ -649,6 +715,12 @@ export class LifeKernelService {
   private getOwnedGoalRow(userId: string, goalId: string): FocusRow {
     const row = this.sqlite.prepare('SELECT * FROM focuses WHERE id = ? AND user_id = ?').get(goalId, userId) as FocusRow | undefined;
     if (!row) throw new AppError('RESOURCE_NOT_FOUND', '长期目标不存在', 404);
+    return row;
+  }
+
+  private getOwnedCaptureRow(userId: string, captureId: string): CaptureRow {
+    const row = this.sqlite.prepare('SELECT * FROM captures WHERE id = ? AND user_id = ?').get(captureId, userId) as CaptureRow | undefined;
+    if (!row) throw new AppError('RESOURCE_NOT_FOUND', '收集记录不存在', 404);
     return row;
   }
 
