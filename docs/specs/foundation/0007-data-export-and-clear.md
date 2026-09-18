@@ -30,7 +30,7 @@
 
 ```typescript
 type ExportPayload = {
-  schemaVersion: 5;
+  schemaVersion: 6;
   exportedAt: string;
   data: {
     goals: Goal[];
@@ -40,6 +40,7 @@ type ExportPayload = {
     profileDescription: ProfileDescription | null;
     knowledgeItems: KnowledgeItem[];
     goalStatusEvents: GoalStatusEvent[];
+    captures: Capture[];
   };
 };
 ```
@@ -53,7 +54,7 @@ type ExportPayload = {
 ```gherkin
 Given 当前账号存在目标、行动、当前状态或画像记录
 When 用户在设置页点击导出
-Then 服务端返回 schemaVersion 为 5 的 JSON 文件
+Then 服务端返回 schemaVersion 为 6 的 JSON 文件
 And 文件包含所有当前支持的数据集合
 And 文件只包含当前账号的数据
 ```

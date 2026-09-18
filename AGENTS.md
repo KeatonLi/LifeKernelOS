@@ -41,6 +41,7 @@
 - 当前信息架构决策：[ADR-0007](docs/architecture/decisions/0007-two-tab-console-information-architecture.md)
 - 主线：[SPEC-0010](docs/specs/current/0010-long-term-goals-and-current-action.md)
 - 我的画像：[SPEC-0011](docs/specs/current/0011-aggregated-profile-graph.md)
+- 快速收集箱：[SPEC-0005](docs/specs/current/0005-quick-capture.md)
 - 交付协议：[SDD](docs/development/SDD.md)
 
 ## 3. 按任务类型自动路由

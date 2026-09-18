@@ -59,6 +59,15 @@ export function createDatabase(databasePath: string): DatabaseContext {
       });
       addActionContent();
     }
+    const v08UserVersion = (sqlite.pragma('user_version', { simple: true }) as number) ?? 0;
+    if (v08UserVersion < 6) {
+      const quickCapturePath = resolve(process.cwd(), 'db/migrations/006_quick_capture.sql');
+      const addQuickCapture = sqlite.transaction(() => {
+        sqlite.exec(readFileSync(quickCapturePath, 'utf8'));
+        sqlite.pragma('user_version = 6');
+      });
+      addQuickCapture();
+    }
   } catch (error) {
     sqlite.close();
     throw error;

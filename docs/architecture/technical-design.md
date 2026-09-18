@@ -1,10 +1,10 @@
 # LifeKernelOS 详细技术设计
 
-> 版本：0.7
+> 版本：0.8
 > 状态：Accepted
-> 更新时间：2026-09-06
+> 更新时间：2026-09-18
 > 文档域：Architecture
-> 实现范围：`SPEC-0008`、`SPEC-0010`、`SPEC-0011` 与数据导出
+> 实现范围：`SPEC-0008`、`SPEC-0010`、`SPEC-0011`、`SPEC-0005` 与数据导出
 > 架构基线：[system-architecture.md](system-architecture.md)
 > 关键决策：[ADR-0008 主线分组与派生 To-do 进度](decisions/0008-mainline-groups-derived-todo-progress.md)
 
@@ -15,6 +15,7 @@
 ```text
 主线：Goal（分组） → To-do（Action + content） → 一个当前 To-do → 完成或调整
 我的画像：GoalProgress + Action 事实 + Reflection + Knowledge → ProfileGraph
+快速收集：Capture → 用户整理 → 指定 Goal 下的 To-do
 ```
 
 领域与 API 继续使用 `Goal` / `Action`，界面使用“主线” / “To-do”。旧 Focus 名称仅存在于物理表、迁移和兼容 API。主线进度是服务端的派生投影，不能由客户端写入。
@@ -44,6 +45,7 @@ db/migrations/
   003_v05_remove_single_active_goal_constraint.sql
   004_goal_status_events.sql
   005_v07_action_content.sql
+  006_quick_capture.sql
 ```
 
 ## 3. 前端路由与交互
@@ -55,7 +57,7 @@ db/migrations/
 | `/settings` | `SettingsPage` | 导出与账号辅助入口 |
 | `/now`、`/goals`、`/workbench` | `Navigate` | 兼容旧书签，重定向至 `/expectations` |
 
-`WorkspaceShell` 左侧只渲染“主线”“我的画像”；设置为底部图标入口。主线页默认打开当前 To-do 所属 Goal，否则打开最新 active Goal。页面在一个任务板中同时呈现：主线切换、进度、To-do 列表和选中 To-do 内容，不依赖页内跳转导航。
+`WorkspaceShell` 左侧只渲染“主线”“我的画像”；设置为底部图标入口。“快速记下”打开全局辅助抽屉，不创建新路由或一级 Tab。主线页默认打开当前 To-do 所属 Goal，否则打开最新 active Goal。页面在一个任务板中同时呈现：主线切换、进度、To-do 列表和选中 To-do 内容，不依赖页内跳转导航。
 
 画像页先渲染可操作的关系图谱，随后才渲染用户自述、当前 To-do 入口、知识和完成主线经历。Goal 节点点击进入 `/expectations#goal-{goalId}`；Knowledge 节点滚动到对应事实；self 节点不跳转。
 
@@ -125,10 +127,11 @@ type ProfileGraphNode = {
 - `focus_reflections.focus_id` → GoalReflection.goalId。
 - `knowledge_items.focus_id` → KnowledgeItem.goalId。
 - `goal_status_events.goal_id` → GoalStatusEvent.goalId。
+- `captures` → 独立收集记录；只在转换成功后通过 `converted_action_id` 关联 Action。
 
 旧 `focuses.progress_percent` 与 `focuses.status` 只为兼容旧库和 legacy API 保留。任何新的 Goal、Profile、Web API 或导出逻辑不得将其作为当前进度事实。
 
-`005_v07_action_content.sql` 只执行 `ALTER TABLE actions ADD COLUMN content TEXT`。`createDatabase` 通过 `PRAGMA user_version` 顺序迁移到版本 5；版本 5 的新库和已存在版本 4 的数据库都必须可重复启动。
+`005_v07_action_content.sql` 增加 Action 内容列，`006_quick_capture.sql` 增加 Capture 表与用户状态索引。`createDatabase` 通过 `PRAGMA user_version` 顺序迁移到版本 6；新库和已存在版本 5 的数据库都必须可重复启动。
 
 ## 6. 应用用例与事务
 
@@ -146,6 +149,11 @@ type ProfileGraphNode = {
 - `CompleteCurrentAction`、`SplitCurrentAction`、`BlockCurrentAction`、`AbandonCurrentAction`
 
 选择、切换、完成、拆小、卡住和放弃必须在单个 SQLite 事务中完成。拆小保留原 To-do 为 `superseded`，并创建关联的 available 子 To-do；原 To-do 不计入进度分母。
+
+### 6.3 快速收集
+
+- `CreateCapture`、`ListCaptures`、`UpdateCaptureType`、`ArchiveCapture`、`DeleteCapture`
+- `ConvertCaptureToAction` 在单个事务中校验 Capture、创建 Action 并写入转换结果；失败时 Capture 保持 inbox。
 
 ## 7. ProfileView 与图谱聚合
 
@@ -180,14 +188,18 @@ type ProfileView = {
 | GET | `/api/current` | 当前状态、当前 To-do、严格匹配和全部可用 To-do |
 | POST / DELETE | `/api/current/select` | 选择 / 释放当前 To-do |
 | POST | `/api/current/{complete|split|block|abandon}` | 处理当前 To-do |
+| GET / POST | `/api/captures` | 列出 / 创建快速收集记录 |
+| PATCH | `/api/captures/:id` | 更新 Capture 类型 |
+| POST | `/api/captures/:id/{convert|archive}` | 转为 To-do / 归档 |
+| DELETE | `/api/captures/:id` | 删除 Capture |
 | GET | `/api/profile` | 返回进度感知的 ProfileView 与图谱 |
-| GET | `/api/export` | 下载 schemaVersion 5 数据快照 |
+| GET | `/api/export` | 下载 schemaVersion 6 数据快照 |
 
 所有写请求执行 Origin 检查和 Session 校验。旧 `/api/focuses/*` 与 `/api/actions` 仅作本地历史兼容，当前 Web 客户端不得调用。
 
 ## 9. 导出契约
 
-导出升级为 schemaVersion `5`。数据集合不变，但 `actions[]` 使用现行 Action DTO 并包含 `content`。进度不单独导出，因为它可从 Action 状态和 Goal 状态重新推导；不得导出密码摘要、Session 或 Cookie。
+导出升级为 schemaVersion `6`，新增全部状态的 `captures[]`；`actions[]` 使用现行 Action DTO 并包含 `content`。进度不单独导出，因为它可从 Action 状态和 Goal 状态重新推导；不得导出密码摘要、Session 或 Cookie。
 
 ## 10. 视觉与可访问性约束
 
@@ -199,6 +211,6 @@ type ProfileView = {
 
 ## 11. 测试与状态
 
-自动化必须覆盖 Action 内容迁移与校验、有效 To-do 分母、百分比取整、completed Goal 的 100% 投影、Profile 用户隔离、图谱节点字段和 schemaVersion 5 导出。类型检查、生产构建、桌面与移动端浏览器验收均为交付前置条件。
+自动化必须覆盖 Action 内容迁移与校验、Capture 转换原子性、有效 To-do 分母、百分比取整、completed Goal 的 100% 投影、Profile 用户隔离、图谱节点字段和 schemaVersion 6 导出。类型检查、生产构建、桌面与移动端浏览器验收均为交付前置条件。
 
 代码和自动化测试完成后，`SPEC-0010`、`SPEC-0011` 与受影响的 `SPEC-0007` 可保持或恢复为 `Implemented`；逐条人工验收与真实用户试用完成前不得标记为 `Verified`。

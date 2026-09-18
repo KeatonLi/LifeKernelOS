@@ -17,13 +17,14 @@
 
 | 想确认什么 | 当前文档 |
 | --- | --- |
-| 产品定位、主线、我的画像及价值问题 | [PRD v0.7](product/PRD.md) |
+| 产品定位、主线、快速收集箱、我的画像及价值问题 | [PRD v0.8](product/PRD.md) |
 | 系统边界和模块关系 | [系统架构](architecture/system-architecture.md) |
 | 数据模型、HTTP DTO、事务和交付切片 | [详细技术设计](architecture/technical-design.md) |
 | 主线分组、To-do 与派生进度 | [ADR-0008](architecture/decisions/0008-mainline-groups-derived-todo-progress.md) |
 | 双 Tab 控制台结构 | [ADR-0007](architecture/decisions/0007-two-tab-console-information-architecture.md) |
 | “主线”可执行行为 | [SPEC-0010](specs/current/0010-long-term-goals-and-current-action.md) |
 | “我的画像”汇聚图谱行为 | [SPEC-0011](specs/current/0011-aggregated-profile-graph.md) |
+| 快速收集与转为 To-do | [SPEC-0005](specs/current/0005-quick-capture.md) |
 | 规格状态和开发顺序 | [Spec 索引](specs/README.md) |
 | AI-native 交付协议 | [SDD](development/SDD.md) |
 

@@ -19,6 +19,8 @@ const goalStatusSchema = z.enum(['active', 'paused', 'completed', 'abandoned']);
 const actionStatusSchema = z.enum(['available', 'completed', 'blocked', 'abandoned', 'superseded']);
 const energySchema = z.enum(['low', 'medium', 'high']);
 const availableMinutesSchema = z.union([z.literal(5), z.literal(15), z.literal(30), z.literal(60)]);
+const captureTypeSchema = z.enum(['idea', 'task', 'event', 'feeling', 'inspiration']);
+const captureStatusSchema = z.enum(['inbox', 'converted', 'archived']);
 
 function parseBody<T>(schema: z.ZodType<T>, payload: unknown): T {
   const parsed = schema.safeParse(payload);
@@ -247,6 +249,50 @@ export function buildApp(context?: DatabaseContext) {
     const user = await requireUser(request);
     const input = parseBody(z.object({ outcomeNote: textSchema(500).nullable().optional() }), request.body ?? {});
     return { action: service.abandonCurrentAction(user.id, input.outcomeNote) };
+  });
+
+  app.get('/api/captures', async (request) => {
+    const user = await requireUser(request);
+    const query = parseBody(z.object({ status: captureStatusSchema.optional() }), request.query);
+    return { captures: service.listCaptures(user.id, query.status) };
+  });
+
+  app.post('/api/captures', async (request, reply) => {
+    assertSafeOrigin(request);
+    const user = await requireUser(request);
+    const input = parseBody(z.object({ content: textSchema(2000), type: captureTypeSchema.nullable().optional() }), request.body);
+    return reply.status(201).send({ capture: service.createCapture(user.id, input) });
+  });
+
+  app.patch('/api/captures/:id', async (request) => {
+    assertSafeOrigin(request);
+    const user = await requireUser(request);
+    const params = parseBody(z.object({ id: z.string().uuid() }), request.params);
+    const input = parseBody(z.object({ type: captureTypeSchema.nullable() }), request.body);
+    return { capture: service.updateCapture(user.id, params.id, input) };
+  });
+
+  app.post('/api/captures/:id/convert', async (request) => {
+    assertSafeOrigin(request);
+    const user = await requireUser(request);
+    const params = parseBody(z.object({ id: z.string().uuid() }), request.params);
+    const input = parseBody(z.object({ goalId: z.string().uuid(), title: textSchema(200) }), request.body);
+    return service.convertCaptureToAction(user.id, params.id, input);
+  });
+
+  app.post('/api/captures/:id/archive', async (request) => {
+    assertSafeOrigin(request);
+    const user = await requireUser(request);
+    const params = parseBody(z.object({ id: z.string().uuid() }), request.params);
+    return { capture: service.archiveCapture(user.id, params.id) };
+  });
+
+  app.delete('/api/captures/:id', async (request) => {
+    assertSafeOrigin(request);
+    const user = await requireUser(request);
+    const params = parseBody(z.object({ id: z.string().uuid() }), request.params);
+    service.deleteCapture(user.id, params.id);
+    return { success: true };
   });
 
   app.get('/api/export', async (request, reply) => {

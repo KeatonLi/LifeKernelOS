@@ -1,10 +1,10 @@
 # LifeKernelOS 架构基线
 
-> 版本：0.7
+> 版本：0.8
 > 状态：Accepted
-> 更新时间：2026-09-06
+> 更新时间：2026-09-18
 > 文档域：Architecture
-> 对应产品：[PRD v0.7](../product/PRD.md)
+> 对应产品：[PRD v0.8](../product/PRD.md)
 > 对应决策：[ADR-0003](decisions/0003-server-backed-mvp.md)、[ADR-0005](decisions/0005-evidence-based-profile.md)、[ADR-0007](decisions/0007-two-tab-console-information-architecture.md)、[ADR-0008](decisions/0008-mainline-groups-derived-todo-progress.md)
 
 ## 1. 架构目标
@@ -31,6 +31,7 @@ Fastify 模块化单体
   ├─ Current Context
   ├─ Progress Projection
   ├─ Profile Aggregation
+  ├─ Quick Capture
   └─ Export
         │ 事务与归属校验
         ▼
@@ -49,6 +50,7 @@ SQLite
 | `/now`、`/goals`、`/workbench` | 兼容旧书签并重定向到 `/expectations` | 不展示 |
 
 主线页首屏必须可理解当前 To-do、所属主线、完成数量和进度；画像页首屏必须以真实可交互图谱作为主要内容。设置不成为第三个 Tab。
+快速收集箱由 WorkspaceShell 以辅助抽屉提供，不新增路由或一级 Tab。
 
 ## 4. 领域模型
 
@@ -87,6 +89,10 @@ SQLite
 
 图谱只允许 self → goal 和 goal → knowledge 两类关系。它在 Goal 节点聚合 To-do 进度，但不把每条 To-do 绘制为节点。
 
+### 4.5 Capture
+
+独立于 Action 的临时记录，状态为 inbox / converted / archived。转换成功后保留原文和 convertedActionId；失败时仍为 inbox。
+
 ## 5. 持久化与兼容
 
 当前数据库继续沿用历史表名：
@@ -99,8 +105,9 @@ SQLite
 | `focus_reflections.focus_id` | GoalReflection 的 `goalId` |
 | `knowledge_items.focus_id` | KnowledgeItem 的 `goalId` |
 | `current_contexts` | CurrentContext 与唯一 `selected_action_id` |
+| `captures` | 快速收集记录与可选的已转换 Action 外键 |
 
-`focuses.progress_percent` 和旧 `status` 仅用于历史迁移与 legacy API；现行 UI、Profile DTO 和导出用 Action 状态派生进度。启动迁移遵循 user_version `0 → 5`，其中版本 5 增加 Action 内容列。
+`focuses.progress_percent` 和旧 `status` 仅用于历史迁移与 legacy API；现行 UI、Profile DTO 和导出用 Action 状态派生进度。启动迁移遵循 user_version `0 → 6`，其中版本 5 增加 Action 内容列，版本 6 增加 Capture。
 
 ## 6. HTTP 与事务边界
 
@@ -112,9 +119,10 @@ SQLite
 - `/api/current`、`/api/current/context`、`/api/current/select`、`/api/current/{complete|split|block|abandon}`
 - `/api/profile`、`/api/profile/description`、`/api/goals/:id/reflection`
 - `/api/knowledge`、`/api/knowledge/:id`
+- `/api/captures`、`/api/captures/:id`、`/api/captures/:id/{convert|archive}`
 - `/api/export`
 
-以下操作必须在单个 SQLite 事务中完成：选择或切换当前 To-do；完成、拆小、卡住或放弃当前 To-do；改变含当前 To-do 的 Goal 状态；数据库迁移；导出一致性读取；Goal 状态事件写入。进度读取和画像聚合使用一致性读事务。
+以下操作必须在单个 SQLite 事务中完成：选择或切换当前 To-do；完成、拆小、卡住或放弃当前 To-do；Capture 转为 To-do；改变含当前 To-do 的 Goal 状态；数据库迁移；导出一致性读取；Goal 状态事件写入。进度读取和画像聚合使用一致性读事务。
 
 ## 7. 画像可信度与隐私
 
@@ -127,7 +135,7 @@ SQLite
 ## 8. 验证基线
 
 - Domain / Application 测试覆盖 Action 内容、派生进度、多个 active Goal、唯一当前 To-do、状态匹配和四种处理结果。
-- HTTP 测试覆盖身份边界、资源归属、规范 DTO 与 schemaVersion 5 导出。
+- HTTP 测试覆盖身份边界、资源归属、Capture 转换、规范 DTO 与 schemaVersion 6 导出。
 - 迁移测试覆盖旧 Focus / Action 数据升级、Action 内容列和重复启动。
 - 前端必须通过类型检查与生产构建，并在桌面和移动视口人工验证主线任务板、当前 To-do、图谱交互与事实回退。
 

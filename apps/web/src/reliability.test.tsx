@@ -15,7 +15,7 @@ const { render, fireEvent, waitFor, cleanup, act } = await import('@testing-libr
 const { MemoryRouter, useNavigate } = await import('react-router-dom');
 const { ExpectationsPage, ProfilePage, buildProfileFlow } = await import('./App.js');
 const { api } = await import('./api.js');
-import type { Mainline, GoalAction, Profile, ProfileGraphNode } from './api.js';
+import type { Capture, Mainline, GoalAction, Profile, ProfileGraphNode } from './api.js';
 
 const user = { id: 'user', email: 'test@example.com', createdAt: '' };
 const goal = (id: string): Mainline => ({ id, userId: user.id, title: `主线 ${id}`, doneDefinition: null, status: 'active', completedAt: null, createdAt: '', updatedAt: '', progress: { completedTodoCount: 0, totalTodoCount: 0, progressPercent: 0 } });
@@ -146,6 +146,32 @@ test('SPEC-0010：完成当前行动后刷新状态及进度，不保留完成�
   await view.findByText('已完成 · 100%');
   assert.equal(view.queryByRole('button', { name: '完成这件事' }), null);
   assert.match(view.container.querySelector('.todo-list')!.textContent!, /已完成/);
+});
+
+test('SPEC-0005：从全局抽屉快速保存并转为指定主线 To-do', async () => {
+  setupMainlines();
+  mock.method(api, 'goalActions', async () => ({ actions: [] }));
+  let records: Capture[] = [];
+  mock.method(api, 'captures', async () => ({ captures: structuredClone(records) }));
+  mock.method(api, 'createCapture', async ({ content }: { content: string }) => {
+    const capture: Capture = { id: 'capture-a', userId: user.id, content, type: null, status: 'inbox', convertedActionId: null, createdAt: new Date().toISOString(), updatedAt: new Date().toISOString() };
+    records = [capture];
+    return { capture };
+  });
+  mock.method(api, 'convertCapture', async (id: string, input: { goalId: string; title: string }) => {
+    records = records.filter((item) => item.id !== id);
+    return { capture: { id, userId: user.id, content: '突然想到的事', type: null, status: 'converted' as const, convertedActionId: 'todo-a', createdAt: '', updatedAt: '' }, action: { ...action('todo-a', input.goalId), title: input.title } };
+  });
+  const view = mainlineView();
+  await view.findByRole('heading', { name: '主线 a' });
+  fireEvent.click(view.getByRole('button', { name: '快速记下' }));
+  fireEvent.change(await view.findByPlaceholderText('想到什么，就写一句……'), { target: { value: '突然想到的事' } });
+  fireEvent.click(view.getByRole('button', { name: '保存' }));
+  await view.findByText('突然想到的事');
+  fireEvent.click(view.getByRole('button', { name: '转为 To-do' }));
+  assert.equal((view.getByLabelText('归入主线') as HTMLSelectElement).value, 'a');
+  fireEvent.click(view.getByRole('button', { name: '转为 To-do' }));
+  await view.findByText('收集箱已经清空。');
 });
 
 test('SPEC-0011：多于五条主线及密集知识节点不重叠，边保持来源', () => {
