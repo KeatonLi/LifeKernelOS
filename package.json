@@ -12,7 +12,8 @@
     "build": "npm run typecheck && vite build",
     "start": "tsx apps/api/src/server.ts",
     "db:seed": "tsx apps/api/src/seed.ts",
-    "test": "tsx --test apps/api/src/*.test.ts",
+    "test": "node --import tsx --test apps/api/src/*.test.ts apps/web/src/*.test.tsx",
+    "test:web": "node --import tsx --test apps/web/src/*.test.tsx",
     "typecheck": "tsc --noEmit"
   },
   "dependencies": {
@@ -29,12 +30,15 @@
     "zod": "^3.24.1"
   },
   "devDependencies": {
+    "@testing-library/react": "^16.3.3",
     "@types/better-sqlite3": "^7.6.12",
+    "@types/jsdom": "^30.0.0",
     "@types/node": "^22.10.2",
     "@types/react": "^19.0.2",
     "@types/react-dom": "^19.0.2",
     "@vitejs/plugin-react": "^4.3.4",
     "concurrently": "^9.1.0",
+    "jsdom": "^30.0.1",
     "tsx": "^4.19.2",
     "typescript": "^5.7.2",
     "vite": "^6.0.5"

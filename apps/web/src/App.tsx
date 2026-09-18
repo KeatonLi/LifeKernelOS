@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useState, type FormEvent, type ReactNode } from 'react';
+import { useEffect, useMemo, useRef, useState, type FormEvent, type ReactNode } from 'react';
 import { Navigate, NavLink, Route, Routes, useLocation, useNavigate } from 'react-router-dom';
 import { Background, Controls, Handle, MarkerType, Position, ReactFlow, type Edge, type Node, type NodeProps } from '@xyflow/react';
 import {
@@ -138,7 +138,10 @@ function WorkspaceShell({ user, onLogout, children }: { user: User; onLogout: ()
 
 type ResolutionMode = 'split' | 'block' | 'abandon' | null;
 
-function ExpectationsPage({ user, onLogout }: { user: User; onLogout: () => void }) {
+export function ExpectationsPage({ user, onLogout }: { user: User; onLogout: () => void }) {
+  const { hash } = useLocation();
+  const requestVersion = useRef(0);
+  const loadTarget = useRef<string | null>(null);
   const [mainlines, setMainlines] = useState<Mainline[]>([]);
   const [actions, setActions] = useState<GoalAction[]>([]);
   const [currentAction, setCurrentAction] = useState<GoalAction | null>(null);
@@ -155,10 +158,12 @@ function ExpectationsPage({ user, onLogout }: { user: User; onLogout: () => void
   const [resolutionMode, setResolutionMode] = useState<ResolutionMode>(null);
 
   async function load(preferredGoalId?: string | null, preferredActionId?: string | null) {
+    loadTarget.current = preferredGoalId ?? null;
+    const version = ++requestVersion.current;
     setLoading(true); setError('');
     try {
       const [{ goals }, workspace] = await Promise.all([api.goals(), api.current()]);
-      setMainlines(goals); setCurrentAction(workspace.currentAction);
+      if (version !== requestVersion.current) return;
       const nextGoalId = preferredGoalId && goals.some((goal) => goal.id === preferredGoalId)
         ? preferredGoalId
         : workspace.currentAction && goals.some((goal) => goal.id === workspace.currentAction?.goalId)
@@ -166,25 +171,22 @@ function ExpectationsPage({ user, onLogout }: { user: User; onLogout: () => void
           : selectedGoalId && goals.some((goal) => goal.id === selectedGoalId)
             ? selectedGoalId
             : goals.find((goal) => goal.status === 'active')?.id ?? goals[0]?.id ?? null;
-      setSelectedGoalId(nextGoalId);
-      if (preferredActionId) setSelectedActionId(preferredActionId);
-      else if (workspace.currentAction && workspace.currentAction.goalId === nextGoalId) setSelectedActionId(workspace.currentAction.id);
-    } catch (reason) { setError(messageFor(reason)); }
-    finally { setLoading(false); }
+      const next = nextGoalId ? (await api.goalActions(nextGoalId)).actions : [];
+      if (version !== requestVersion.current) return;
+      setMainlines(goals); setCurrentAction(workspace.currentAction);
+      setSelectedGoalId(nextGoalId); setActions(next);
+      const candidates = [preferredActionId, workspace.currentAction?.id, selectedActionId];
+      setSelectedActionId(candidates.find((id) => id && next.some((action) => action.id === id))
+        ?? next.find((action) => action.status === 'available')?.id ?? next[0]?.id ?? null);
+    } catch (reason) { if (version === requestVersion.current) setError(messageFor(reason)); }
+    finally { if (version === requestVersion.current) setLoading(false); }
   }
 
-  useEffect(() => { void load(); }, []);
   useEffect(() => {
-    if (!selectedGoalId) { setActions([]); return; }
-    api.goalActions(selectedGoalId).then(({ actions: next }) => {
-      setActions(next);
-      setSelectedActionId((current) => {
-        if (current && next.some((action) => action.id === current)) return current;
-        if (currentAction?.goalId === selectedGoalId && next.some((action) => action.id === currentAction.id)) return currentAction.id;
-        return next.find((action) => action.status === 'available')?.id ?? next[0]?.id ?? null;
-      });
-    }).catch((reason) => setError(messageFor(reason)));
-  }, [selectedGoalId, currentAction?.id]);
+    setEditingTodo(false); setShowNewTodo(false); setResolutionMode(null); setShowMainlineTools(false);
+    void load(hash.startsWith('#goal-') ? hash.slice(6) : undefined);
+    return () => { requestVersion.current++; };
+  }, [hash]);
 
   const mainline = mainlines.find((goal) => goal.id === selectedGoalId) ?? null;
   const selectedAction = actions.find((action) => action.id === selectedActionId) ?? null;
@@ -218,12 +220,13 @@ function ExpectationsPage({ user, onLogout }: { user: User; onLogout: () => void
   }
 
   return <WorkspaceShell user={user} onLogout={onLogout}><div className="mainline-page">
-    {loading ? <InlineLoading /> : !mainline ? <FirstMainline onCreated={(id) => { setShowNewGoal(false); void load(id); }} /> : <>
-      <header className="mainline-topbar"><label className="mainline-select-label">当前主线<select value={mainline.id} onChange={(event) => { setSelectedGoalId(event.target.value); setShowMainlineTools(false); setNotice(''); }}><option value={mainline.id}>{mainline.title}</option>{mainlines.filter((goal) => goal.id !== mainline.id).map((goal) => <option key={goal.id} value={goal.id}>{goal.title}</option>)}</select><CaretDownIcon size={14} weight="bold" /></label><button className="quiet-action" onClick={() => setShowNewGoal(true)}><PlusIcon size={17} weight="bold" /> 新建主线</button></header>
+    {error && <div role="alert" className="page-error">{error}<button className="secondary-button" onClick={() => void load(loadTarget.current)} disabled={loading}>重试</button></div>}
+    {loading ? <InlineLoading /> : !mainline && error ? null : !mainline ? <FirstMainline onCreated={(id) => { setShowNewGoal(false); void load(id); }} /> : <>
+      <header className="mainline-topbar"><label className="mainline-select-label">当前主线<select value={mainline.id} onChange={(event) => { void load(event.target.value); setEditingTodo(false); setShowNewTodo(false); setResolutionMode(null); setShowMainlineTools(false); setNotice(''); }}><option value={mainline.id}>{mainline.title}</option>{mainlines.filter((goal) => goal.id !== mainline.id).map((goal) => <option key={goal.id} value={goal.id}>{goal.title}</option>)}</select><CaretDownIcon size={14} weight="bold" /></label><button className="quiet-action" onClick={() => setShowNewGoal(true)}><PlusIcon size={17} weight="bold" /> 新建主线</button></header>
       {showNewGoal && <MainlineEditor onCancel={() => setShowNewGoal(false)} onSaved={async (title, doneDefinition) => { setSaving(true); try { const { goal } = await api.createGoal({ title, doneDefinition }); setShowNewGoal(false); setNotice('已建立新主线。'); await load(goal.id); } catch (reason) { setError(messageFor(reason)); } finally { setSaving(false); } }} saving={saving} />}
       <section className="mainline-hero" id={`goal-${mainline.id}`}><div className="mainline-hero-copy"><p className="eyebrow">MAINLINE</p><h1>{mainline.title}</h1>{mainline.doneDefinition && <p>{mainline.doneDefinition}</p>}</div><button className="icon-control" onClick={() => setShowMainlineTools((current) => !current)} aria-label="主线设置"><DotsThreeIcon size={22} weight="bold" /></button><ProgressLine progress={mainline.progress.progressPercent} /><div className="progress-copy"><strong>{mainline.progress.completedTodoCount} / {mainline.progress.totalTodoCount}</strong><span>已完成 · {mainline.progress.progressPercent}%</span></div></section>
       {showMainlineTools && <MainlineTools mainline={mainline} saving={saving} onCancel={() => setShowMainlineTools(false)} onSaved={async (input) => { setSaving(true); try { await api.updateGoal(mainline.id, input); setNotice('主线信息已保存。'); setShowMainlineTools(false); await load(mainline.id); } catch (reason) { setError(messageFor(reason)); } finally { setSaving(false); } }} onStatus={async (status) => { setSaving(true); try { await api.changeGoalStatus(mainline.id, status, status === 'completed'); setNotice(status === 'completed' ? '主线已标为完成，进度显示为 100%。' : '主线状态已更新。'); await load(mainline.id); } catch (reason) { setError(messageFor(reason)); } finally { setSaving(false); } }} />}
-      {notice && <p className="page-notice"><CheckCircleIcon size={16} weight="fill" /> {notice}</p>}{error && <p className="page-error">{error}</p>}
+      {notice && <p className="page-notice"><CheckCircleIcon size={16} weight="fill" /> {notice}</p>}
       <section className="todo-board"><div className="todo-list-pane"><div className="pane-heading"><div><p className="eyebrow">TO-DOS</p><h2>这条主线的步骤</h2></div><button className="icon-control blue" onClick={() => { setShowNewTodo(true); setEditingTodo(false); }} aria-label="新建 To-do"><PlusIcon size={19} weight="bold" /></button></div>
         {showNewTodo && <TodoEditor onCancel={() => setShowNewTodo(false)} saving={saving} onSaved={async (input) => { setSaving(true); try { const { action } = await api.createGoalAction(mainline.id, input); setShowNewTodo(false); setNotice('新的 To-do 已加入主线。'); await load(mainline.id, action.id); } catch (reason) { setError(messageFor(reason)); } finally { setSaving(false); } }} />}
         <ol className="todo-list">{actions.map((action, index) => <TodoRow key={action.id} action={action} index={index + 1} selected={action.id === selectedAction?.id} current={action.id === currentAction?.id} onSelect={() => { setSelectedActionId(action.id); setEditingTodo(false); setResolutionMode(null); }} />)}{actions.length === 0 && <li className="todo-empty">这里还没有 To-do。先写下能开始的一步。</li>}</ol>
@@ -270,7 +273,7 @@ function ResolutionEditor({ mode, saving, onCancel, onSubmit }: { mode: Exclude<
   return <form className="resolution-editor" onSubmit={(event) => { event.preventDefault(); onSubmit(value); }}><label>{isSplit ? '更小的一步' : mode === 'block' ? '卡住的原因（可选）' : '放弃的原因（可选）'}<textarea value={value} onChange={(event) => setValue(event.target.value)} required={isSplit} maxLength={500} placeholder={isSplit ? '例如：只写首页标题和第一段' : '如实记录即可'} /></label><div className="editor-actions"><button className="secondary-button" disabled={saving}>{isSplit ? '拆成更小一步' : '确认保存'}</button><button type="button" className="text-button" onClick={onCancel}>取消</button></div></form>;
 }
 
-function ProfilePage({ user, onLogout }: { user: User; onLogout: () => void }) {
+export function ProfilePage({ user, onLogout }: { user: User; onLogout: () => void }) {
   const navigate = useNavigate();
   const [profile, setProfile] = useState<Profile | null>(null); const [currentAction, setCurrentAction] = useState<GoalAction | null>(null);
   const [description, setDescription] = useState(''); const [loading, setLoading] = useState(true); const [saving, setSaving] = useState(false); const [notice, setNotice] = useState(''); const [error, setError] = useState('');
@@ -283,7 +286,7 @@ function ProfilePage({ user, onLogout }: { user: User; onLogout: () => void }) {
   async function updateKnowledge(item: KnowledgeItem, status: KnowledgeStatus) { setSaving(true); try { await api.updateKnowledge(item.id, { status }); await load(); } catch (reason) { setError(messageFor(reason)); } finally { setSaving(false); } }
   async function deleteKnowledge(item: KnowledgeItem) { setSaving(true); try { await api.deleteKnowledge(item.id); setNotice('知识已移出画像。'); await load(); } catch (reason) { setError(messageFor(reason)); } finally { setSaving(false); } }
 
-  return <WorkspaceShell user={user} onLogout={onLogout}><div className="profile-page"><header className="profile-page-head"><p className="eyebrow">MY PROFILE</p><h1>我的画像</h1><p>每条主线、完成的 To-do 和知识，正在组成真实而可追溯的积累。</p></header>{loading || !profile ? <InlineLoading /> : <>{error && <p className="page-error">{error}</p>}{notice && <p className="page-notice"><CheckCircleIcon size={16} weight="fill" /> {notice}</p>}<section className="profile-graph-stage">{profile.factSummary.goalCount === 0 ? <div className="profile-graph-empty"><GraphIcon size={42} weight="thin" /><h2>画像会从第一条主线开始形成。</h2><p>建立主线、完成 To-do 或记录知识后，它们的关系会出现在这里。</p><button className="primary-button" onClick={() => navigate('/expectations')}>去建立主线 <ArrowRightIcon size={17} weight="bold" /></button></div> : <ProfileGraph profile={profile} onOpen={(node) => { if (node.type === 'goal') navigate(`/expectations#goal-${node.sourceId}`); if (node.type === 'knowledge') document.getElementById(`knowledge-${node.sourceId}`)?.scrollIntoView({ behavior: 'smooth', block: 'center' }); }} />}</section><section className="profile-underlay"><article className="about-card"><p className="eyebrow">ABOUT ME</p><h2>关于我</h2><textarea value={description} onChange={(event) => setDescription(event.target.value)} maxLength={500} placeholder="写下你想如何理解自己，或暂时留白。" /><button className="secondary-button" onClick={saveDescription} disabled={saving}>保存描述</button></article><article className="current-profile-card"><p className="eyebrow">CURRENT TO-DO</p><h2>{currentAction?.title ?? '暂时没有当前 To-do'}</h2><p>{currentAction?.content || (currentAction ? '这条 To-do 还没有补充内容。' : '回到主线页，从一个可执行的 To-do 开始。')}</p><button className="text-link" onClick={() => navigate('/expectations')}>{currentAction ? '打开当前 To-do' : '去主线页'} <ArrowRightIcon size={16} weight="bold" /></button></article></section><section className="knowledge-section"><div className="section-heading"><div><p className="eyebrow">KNOWLEDGE</p><h2>从主线中沉淀的知识</h2></div><p>知识始终连接它产生的主线，而不是脱离语境的标签。</p></div><div className="knowledge-list">{profile.knowledgeItems.map((item) => <KnowledgeCard key={item.id} item={item} saving={saving} onStatus={(status) => void updateKnowledge(item, status)} onDelete={() => void deleteKnowledge(item)} />)}{profile.knowledgeItems.length === 0 && <p className="knowledge-empty">还没有知识记录。完成一次真实行动后，记录下它留下的认识。</p>}</div><form className="knowledge-create" onSubmit={createKnowledge}><label>知识标题<input value={knowledgeTitle} onChange={(event) => setKnowledgeTitle(event.target.value)} maxLength={80} required placeholder="例如：用户访谈的基本方法" /></label><label>来源主线<select value={knowledgeGoalId} onChange={(event) => setKnowledgeGoalId(event.target.value)} required><option value="">选择主线</option>{profile.goals.map(({ goal }) => <option key={goal.id} value={goal.id}>{goal.title}</option>)}</select></label><label>补充说明<input value={knowledgeNote} onChange={(event) => setKnowledgeNote(event.target.value)} maxLength={300} placeholder="可选" /></label><button className="secondary-button" disabled={saving}><PlusIcon size={17} weight="bold" /> 记录知识</button></form></section><ProfileExperiences profile={profile} saving={saving} onSaved={async (goalId, summary) => { setSaving(true); try { await api.saveReflection(goalId, summary); setNotice('经历总结已保存。'); await load(); } catch (reason) { setError(messageFor(reason)); } finally { setSaving(false); } }} /></>}</div></WorkspaceShell>;
+  return <WorkspaceShell user={user} onLogout={onLogout}><div className="profile-page"><header className="profile-page-head"><p className="eyebrow">MY PROFILE</p><h1>我的画像</h1><p>每条主线、完成的 To-do 和知识，正在组成真实而可追溯的积累。</p></header>{error && <div role="alert" className="page-error">{error}<button className="secondary-button" onClick={() => void load()} disabled={loading}>重试</button></div>}{loading ? <InlineLoading /> : !profile ? null : <>{notice && <p className="page-notice"><CheckCircleIcon size={16} weight="fill" /> {notice}</p>}<section className="profile-graph-stage">{profile.factSummary.goalCount === 0 ? <div className="profile-graph-empty"><GraphIcon size={42} weight="thin" /><h2>画像会从第一条主线开始形成。</h2><p>建立主线、完成 To-do 或记录知识后，它们的关系会出现在这里。</p><button className="primary-button" onClick={() => navigate('/expectations')}>去建立主线 <ArrowRightIcon size={17} weight="bold" /></button></div> : <ProfileGraph profile={profile} onOpen={(node) => { if (node.type === 'goal') navigate(`/expectations#goal-${node.sourceId}`); if (node.type === 'knowledge') document.getElementById(`knowledge-${node.sourceId}`)?.scrollIntoView({ behavior: 'smooth', block: 'center' }); }} />}</section><section className="profile-underlay"><article className="about-card"><p className="eyebrow">ABOUT ME</p><h2>关于我</h2><textarea value={description} onChange={(event) => setDescription(event.target.value)} maxLength={500} placeholder="写下你想如何理解自己，或暂时留白。" /><button className="secondary-button" onClick={saveDescription} disabled={saving}>保存描述</button></article><article className="current-profile-card"><p className="eyebrow">CURRENT TO-DO</p><h2>{currentAction?.title ?? '暂时没有当前 To-do'}</h2><p>{currentAction?.content || (currentAction ? '这条 To-do 还没有补充内容。' : '回到主线页，从一个可执行的 To-do 开始。')}</p><button className="text-link" onClick={() => navigate('/expectations')}>{currentAction ? '打开当前 To-do' : '去主线页'} <ArrowRightIcon size={16} weight="bold" /></button></article></section><section className="knowledge-section"><div className="section-heading"><div><p className="eyebrow">KNOWLEDGE</p><h2>从主线中沉淀的知识</h2></div><p>知识始终连接它产生的主线，而不是脱离语境的标签。</p></div><div className="knowledge-list">{profile.knowledgeItems.map((item) => <KnowledgeCard key={item.id} item={item} saving={saving} onStatus={(status) => void updateKnowledge(item, status)} onDelete={() => void deleteKnowledge(item)} />)}{profile.knowledgeItems.length === 0 && <p className="knowledge-empty">还没有知识记录。完成一次真实行动后，记录下它留下的认识。</p>}</div><form className="knowledge-create" onSubmit={createKnowledge}><label>知识标题<input value={knowledgeTitle} onChange={(event) => setKnowledgeTitle(event.target.value)} maxLength={80} required placeholder="例如：用户访谈的基本方法" /></label><label>来源主线<select value={knowledgeGoalId} onChange={(event) => setKnowledgeGoalId(event.target.value)} required><option value="">选择主线</option>{profile.goals.map(({ goal }) => <option key={goal.id} value={goal.id}>{goal.title}</option>)}</select></label><label>补充说明<input value={knowledgeNote} onChange={(event) => setKnowledgeNote(event.target.value)} maxLength={300} placeholder="可选" /></label><button className="secondary-button" disabled={saving}><PlusIcon size={17} weight="bold" /> 记录知识</button></form></section><ProfileExperiences profile={profile} saving={saving} onSaved={async (goalId, summary) => { setSaving(true); try { await api.saveReflection(goalId, summary); setNotice('经历总结已保存。'); await load(); } catch (reason) { setError(messageFor(reason)); } finally { setSaving(false); } }} /></>}</div></WorkspaceShell>;
 }
 
 type FlowData = { source: ProfileGraphNode };
@@ -301,17 +304,29 @@ function ProfileGraph({ profile, onOpen }: { profile: Profile; onOpen: (node: Pr
   return <ReactFlow nodes={flow.nodes} edges={flow.edges} nodeTypes={profileNodeTypes} onNodeClick={(_, node) => onOpen((node.data as FlowData).source)} fitView fitViewOptions={{ padding: 0.06 }} minZoom={0.38} maxZoom={1.4} nodesDraggable={false} nodesConnectable={false} deleteKeyCode={null}><Background gap={26} size={1} color="#d8e0ec" /><Controls showInteractive={false} /></ReactFlow>;
 }
 
-function buildProfileFlow(profile: Profile): { nodes: Node[]; edges: Edge[] } {
+export function buildProfileFlow(profile: Profile): { nodes: Node[]; edges: Edge[] } {
   const sourceNodes = profile.graph.nodes; const self = sourceNodes.find((node) => node.type === 'self'); const goals = sourceNodes.filter((node) => node.type === 'goal'); const knowledge = sourceNodes.filter((node) => node.type === 'knowledge');
   if (!self) return { nodes: [], edges: [] };
-  const goalOffsets = [{ x: 230, y: 120 }, { x: 1010, y: 120 }, { x: 620, y: 500 }, { x: 230, y: 500 }, { x: 1010, y: 500 }];
-  const goalPositions = new Map<string, { x: number; y: number }>();
-  goals.forEach((goal, index) => goalPositions.set(goal.id, goalOffsets[index % goalOffsets.length]));
-  const nodes: Node[] = [{ id: self.id, type: 'profile', position: { x: 640, y: 285 }, data: { source: self } }];
-  goals.forEach((goal) => nodes.push({ id: goal.id, type: 'profile', position: goalPositions.get(goal.id) ?? { x: 230, y: 120 }, data: { source: goal } }));
-  const edgeByKnowledge = new Map(profile.graph.edges.filter((edge) => edge.relation === 'develops_knowledge').map((edge) => [edge.target, edge]));
-  const knowledgeCounts = new Map<string, number>();
-  knowledge.forEach((item) => { const edge = edgeByKnowledge.get(item.id); if (!edge) return; const count = knowledgeCounts.get(edge.source) ?? 0; knowledgeCounts.set(edge.source, count + 1); const goalPosition = goalPositions.get(edge.source) ?? { x: 620, y: 500 }; const leftSide = goalPosition.x < 500; const rightSide = goalPosition.x > 800; const position = leftSide ? { x: 20, y: goalPosition.y + count * 102 } : rightSide ? { x: 1290, y: goalPosition.y + count * 102 } : { x: 540 + count * 205, y: 690 }; nodes.push({ id: item.id, type: 'profile', position, data: { source: item } }); });
+  // Reserve a vertical band per mainline, including space for all its knowledge.
+  // Left and right bands grow independently; no fixed-size position cycle.
+  const children = new Map<string, ProfileGraphNode[]>();
+  const sourceByKnowledge = new Map(profile.graph.edges.filter((edge) => edge.relation === 'develops_knowledge').map((edge) => [edge.target, edge.source]));
+  for (const item of knowledge) {
+    const source = sourceByKnowledge.get(item.id);
+    if (source) children.set(source, [...(children.get(source) ?? []), item]);
+  }
+  const cursors = [0, 0];
+  const nodes: Node[] = [];
+  goals.forEach((goal, index) => {
+    const side = index % 2;
+    const items = children.get(goal.id) ?? [];
+    const height = Math.max(160, items.length * 120);
+    const top = cursors[side];
+    nodes.push({ id: goal.id, type: 'profile', position: { x: side === 0 ? 230 : 1010, y: top + (height - 120) / 2 }, data: { source: goal } });
+    items.forEach((item, i) => nodes.push({ id: item.id, type: 'profile', position: { x: side === 0 ? 0 : 1290, y: top + i * 120 }, data: { source: item } }));
+    cursors[side] += height + 60;
+  });
+  nodes.unshift({ id: self.id, type: 'profile', position: { x: 640, y: Math.max(0, (Math.max(...cursors) - 172) / 2) }, data: { source: self } });
   const edges: Edge[] = profile.graph.edges.map((edge) => ({ id: edge.id, source: edge.source, target: edge.target, type: 'smoothstep', animated: false, markerEnd: { type: MarkerType.ArrowClosed, width: 14, height: 14 }, style: { stroke: edge.relation === 'pursues' ? '#1976f3' : '#83a9e8', strokeWidth: edge.relation === 'pursues' ? 1.8 : 1.2 } }));
   return { nodes, edges };
 }

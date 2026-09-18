@@ -104,7 +104,8 @@ npm run dev
 
 ```bash
 npm run docs:check   # 检查文档链接和过期路径
-npm test             # 运行后端行为与迁移测试
+npm test             # 运行后端行为、迁移和前端可靠性回归测试
+npm run test:web     # 单独运行前端 DOM 交互与图谱布局测试
 npm run typecheck    # TypeScript 类型检查
 npm run build        # 完整生产构建
 ```
