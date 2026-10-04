@@ -66,7 +66,7 @@ export function buildProfileFlow(profile: Profile): {
       animated: false,
       markerEnd: { type: 'arrowclosed' as MarkerType, width: 14, height: 14 },
       style: {
-        stroke: edge.relation === 'pursues' ? '#497461' : '#a9bb9c',
+        stroke: edge.relation === 'pursues' ? 'var(--graph-link)' : 'var(--line-strong)',
         strokeWidth: edge.relation === 'pursues' ? 1.8 : 1.2,
       },
     };

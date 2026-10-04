@@ -1123,7 +1123,7 @@ export function ExpectationsPage({
                     <h2>这条主线的步骤</h2>
                   </div>
                   <button
-                    className="icon-control blue"
+                    className="icon-control accent"
                     onClick={() => {
                       setShowNewTodo(true);
                       setEditingTodo(false);

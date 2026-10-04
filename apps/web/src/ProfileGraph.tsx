@@ -90,7 +90,7 @@ export default function ProfileGraph({
       nodesConnectable={false}
       deleteKeyCode={null}
     >
-      <Background gap={26} size={1} color="#d9dfd5" />
+      <Background gap={26} size={1} color="var(--graph-grid)" />
       <Controls showInteractive={false} />
     </ReactFlow>
   );

@@ -102,7 +102,7 @@ function openWindow(kind: 'main' | 'capture' | 'focus') {
       kind === 'capture' ? 680 : kind === 'focus' ? 580 : mainBounds.height,
     minWidth: auxiliary ? 400 : 900,
     minHeight: auxiliary ? 460 : 640,
-    backgroundColor: '#f8f9f5',
+    backgroundColor: '#f3f4f5',
     show: false,
     autoHideMenuBar: true,
     titleBarStyle: process.platform === 'darwin' ? 'hiddenInset' : 'default',
