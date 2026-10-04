@@ -29,6 +29,7 @@ export type GoalAction = {
   parentActionId: string | null;
   title: string;
   content: string | null;
+  scheduledDate: string | null;
   estimatedMinutes: AvailableMinutes | null;
   energyRequired: Energy | null;
   status: ActionStatus;
@@ -97,15 +98,17 @@ export const api = {
   updateGoal: (id: string, input: { title?: string; doneDefinition?: string | null }) => request<{ goal: Goal }>(`/api/goals/${id}`, { method: 'PATCH', body: JSON.stringify(input) }),
   changeGoalStatus: (id: string, status: GoalStatus, confirmed = false) => request<{ goal: Goal }>(`/api/goals/${id}/status`, { method: 'POST', body: JSON.stringify({ status, confirmed }) }),
   goalActions: (goalId: string) => request<{ actions: GoalAction[] }>(`/api/goals/${goalId}/actions`),
-  createGoalAction: (goalId: string, input: { title: string; content?: string | null; estimatedMinutes?: AvailableMinutes | null; energyRequired?: Energy | null }) => request<{ action: GoalAction }>(`/api/goals/${goalId}/actions`, { method: 'POST', body: JSON.stringify(input) }),
-  updateAction: (id: string, input: { title?: string; content?: string | null; estimatedMinutes?: AvailableMinutes | null; energyRequired?: Energy | null }) => request<{ action: GoalAction }>(`/api/actions/${id}`, { method: 'PATCH', body: JSON.stringify(input) }),
+  todos: () => request<{ actions: GoalAction[] }>('/api/todos'),
+  changeActionStatus: (action: Pick<GoalAction, 'id' | 'status'>, status: 'available' | 'completed' | 'abandoned', confirmed = false) => request<{ action: GoalAction }>(`/api/actions/${action.id}/status`, { method: 'POST', body: JSON.stringify({ status, expectedStatus: action.status, confirmed }) }),
+  createGoalAction: (goalId: string, input: { title: string; content?: string | null; scheduledDate?: string | null; estimatedMinutes?: AvailableMinutes | null; energyRequired?: Energy | null }) => request<{ action: GoalAction }>(`/api/goals/${goalId}/actions`, { method: 'POST', body: JSON.stringify(input) }),
+  updateAction: (id: string, input: { title?: string; content?: string | null; scheduledDate?: string | null; estimatedMinutes?: AvailableMinutes | null; energyRequired?: Energy | null }) => request<{ action: GoalAction }>(`/api/actions/${id}`, { method: 'PATCH', body: JSON.stringify(input) }),
   resumeAction: (id: string) => request<{ action: GoalAction }>(`/api/actions/${id}/resume`, { method: 'POST' }),
   current: () => request<CurrentWorkspace>('/api/current'),
   recordContext: (input: { availableMinutes?: AvailableMinutes | null; energy?: Energy | null }) => request<{ context: CurrentContext }>('/api/current/context', { method: 'PUT', body: JSON.stringify(input) }),
   selectCurrent: (actionId: string) => request<{ context: CurrentContext }>('/api/current/select', { method: 'POST', body: JSON.stringify({ actionId }) }),
   clearCurrent: (expectedActionId: string) => request<{ context: CurrentContext | null }>('/api/current/select', { method: 'DELETE', body: JSON.stringify({ expectedActionId }) }),
   completeCurrent: (expectedActionId: string, outcomeNote?: string) => request<{ action: GoalAction }>('/api/current/complete', { method: 'POST', body: JSON.stringify({ expectedActionId, outcomeNote: outcomeNote || null }) }),
-  splitCurrent: (input: { expectedActionId: string; title: string; content?: string | null; estimatedMinutes?: AvailableMinutes | null; energyRequired?: Energy | null }) => request<{ original: GoalAction; action: GoalAction }>('/api/current/split', { method: 'POST', body: JSON.stringify(input) }),
+  splitCurrent: (input: { expectedActionId: string; title: string; content?: string | null; scheduledDate?: string | null; estimatedMinutes?: AvailableMinutes | null; energyRequired?: Energy | null }) => request<{ original: GoalAction; action: GoalAction }>('/api/current/split', { method: 'POST', body: JSON.stringify(input) }),
   blockCurrent: (expectedActionId: string, blockerNote?: string) => request<{ action: GoalAction }>('/api/current/block', { method: 'POST', body: JSON.stringify({ expectedActionId, blockerNote: blockerNote || null }) }),
   abandonCurrent: (expectedActionId: string, outcomeNote?: string) => request<{ action: GoalAction }>('/api/current/abandon', { method: 'POST', body: JSON.stringify({ expectedActionId, outcomeNote: outcomeNote || null }) }),
   captures: (status: CaptureStatus = 'inbox') => request<{ captures: Capture[] }>(`/api/captures?status=${status}`),

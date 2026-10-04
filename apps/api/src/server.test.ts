@@ -97,7 +97,7 @@ test('SPEC-0008：HTTP 身份边界保护业务数据，并能创建和失效会
   assert.equal(exportResponse.statusCode, 200);
   assert.match(String(exportResponse.headers['content-disposition']), /lifekernel-export\.json/);
   const exported = exportResponse.json() as { schemaVersion: number; data: { goals: unknown[]; actions: unknown[]; goalReflections: unknown[]; profileDescription: unknown; knowledgeItems: unknown[]; goalStatusEvents: unknown[] } };
-  assert.equal(exported.schemaVersion, 6);
+  assert.equal(exported.schemaVersion, 7);
   assert.equal(exported.data.goals.length, 1);
   assert.equal(exported.data.actions.length, 1);
   assert.equal((exported.data.actions[0] as { content: string | null }).content, '用真实用户反馈补充项目说明。');

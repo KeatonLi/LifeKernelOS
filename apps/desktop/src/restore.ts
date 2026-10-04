@@ -13,6 +13,7 @@ import { z } from 'zod';
 import type { DatabaseContext } from '../../api/src/db.js';
 import { LifeKernelService } from '../../api/src/services.js';
 import { AppError, type ExportPayload } from '../../api/src/types.js';
+import { isCalendarDate } from '../../../shared/calendar.js';
 const id = z.string().uuid();
 const date = z.string().datetime({ offset: true });
 const nullableText = (max: number) => z.string().max(max).nullable();
@@ -23,7 +24,7 @@ const energy = z.enum(['low', 'medium', 'high']).nullable();
 const timestamps = { createdAt: date, updatedAt: date };
 const goalStatus = z.enum(['active', 'paused', 'completed', 'abandoned']);
 const schema = z.object({
-  schemaVersion: z.literal(6),
+  schemaVersion: z.union([z.literal(6), z.literal(7)]),
   exportedAt: date,
   data: z.object({
     goals: z.array(
@@ -45,6 +46,7 @@ const schema = z.object({
         parentActionId: id.nullable(),
         title: z.string().trim().min(1).max(200),
         content: nullableText(2000),
+        scheduledDate: z.string().refine(isCalendarDate).nullable().optional(),
         estimatedMinutes: minutes,
         energyRequired: energy,
         status: z.enum([
@@ -105,15 +107,19 @@ const schema = z.object({
       }),
     ),
   }),
+}).superRefine((payload, context) => {
+  if (payload.schemaVersion === 7) payload.data.actions.forEach((action, index) => {
+    if (action.scheduledDate === undefined) context.addIssue({ code: 'custom', path: ['data', 'actions', index, 'scheduledDate'], message: 'v7 备份必须包含安排日期字段' });
+  });
 });
 export function validateImport(raw: unknown): ExportPayload {
   const parsed = schema.safeParse(raw);
   if (!parsed.success)
     throw new AppError(
       'INVALID_BACKUP',
-      '文件不是有效的 LifeKernelOS v6 备份，请检查版本和内容。',
+      '文件不是有效的 LifeKernelOS v6/v7 备份，请检查版本和内容。',
     );
-  const payload = parsed.data;
+  const payload: ExportPayload = { ...parsed.data, schemaVersion: 7, data: { ...parsed.data.data, actions: parsed.data.data.actions.map(action => ({ ...action, scheduledDate: action.scheduledDate ?? null })) } };
   const data = payload.data;
   const allIds = [
     data.goals,
@@ -254,7 +260,7 @@ export function restoreBackup(
     for (const item of data.actions)
       sql
         .prepare(
-          'INSERT INTO actions (id, user_id, focus_id, parent_action_id, title, content, estimated_minutes, energy_required, status, blocker_note, outcome_note, resolved_at, created_at, updated_at) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)',
+          'INSERT INTO actions (id, user_id, focus_id, parent_action_id, title, content, scheduled_date, estimated_minutes, energy_required, status, blocker_note, outcome_note, resolved_at, created_at, updated_at) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)',
         )
         .run(
           item.id,
@@ -263,6 +269,7 @@ export function restoreBackup(
           item.parentActionId,
           item.title,
           item.content,
+          item.scheduledDate,
           item.estimatedMinutes,
           item.energyRequired,
           item.status,

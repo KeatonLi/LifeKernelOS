@@ -1,8 +1,8 @@
 # LifeKernelOS 详细技术设计
 
-> 版本：0.9
+> 版本：0.10
 > 状态：Accepted
-> 更新时间：2026-10-03
+> 更新时间：2026-10-04
 > 范围：SPEC-0012 与现有主线、画像、快速收集
 > 决策：[ADR-0009](decisions/0009-electron-local-desktop.md)
 
@@ -23,7 +23,7 @@
 
 本地身份复用 users 归属模型，使用不可登录的本地占位凭据。初次启动仅创建身份，不生成任务。createDatabase 显式接受 migrationsPath，默认以源码位置解析；发布用 app 资源绝对路径。
 
-导出保持 schemaVersion 6，不含身份秘密。导入只接收该版本，校验全部数据字段、ID 唯一性与引用归属；映射导出 userId 至本地用户，保留业务 ID 与时间。导入前原子写入当前 JSON 备份，再事务清除用户业务数据并插入全部关系。任何失败回滚。启动备份与导入备份保留最近 10 份，设置可打开目录。
+导出 schemaVersion 7，不含身份秘密；兼容导入 v6/v7，旧版本缺失日期补 null。校验全部数据字段、日期、ID 唯一性与引用归属；映射导出 userId 至本地用户，保留业务 ID 与时间。导入前原子写入当前 JSON 备份，再事务清除用户业务数据并插入全部关系。任何失败回滚。启动备份与导入备份保留最近 10 份，设置可打开目录。
 
 ## 桌面与视觉
 
@@ -32,3 +32,7 @@
 ## 验证
 
 领域事务与旧迁移测试、桌面恢复与错误输入测试、React 主要路径交互测试、生产构建、Electron 实际启动/隔离/多窗口/重启验证、浏览器截图检查、文档链接检查。各平台安装与签名独立记录，不混同本地 Linux 验证。
+
+## 基础 Todo 与日期视图增量
+
+以 [ADR-0010](decisions/0010-todo-calendar-views.md) 和 [SPEC-0013](../specs/current/0013-basic-todo-and-calendar.md) 为准。Action 新增可空 scheduledDate（本地 YYYY-MM-DD）；迁移 007 为旧任务补空，索引 user_id/scheduled_date。列表、今日、月/周日历读取同一份用户隔离事实。按 ID 完成/恢复/移除带 expectedStatus；状态、resolvedAt 与对应当前选择同事务提交，保留其他当前任务。导出 v7；导入 v6/v7 时先校验并归一化，v6 缺日期补 null。共享日期函数不依赖 Node 或 SQL，UI 不接触数据库。CI/CD 见[交付说明](../development/ci-cd.md)。

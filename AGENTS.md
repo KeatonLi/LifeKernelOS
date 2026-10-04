@@ -34,11 +34,12 @@
 
 ### 当前必须优先读取的文档
 
-- 产品事实源：[PRD v0.9](docs/product/PRD.md)
+- 产品事实源：[PRD v0.10](docs/product/PRD.md)
 - 系统边界：[系统架构](docs/architecture/system-architecture.md)
 - 可执行设计：[详细技术设计](docs/architecture/technical-design.md)
 - 当前目标模型决策：[ADR-0008](docs/architecture/decisions/0008-mainline-groups-derived-todo-progress.md)
 - 当前信息架构决策：[ADR-0007](docs/architecture/decisions/0007-two-tab-console-information-architecture.md)
+- Todo 和日历：[SPEC-0013](docs/specs/current/0013-basic-todo-and-calendar.md) 与 [ADR-0010](docs/architecture/decisions/0010-todo-calendar-views.md)
 - 主线：[SPEC-0010](docs/specs/current/0010-long-term-goals-and-current-action.md)
 - 我的画像：[SPEC-0011](docs/specs/current/0011-aggregated-profile-graph.md)
 - 快速收集箱：[SPEC-0005](docs/specs/current/0005-quick-capture.md)
@@ -121,7 +122,7 @@ AI 输出必须区分：
 
 LifeKernelOS 只有两个一级 Tab：
 
-1. **主线**：多个主线分组、To-do 内容、派生进度与全局唯一当前 To-do。
+1. **主线**：主线分组、列表、今日、月/周日历；同一批 To-do、派生进度与全局唯一当前 To-do。
 2. **我的画像**：主线、To-do 结果、经历总结、自我描述与知识的可追溯图谱。
 
 设置属于账号辅助入口，不是第三个 Tab。

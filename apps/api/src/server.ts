@@ -9,6 +9,7 @@ import { createSessionToken, hashPassword, hashToken, verifyPassword } from './a
 import { createDatabase, type DatabaseContext } from './db.js';
 import { LifeKernelService } from './services.js';
 import { AppError, type KnowledgeStatus, type User } from './types.js';
+import { isCalendarDate } from '../../../shared/calendar.js';
 
 const sessionCookieName = 'lk_session';
 const sessionTtlDays = Number(process.env.SESSION_TTL_DAYS ?? '30');
@@ -22,6 +23,7 @@ const energySchema = z.enum(['low', 'medium', 'high']);
 const availableMinutesSchema = z.union([z.literal(5), z.literal(15), z.literal(30), z.literal(60)]);
 const captureTypeSchema = z.enum(['idea', 'task', 'event', 'feeling', 'inspiration']);
 const captureStatusSchema = z.enum(['inbox', 'converted', 'archived']);
+const scheduledDateSchema = z.string().refine(isCalendarDate, '请选择有效日期').nullable().optional();
 
 function parseBody<T>(schema: z.ZodType<T>, payload: unknown): T {
   const parsed = schema.safeParse(payload);
@@ -183,11 +185,24 @@ export function buildApp(context?: DatabaseContext) {
     return { actions: service.listGoalActions(user.id, params.id, query.status) };
   });
 
+  app.get('/api/todos', async (request) => {
+    const user = await requireUser(request);
+    return { actions: service.listTodos(user.id) };
+  });
+
+  app.post('/api/actions/:id/status', async (request) => {
+    assertSafeOrigin(request);
+    const user = await requireUser(request);
+    const params = parseBody(z.object({ id: z.string().uuid() }), request.params);
+    const input = parseBody(z.object({ status: z.enum(['available', 'completed', 'abandoned']), expectedStatus: actionStatusSchema, confirmed: z.boolean().optional() }).strict(), request.body);
+    return { action: service.changeActionStatus(user.id, params.id, input.status, input.expectedStatus, input.confirmed) };
+  });
+
   app.post('/api/goals/:id/actions', async (request, reply) => {
     assertSafeOrigin(request);
     const user = await requireUser(request);
     const params = parseBody(z.object({ id: z.string().uuid() }), request.params);
-    const input = parseBody(z.object({ title: textSchema(200), content: textSchema(2000).nullable().optional(), estimatedMinutes: availableMinutesSchema.nullable().optional(), energyRequired: energySchema.nullable().optional() }), request.body);
+    const input = parseBody(z.object({ title: textSchema(200), content: textSchema(2000).nullable().optional(), scheduledDate: scheduledDateSchema, estimatedMinutes: availableMinutesSchema.nullable().optional(), energyRequired: energySchema.nullable().optional() }), request.body);
     return reply.status(201).send({ action: service.createGoalAction(user.id, params.id, input) });
   });
 
@@ -195,7 +210,7 @@ export function buildApp(context?: DatabaseContext) {
     assertSafeOrigin(request);
     const user = await requireUser(request);
     const params = parseBody(z.object({ id: z.string().uuid() }), request.params);
-    const input = parseBody(z.object({ title: textSchema(200).optional(), content: textSchema(2000).nullable().optional(), estimatedMinutes: availableMinutesSchema.nullable().optional(), energyRequired: energySchema.nullable().optional() }).refine((value) => value.title !== undefined || value.content !== undefined || value.estimatedMinutes !== undefined || value.energyRequired !== undefined, '至少更新一项内容'), request.body);
+    const input = parseBody(z.object({ title: textSchema(200).optional(), content: textSchema(2000).nullable().optional(), scheduledDate: scheduledDateSchema, estimatedMinutes: availableMinutesSchema.nullable().optional(), energyRequired: energySchema.nullable().optional() }).refine((value) => Object.values(value).some(item => item !== undefined), '至少更新一项内容'), request.body);
     return { action: service.updateActionMetadata(user.id, params.id, input) };
   });
 
@@ -242,7 +257,7 @@ export function buildApp(context?: DatabaseContext) {
   app.post('/api/current/split', async (request) => {
     assertSafeOrigin(request);
     const user = await requireUser(request);
-    const input = parseBody(z.object({ expectedActionId: z.string().uuid(), title: textSchema(200), content: textSchema(2000).nullable().optional(), estimatedMinutes: availableMinutesSchema.nullable().optional(), energyRequired: energySchema.nullable().optional() }), request.body);
+    const input = parseBody(z.object({ expectedActionId: z.string().uuid(), title: textSchema(200), content: textSchema(2000).nullable().optional(), scheduledDate: z.string().refine(isCalendarDate).nullable().optional(), estimatedMinutes: availableMinutesSchema.nullable().optional(), energyRequired: energySchema.nullable().optional() }), request.body);
     return service.splitCurrentAction(user.id, input);
   });
 

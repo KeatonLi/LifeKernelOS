@@ -3,6 +3,8 @@
 > 2026-10-03 桌面增量：[SPEC-0012](../current/0012-electron-desktop.md) 规定无登录本地身份、跨窗口校验、2000 字符行动内容、阻塞恢复和备份导入。桌面数据事实源为后台业务进程；本文件服务端约束仅适用于兼容 Web 入口。
 
 
+> 2026-10-04 增量：[SPEC-0013](0013-basic-todo-and-calendar.md) 允许按 ID 直接勾选和恢复，增加日期与任务视图；无需先设为当前。
+
 > 状态：Implemented
 > 对应 PRD：v0.7“主线”Tab
 > 依赖：`SPEC-0008`
@@ -80,12 +82,12 @@ type Action = {
 };
 ```
 
-`content` 是 To-do 的可选详细说明，最多 1,000 个字符。`GoalProgress` 是读取时投影，不写入 Goal 表。
+`content` 是 To-do 的可选详细说明，最多 2,000 个字符。`GoalProgress` 是读取时投影，不写入 Goal 表。
 
 ## 5. 领域规则
 
 - Goal 标题去除首尾空白后长度为 `1—100`；完成定义可为空，非空时最多 `300` 个字符。
-- Action 标题去除首尾空白后长度为 `1—200`，内容最多 `1,000` 个字符，且必须关联当前用户的一条 active Goal。
+- Action 标题去除首尾空白后长度为 `1—200`，内容最多 `2,000` 个字符，且必须关联当前用户的一条 active Goal。
 - 有效 To-do 为 status 属于 `available`、`completed` 或 `blocked` 的 Action；`abandoned` 与 `superseded` 不计入分母。
 - active / paused Goal 的 `progressPercent = round(completedTodoCount / totalTodoCount × 100)`；无有效 To-do 时为 `0`。
 - completed Goal 一律投影为 `100%`；Goal 仍必须由用户明确完成，不根据进度自动完成。

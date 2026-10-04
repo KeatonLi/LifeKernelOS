@@ -11,11 +11,14 @@
 ## Current product facts
 
 - [Product entry](docs/product/README.md): product-document scope and update rules.
-- [PRD v0.9](docs/product/PRD.md): product intent, mainlines, To-dos, derived progress, profile graph, and acceptance criteria.
+- [PRD v0.10](docs/product/PRD.md): product intent, mainlines, To-dos, derived progress, profile graph, and acceptance criteria.
 - [ADR-0008: mainline groups and derived To-do progress](docs/architecture/decisions/0008-mainline-groups-derived-todo-progress.md): current core domain decision.
 - [ADR-0007: two-tab console](docs/architecture/decisions/0007-two-tab-console-information-architecture.md): current information architecture decision.
 - [SPEC-0010: mainline To-dos and current action](docs/specs/current/0010-long-term-goals-and-current-action.md): executable contract for the “主线” tab.
 - [SPEC-0011: progress-aware profile graph](docs/specs/current/0011-aggregated-profile-graph.md): executable contract for the “我的画像” tab.
+
+- [Basic Todo and calendar](docs/specs/current/0013-basic-todo-and-calendar.md): direct completion, undo, recoverable removal, civil dates, list/today/month/week views.
+- [Todo experience references](docs/product/todo-reference-products.md): official product sources and adopted interaction rules.
 
 ## Architecture and delivery facts
 
@@ -25,12 +28,15 @@
 - [ADR index](docs/architecture/decisions/README.md): all decisions and their lifecycle states.
 - [Spec index](docs/specs/README.md): current, foundation, backlog, and archive specification routing.
 - [Identity and server persistence](docs/specs/foundation/0008-identity-and-server-persistence.md): authentication, sessions, isolation, and server fact-source contract.
-- [Data export](docs/specs/foundation/0007-data-export-and-clear.md): schemaVersion 6 export contract including Captures.
+- [Data export](docs/specs/foundation/0007-data-export-and-clear.md): schemaVersion 7 export contract including Captures and calendar dates; v6 desktop import remains compatible.
 - [Development entry](docs/development/README.md): delivery-document scope.
 - [AI-native SDD protocol](docs/development/SDD.md): lifecycle, change classification, and evidence requirements.
 
 - [Electron desktop](docs/specs/current/0012-electron-desktop.md): local identity, utility-process SQLite, guarded multi-window mutations, backup/import and desktop UX.
 - [ADR-0009](docs/architecture/decisions/0009-electron-local-desktop.md): accepted Electron local desktop decision, superseding default server deployment.
+
+- [ADR-0010](docs/architecture/decisions/0010-todo-calendar-views.md): one task fact source across date views.
+- [CI/CD](docs/development/ci-cd.md): automatic desktop checks, installer artifacts and version-tag releases.
 
 ## Historical and deferred context
 

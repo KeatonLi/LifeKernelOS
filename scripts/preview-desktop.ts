@@ -6,9 +6,10 @@ import { dispatch } from '../apps/api/src/commands.js';
 import { AppError } from '../apps/api/src/types.js';
 import { resolve, join } from 'node:path';
 import { tmpdir } from 'node:os';
+import { localDay, shiftDay } from '../shared/calendar.js';
 const database = createDatabase(
   process.env.LK_PREVIEW_DATABASE ??
-    join(tmpdir(), 'lifekernel-design-preview-v03.sqlite'),
+    join(tmpdir(), 'lifekernel-design-preview-v04.sqlite'),
 );
 const service = new LifeKernelService(database);
 const user =
@@ -27,6 +28,7 @@ if (
   });
   const first = service.createGoalAction(user.id, goal.id, {
     title: '梳理客户端的核心体验',
+    scheduledDate: shiftDay(localDay(), -2),
     content:
       '从打开到开始行动，走一遍最短的路径。\n\n先把心里的想法记下来，再找到一个足够小、现在就能开始的动作。',
     estimatedMinutes: 30,
@@ -36,6 +38,7 @@ if (
   service.completeCurrentAction(user.id);
   const current = service.createGoalAction(user.id, goal.id, {
     title: '打磨主线工作区的第一眼',
+    scheduledDate: localDay(),
     content:
       '让界面先回答一个问题：我现在可以做什么？\n\n整理任务层级、留白和主要操作，用一个可以完成的小步骤推进产品。',
     estimatedMinutes: 30,
@@ -44,6 +47,7 @@ if (
   service.selectCurrentAction(user.id, current.id);
   service.createGoalAction(user.id, goal.id, {
     title: '邀请一位朋友体验',
+    scheduledDate: shiftDay(localDay(), 3),
     content: '观察他第一次打开时会做什么。',
     estimatedMinutes: 15,
     energyRequired: 'low',
@@ -102,6 +106,8 @@ const server = await createServer({
                 error: {
                   message:
                     error instanceof Error ? error.message : '本地预览不可用。',
+                  code: error instanceof AppError ? error.code : undefined,
+                  fields: error instanceof AppError ? error.fields : undefined,
                 },
               }),
             );

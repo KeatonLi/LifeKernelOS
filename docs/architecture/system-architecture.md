@@ -1,8 +1,8 @@
 # LifeKernelOS 架构基线
 
-> 版本：0.9
+> 版本：0.10
 > 状态：Accepted
-> 更新时间：2026-10-03
+> 更新时间：2026-10-04
 > 对应产品：[PRD](../product/PRD.md)
 > 决策：[ADR-0009](decisions/0009-electron-local-desktop.md)、[ADR-0008](decisions/0008-mainline-groups-derived-todo-progress.md)
 
@@ -29,3 +29,7 @@
 SQLite 与最多 10 份 JSON 备份存于 OS userData；应用资源包含版本迁移，启动不依赖 cwd。主窗口关闭退出时先关闭数据库；辅助窗口支持 Escape。应用单实例。开发环境可使用 Vite，发布载入本地 app 协议，拒绝外部导航与权限。Electron Builder 打包 macOS/Windows/Linux；签名、自动升级、同步和运行时 AI 不在本轮交付范围。
 
 相关行为见 [SPEC-0012](../specs/current/0012-electron-desktop.md)，可执行实现见 [技术设计](technical-design.md)。
+
+## 基础 Todo 与日期视图增量
+
+以 [ADR-0010](decisions/0010-todo-calendar-views.md) 和 [SPEC-0013](../specs/current/0013-basic-todo-and-calendar.md) 为准。Action 新增可空 scheduledDate（本地 YYYY-MM-DD）；迁移 007 为旧任务补空，索引 user_id/scheduled_date。列表、今日、月/周日历读取同一份用户隔离事实。按 ID 完成/恢复/移除带 expectedStatus；状态、resolvedAt 与对应当前选择同事务提交，保留其他当前任务。导出 v7；导入 v6/v7 时先校验并归一化，v6 缺日期补 null。共享日期函数不依赖 Node 或 SQL，UI 不接触数据库。CI/CD 见[交付说明](../development/ci-cd.md)。

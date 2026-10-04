@@ -1,20 +1,29 @@
-name: Desktop checks and packages
+name: Desktop CI
 on:
   push:
     branches: [main]
   pull_request:
+    branches: [main]
   workflow_dispatch:
+  workflow_call:
 permissions:
   contents: read
+concurrency:
+  group: desktop-${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: ${{ !startsWith(github.ref, 'refs/tags/') }}
 jobs:
-  desktop:
+  checks:
+    name: Check ${{ matrix.os }}
     strategy:
       fail-fast: false
       matrix:
         os: [ubuntu-latest, macos-latest, windows-latest]
     runs-on: ${{ matrix.os }}
+    timeout-minutes: 20
     steps:
       - uses: actions/checkout@v7.0.1
+        with:
+          persist-credentials: false
       - uses: actions/setup-node@v7.0.0
         with:
           node-version: '24'
@@ -26,12 +35,54 @@ jobs:
       - name: Electron startup, IPC and restart
         if: runner.os == 'Linux'
         run: xvfb-run -a npm run test:desktop
-      - name: Package unsigned preview
-        run: npx electron-builder --publish never
+      - name: Electron startup, IPC and restart (macOS / Windows)
+        if: runner.os != 'Linux'
+        run: npm run test:desktop
+
+  packages:
+    name: Package ${{ matrix.platform }}
+    needs: checks
+    if: github.event_name != 'pull_request'
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - os: ubuntu-latest
+            platform: Linux-x64
+            args: --linux --x64
+          - os: macos-latest
+            platform: macOS-arm64-x64
+            args: --mac --arm64 --x64
+          - os: windows-latest
+            platform: Windows-x64
+            args: --win --x64
+    runs-on: ${{ matrix.os }}
+    timeout-minutes: 30
+    steps:
+      - uses: actions/checkout@v7.0.1
+        with:
+          persist-credentials: false
+      - uses: actions/setup-node@v7.0.0
+        with:
+          node-version: '24'
+          cache: npm
+      - run: npm ci
+      - run: npm run build
+      - name: Package unsigned desktop
+        run: npx electron-builder ${{ matrix.args }} --publish never
         env:
           CSC_IDENTITY_AUTO_DISCOVERY: 'false'
+      - name: Write installer SHA-256 checksums
+        run: node scripts/package-checksums.mjs
       - uses: actions/upload-artifact@v7.0.1
         with:
-          name: LifeKernelOS-${{ runner.os }}
-          path: release/*
+          name: LifeKernelOS-${{ matrix.platform }}
+          path: |
+            release/*.exe
+            release/*.dmg
+            release/*.zip
+            release/*.AppImage
+            release/*.tar.gz
+            release/*.sha256
           if-no-files-found: error
+          retention-days: 14

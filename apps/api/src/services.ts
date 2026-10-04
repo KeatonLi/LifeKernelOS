@@ -1,5 +1,6 @@
 import { randomUUID } from 'node:crypto';
 import type { DatabaseContext } from './db.js';
+import { isCalendarDate } from '../../../shared/calendar.js';
 import {
   AppError,
   type Action,
@@ -46,6 +47,7 @@ type ActionRow = {
   parent_action_id: string | null;
   title: string;
   content: string | null;
+  scheduled_date: string | null;
   estimated_minutes: AvailableMinutes | null;
   energy_required: Energy | null;
   status: ActionStatus;
@@ -135,6 +137,12 @@ function normalizeOptionalText(value: string | undefined | null, field: string, 
   return normalized;
 }
 
+function normalizeScheduledDate(value: string | null | undefined): string | null {
+  if (value == null) return null;
+  if (!isCalendarDate(value)) throw new AppError('VALIDATION_ERROR', '请选择有效的安排日期。', 400, { scheduledDate: '格式为 YYYY-MM-DD，年份为 1900—9999' });
+  return value;
+}
+
 function mapUser(row: { id: string; email: string; created_at: string }): User {
   return { id: row.id, email: row.email, createdAt: row.created_at };
 }
@@ -172,6 +180,7 @@ function mapAction(row: ActionRow): Action {
     parentActionId: row.parent_action_id,
     title: row.title,
     content: row.content,
+    scheduledDate: row.scheduled_date,
     estimatedMinutes: row.estimated_minutes,
     energyRequired: row.energy_required,
     status: row.status,
@@ -371,28 +380,51 @@ export class LifeKernelService {
     return rows.map(mapAction);
   }
 
-  createGoalAction(userId: string, goalId: string, input: { title: string; content?: string | null; estimatedMinutes?: AvailableMinutes | null; energyRequired?: Energy | null }): Action {
+  createGoalAction(userId: string, goalId: string, input: { title: string; content?: string | null; scheduledDate?: string | null; estimatedMinutes?: AvailableMinutes | null; energyRequired?: Energy | null }): Action {
     const goal = this.getOwnedGoalRow(userId, goalId);
     if (goal.goal_status !== 'active') throw new AppError('GOAL_NOT_ACTIVE', '只能为 active 长期目标添加行动', 409);
     const title = normalizeText(input.title, 'title', 200);
     const content = normalizeOptionalText(input.content, 'content', 2000) ?? null;
+    const scheduledDate = normalizeScheduledDate(input.scheduledDate);
     const estimatedMinutes = input.estimatedMinutes ?? null;
     const energyRequired = input.energyRequired ?? null;
     const createdAt = now();
-    const action: Action = { id: randomUUID(), userId, goalId, parentActionId: null, title, content, estimatedMinutes, energyRequired, status: 'available', blockerNote: null, outcomeNote: null, resolvedAt: null, createdAt, updatedAt: createdAt };
-    this.sqlite.prepare(`INSERT INTO actions (id, user_id, focus_id, parent_action_id, title, content, estimated_minutes, energy_required, status, blocker_note, outcome_note, resolved_at, created_at, updated_at) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`).run(action.id, userId, goalId, null, title, content, estimatedMinutes, energyRequired, 'available', null, null, null, createdAt, createdAt);
+    const action: Action = { id: randomUUID(), userId, goalId, parentActionId: null, title, content, scheduledDate, estimatedMinutes, energyRequired, status: 'available', blockerNote: null, outcomeNote: null, resolvedAt: null, createdAt, updatedAt: createdAt };
+    this.sqlite.prepare(`INSERT INTO actions (id, user_id, focus_id, parent_action_id, title, content, scheduled_date, estimated_minutes, energy_required, status, blocker_note, outcome_note, resolved_at, created_at, updated_at) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`).run(action.id, userId, goalId, null, title, content, scheduledDate, estimatedMinutes, energyRequired, 'available', null, null, null, createdAt, createdAt);
     return action;
   }
 
-  updateActionMetadata(userId: string, actionId: string, input: { title?: string; content?: string | null; estimatedMinutes?: AvailableMinutes | null; energyRequired?: Energy | null }): Action {
+  updateActionMetadata(userId: string, actionId: string, input: { title?: string; content?: string | null; scheduledDate?: string | null; estimatedMinutes?: AvailableMinutes | null; energyRequired?: Energy | null }): Action {
     const row = this.getOwnedActionRow(userId, actionId);
     const title = input.title === undefined ? row.title : normalizeText(input.title, 'title', 200);
     const content = input.content === undefined ? row.content : normalizeOptionalText(input.content, 'content', 2000) ?? null;
+    const scheduledDate = input.scheduledDate === undefined ? row.scheduled_date : normalizeScheduledDate(input.scheduledDate);
     const estimatedMinutes = input.estimatedMinutes === undefined ? row.estimated_minutes : input.estimatedMinutes;
     const energyRequired = input.energyRequired === undefined ? row.energy_required : input.energyRequired;
     const updatedAt = now();
-    this.sqlite.prepare('UPDATE actions SET title = ?, content = ?, estimated_minutes = ?, energy_required = ?, updated_at = ? WHERE id = ? AND user_id = ?').run(title, content, estimatedMinutes, energyRequired, updatedAt, actionId, userId);
-    return mapAction({ ...row, title, content, estimated_minutes: estimatedMinutes, energy_required: energyRequired, updated_at: updatedAt });
+    this.sqlite.prepare('UPDATE actions SET title = ?, content = ?, scheduled_date = ?, estimated_minutes = ?, energy_required = ?, updated_at = ? WHERE id = ? AND user_id = ?').run(title, content, scheduledDate, estimatedMinutes, energyRequired, updatedAt, actionId, userId);
+    return mapAction({ ...row, title, content, scheduled_date: scheduledDate, estimated_minutes: estimatedMinutes, energy_required: energyRequired, updated_at: updatedAt });
+  }
+
+  listTodos(userId: string): Action[] {
+    return (this.sqlite.prepare('SELECT * FROM actions WHERE user_id = ? ORDER BY created_at ASC').all(userId) as ActionRow[]).map(mapAction);
+  }
+
+  changeActionStatus(userId: string, actionId: string, status: 'available' | 'completed' | 'abandoned', expectedStatus: ActionStatus, confirmed = false): Action {
+    return this.sqlite.transaction(() => {
+      const row = this.getOwnedActionRow(userId, actionId);
+      if (row.status !== expectedStatus) throw new AppError('ACTION_CHANGED', '这条任务已在另一个窗口改变，请重新确认。', 409);
+      if (row.status === 'superseded') throw new AppError('ACTION_SUPERSEDED', '已拆分的任务不能重复处理，请打开新的任务。', 409);
+      if (status === 'abandoned' && !confirmed) throw new AppError('CONFIRMATION_REQUIRED', '请确认移除这条任务。', 409);
+      if (status !== 'abandoned' && this.getOwnedGoalRow(userId, row.focus_id).goal_status !== 'active') throw new AppError('GOAL_NOT_ACTIVE', '请先恢复这条主线。', 409);
+      if (status === 'completed' && row.status !== 'available' && row.status !== 'blocked') throw new AppError('ACTION_NOT_AVAILABLE', '请先恢复这条任务。', 409);
+      if (status === 'available' && row.status === 'available') return mapAction(row);
+      const updatedAt = now();
+      const resolvedAt = status === 'available' ? null : updatedAt;
+      this.sqlite.prepare('UPDATE actions SET status = ?, resolved_at = ?, updated_at = ? WHERE id = ? AND user_id = ?').run(status, resolvedAt, updatedAt, actionId, userId);
+      if (status !== 'available' && this.getCurrentContext(userId)?.selectedActionId === actionId) this.clearCurrentAction(userId, actionId);
+      return mapAction({ ...row, status, resolved_at: resolvedAt, updated_at: updatedAt });
+    })();
   }
 
   getCurrentContext(userId: string): CurrentContext | null {
@@ -451,20 +483,22 @@ export class LifeKernelService {
     return this.resolveCurrentAction(userId, 'completed', { outcomeNote: normalizeOptionalText(outcomeNoteInput, 'outcomeNote', 500) ?? null, expectedActionId });
   }
 
-  splitCurrentAction(userId: string, input: { expectedActionId?: string; title: string; content?: string | null; estimatedMinutes?: AvailableMinutes | null; energyRequired?: Energy | null }): { original: Action; action: Action } {
+  splitCurrentAction(userId: string, input: { expectedActionId?: string; title: string; content?: string | null; scheduledDate?: string | null; estimatedMinutes?: AvailableMinutes | null; energyRequired?: Energy | null }): { original: Action; action: Action } {
     const split = this.sqlite.transaction(() => {
       const current = this.requireCurrentActionRow(userId, input.expectedActionId);
       const goal = this.getOwnedGoalRow(userId, current.focus_id);
       if (goal.goal_status !== 'active') throw new AppError('GOAL_NOT_ACTIVE', '该长期目标已经不是 active', 409);
       if (current.status !== 'available') throw new AppError('ACTION_NOT_AVAILABLE', '只有 available 行动可以拆小', 409);
+      const scheduledDate = input.scheduledDate === undefined ? current.scheduled_date : normalizeScheduledDate(input.scheduledDate);
       const title = normalizeText(input.title, 'title', 200);
       const content = normalizeOptionalText(input.content, 'content', 2000) ?? null;
       const estimatedMinutes = input.estimatedMinutes ?? null;
       const energyRequired = input.energyRequired ?? null;
       const timestamp = now();
       this.sqlite.prepare('UPDATE actions SET status = ?, resolved_at = ?, updated_at = ? WHERE id = ? AND user_id = ?').run('superseded', timestamp, timestamp, current.id, userId);
-      const action: Action = { id: randomUUID(), userId, goalId: current.focus_id, parentActionId: current.id, title, content, estimatedMinutes, energyRequired, status: 'available', blockerNote: null, outcomeNote: null, resolvedAt: null, createdAt: timestamp, updatedAt: timestamp };
+      const action: Action = { id: randomUUID(), userId, goalId: current.focus_id, parentActionId: current.id, title, content, scheduledDate, estimatedMinutes, energyRequired, status: 'available', blockerNote: null, outcomeNote: null, resolvedAt: null, createdAt: timestamp, updatedAt: timestamp };
       this.sqlite.prepare(`INSERT INTO actions (id, user_id, focus_id, parent_action_id, title, content, estimated_minutes, energy_required, status, blocker_note, outcome_note, resolved_at, created_at, updated_at) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`).run(action.id, userId, action.goalId, action.parentActionId, title, content, estimatedMinutes, energyRequired, 'available', null, null, null, timestamp, timestamp);
+      this.sqlite.prepare('UPDATE actions SET scheduled_date = ? WHERE id = ? AND user_id = ?').run(action.scheduledDate, action.id, userId);
       this.clearCurrentAction(userId);
       return { original: mapAction({ ...current, status: 'superseded', resolved_at: timestamp, updated_at: timestamp }), action };
     });
@@ -549,7 +583,7 @@ export class LifeKernelService {
       const captures = (this.sqlite.prepare('SELECT * FROM captures WHERE user_id = ? ORDER BY created_at ASC').all(userId) as CaptureRow[]).map(mapCapture);
       return { goals: goalRows.map(mapGoal), currentContext: this.getCurrentContext(userId), actions: actionRows.map(mapAction), goalReflections, profileDescription: profileDescriptionRow ? { content: profileDescriptionRow.content, updatedAt: profileDescriptionRow.updated_at } : null, knowledgeItems, goalStatusEvents, captures };
     });
-    return { schemaVersion: 6, exportedAt: now(), data: read() };
+    return { schemaVersion: 7, exportedAt: now(), data: read() };
   }
 
   getProfileView(userId: string): ProfileView {

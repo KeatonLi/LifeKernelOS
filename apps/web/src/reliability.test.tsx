@@ -19,7 +19,7 @@ import type { Capture, Mainline, GoalAction, Profile, ProfileGraphNode } from '.
 
 const user = { id: 'user', email: 'test@example.com', createdAt: '' };
 const goal = (id: string): Mainline => ({ id, userId: user.id, title: `主线 ${id}`, doneDefinition: null, status: 'active', completedAt: null, createdAt: '', updatedAt: '', progress: { completedTodoCount: 0, totalTodoCount: 0, progressPercent: 0 } });
-const action = (id: string, goalId = 'a'): GoalAction => ({ id, userId: user.id, goalId, parentActionId: null, title: `任务 ${id}`, content: null, estimatedMinutes: null, energyRequired: null, status: 'available', blockerNote: null, outcomeNote: null, resolvedAt: null, createdAt: '', updatedAt: '' });
+const action = (id: string, goalId = 'a'): GoalAction => ({ id, userId: user.id, goalId, parentActionId: null, title: `任务 ${id}`, content: null, scheduledDate: null, estimatedMinutes: null, energyRequired: null, status: 'available', blockerNote: null, outcomeNote: null, resolvedAt: null, createdAt: '', updatedAt: '' });
 const emptyProfile = (): Profile => ({ factSummary: { goalCount: 0, activeGoalCount: 0, completedGoalCount: 0, completedActionCount: 0, knowledgeCount: 0 }, description: null, knowledgeItems: [], goals: [], experiences: [], graph: { nodes: [], edges: [] } });
 function setupMainlines() {
   mock.method(api, 'goals', async () => ({ goals: [goal('a'), goal('b')] }));

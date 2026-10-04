@@ -61,6 +61,9 @@ import {
   type User,
 } from './api.js';
 
+import { TodoEditor } from './TodoEditor.js';
+import { TodoPlanner } from './TodoPlanner.js';
+import { CalendarIcon, SunIcon } from '@phosphor-icons/react';
 const ProfileGraph = lazy(() => import('./ProfileGraph.js'));
 export { buildProfileFlow } from './profile-flow.js';
 
@@ -748,10 +751,28 @@ function CaptureDrawer({
 
 type ResolutionMode = 'split' | 'block' | 'abandon' | null;
 
-export function ExpectationsPage({
+export function ExpectationsPage({ user, onLogout }: { user: User; onLogout: () => void }) {
+  const { search } = useLocation();
+  const navigate = useNavigate();
+  const requested = new URLSearchParams(search).get('view');
+  const view = requested === 'list' || requested === 'today' || requested === 'calendar' ? requested : 'mainline';
+  const choices = [
+    { id: 'mainline', label: '主线', icon: TargetIcon },
+    { id: 'list', label: '任务列表', icon: ListBulletsIcon },
+    { id: 'today', label: '今日', icon: SunIcon },
+    { id: 'calendar', label: '日历', icon: CalendarIcon },
+  ];
+  const viewSwitch = <nav className="workspace-views" aria-label="任务视图">{choices.map(({id, label, icon: Icon}) => <button key={id} aria-current={view === id ? 'page' : undefined} onClick={() => navigate(id === 'mainline' ? '/expectations' : `/expectations?view=${id}`)}><Icon size={17} weight={view === id ? 'bold' : 'regular'} />{label}</button>)}</nav>;
+  if (view === 'mainline') return <MainlineBoard user={user} onLogout={onLogout} viewSwitch={viewSwitch} />;
+  return <WorkspaceShell user={user} onLogout={onLogout}><TodoPlanner view={view} viewSwitch={viewSwitch} /></WorkspaceShell>;
+}
+
+function MainlineBoard({
+  viewSwitch,
   user,
   onLogout,
 }: {
+  viewSwitch: ReactNode;
   user: User;
   onLogout: () => void;
 }) {
@@ -949,6 +970,7 @@ export function ExpectationsPage({
             </small>
           </div>
         </header>
+        {viewSwitch}
         {error && (
           <div role="alert" className="page-error">
             {error}
@@ -1520,102 +1542,6 @@ function TodoRow({
   );
 }
 
-function TodoEditor({
-  action,
-  onCancel,
-  onSaved,
-  saving,
-}: {
-  action?: GoalAction;
-  onCancel: () => void;
-  onSaved: (input: {
-    title: string;
-    content?: string | null;
-    estimatedMinutes?: AvailableMinutes | null;
-    energyRequired?: 'low' | 'medium' | 'high' | null;
-  }) => void;
-  saving: boolean;
-}) {
-  const [title, setTitle] = useState(action?.title ?? '');
-  const [content, setContent] = useState(action?.content ?? '');
-  const [minutes, setMinutes] = useState(
-    action?.estimatedMinutes?.toString() ?? '',
-  );
-  const [energy, setEnergy] = useState(action?.energyRequired ?? '');
-  return (
-    <form
-      className="todo-editor"
-      onSubmit={(event) => {
-        event.preventDefault();
-        onSaved({
-          title,
-          content: content || null,
-          estimatedMinutes: minutes
-            ? (Number(minutes) as AvailableMinutes)
-            : null,
-          energyRequired: energy ? (energy as 'low' | 'medium' | 'high') : null,
-        });
-      }}
-    >
-      <label>
-        To-do 标题
-        <input
-          autoFocus
-          value={title}
-          onChange={(event) => setTitle(event.target.value)}
-          maxLength={200}
-          required
-        />
-      </label>
-      <label>
-        内容 <span>可选</span>
-        <textarea
-          value={content}
-          onChange={(event) => setContent(event.target.value)}
-          maxLength={2000}
-          placeholder="写下具体怎么做、要注意什么…"
-        />
-      </label>
-      <div className="todo-meta-fields">
-        <label>
-          预计时长
-          <select
-            value={minutes}
-            onChange={(event) => setMinutes(event.target.value)}
-          >
-            <option value="">未设置</option>
-            {minuteOptions.map((option) => (
-              <option key={option.value} value={option.value}>
-                {option.label}
-              </option>
-            ))}
-          </select>
-        </label>
-        <label>
-          精力要求
-          <select
-            value={energy}
-            onChange={(event) => setEnergy(event.target.value)}
-          >
-            <option value="">未设置</option>
-            <option value="low">低</option>
-            <option value="medium">中</option>
-            <option value="high">高</option>
-          </select>
-        </label>
-      </div>
-      <div className="editor-actions">
-        <button className="primary-button" disabled={saving}>
-          {action ? '保存 To-do' : '加入主线'}
-        </button>
-        <button type="button" className="secondary-button" onClick={onCancel}>
-          取消
-        </button>
-      </div>
-    </form>
-  );
-}
-
 function TodoDetail({
   action,
   mainline,
@@ -1645,6 +1571,7 @@ function TodoDetail({
   onSave: (input: {
     title: string;
     content?: string | null;
+    scheduledDate?: string | null;
     estimatedMinutes?: AvailableMinutes | null;
     energyRequired?: 'low' | 'medium' | 'high' | null;
   }) => void;
@@ -1705,7 +1632,7 @@ function TodoDetail({
         </strong>
       </div>
       <div className="detail-meta">
-        <span>{actionMeta(action)}</span>
+        <span>{actionMeta(action)}{action.scheduledDate ? ` · ${action.scheduledDate}` : ''}</span>
         <span>
           {mainline.progress.completedTodoCount} /{' '}
           {mainline.progress.totalTodoCount} 已完成

@@ -1,0 +1,66 @@
+name: Desktop release
+
+on:
+  push:
+    tags: ['v*']
+
+permissions:
+  contents: read
+
+concurrency:
+  group: release-${{ github.ref }}
+  cancel-in-progress: false
+
+jobs:
+  version:
+    name: Validate release version
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    steps:
+      - uses: actions/checkout@v7.0.1
+        with:
+          fetch-depth: 0
+          persist-credentials: false
+      - uses: actions/setup-node@v7.0.0
+        with:
+          node-version: '24'
+      - name: Require matching package version and main history
+        env:
+          RELEASE_TAG: ${{ github.ref_name }}
+        run: |
+          node scripts/check-release.mjs "$RELEASE_TAG"
+          git merge-base --is-ancestor HEAD origin/main
+
+  desktop:
+    needs: version
+    uses: ./.github/workflows/desktop.yml
+    permissions:
+      contents: read
+
+  publish:
+    name: Publish verified installers
+    needs: desktop
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    permissions:
+      actions: read
+      contents: write
+    steps:
+      - name: Download this run's installer artifacts
+        env:
+          GH_TOKEN: ${{ github.token }}
+          GH_REPO: ${{ github.repository }}
+        run: gh run download "$GITHUB_RUN_ID" --pattern 'LifeKernelOS-*' --dir release-assets
+      - name: Verify checksums and publish release
+        env:
+          GH_TOKEN: ${{ github.token }}
+          GH_REPO: ${{ github.repository }}
+          RELEASE_TAG: ${{ github.ref_name }}
+        run: |
+          for folder in release-assets/*; do (cd "$folder" && sha256sum --check *.sha256); done
+          mapfile -d '' assets < <(find release-assets -type f -print0)
+          test "${#assets[@]}" -gt 0
+          printf '%s\n' '本版本提供未签名桌面安装包。macOS/Windows 可能需要用户在系统中确认运行。' '校验文件随安装包提供；当前不包含自动升级、云同步或运行时 AI。' > release-notes.md
+          flags=()
+          if [[ "$RELEASE_TAG" == *-* ]]; then flags+=(--prerelease); fi
+          gh release create "$RELEASE_TAG" "${assets[@]}" --verify-tag --title "LifeKernelOS $RELEASE_TAG" --notes-file release-notes.md --generate-notes "${flags[@]}"

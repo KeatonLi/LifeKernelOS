@@ -1,6 +1,7 @@
 import { z } from 'zod';
 import { LifeKernelService } from './services.js';
 import { AppError, type User } from './types.js';
+import { isCalendarDate } from '../../../shared/calendar.js';
 
 export const requestSchema = z
   .object({
@@ -34,6 +35,7 @@ const actionInput = z
   .object({
     title: text(200),
     content: text(2000).nullable().optional(),
+    scheduledDate: z.string().refine(isCalendarDate, '请选择有效日期').nullable().optional(),
     estimatedMinutes: minutes.nullable().optional(),
     energyRequired: energy.nullable().optional(),
   })
@@ -63,6 +65,7 @@ export function dispatch(
   const body = request.body ?? {};
   const id = user.id;
   if (method === 'GET' && path === '/api/auth/me') return { user };
+  if (method === 'GET' && path === '/api/todos') return { actions: service.listTodos(id) };
   if (method === 'GET' && path === '/api/goals') {
     const status = url.searchParams.get('status');
     return {
@@ -146,6 +149,14 @@ export function dispatch(
         };
     }
     if (kind === 'actions') {
+      if (operation === 'status' && method === 'POST') {
+        const input = parse(z.object({
+          status: z.enum(['available', 'completed', 'abandoned']),
+          expectedStatus: z.enum(['available', 'completed', 'blocked', 'abandoned', 'superseded']),
+          confirmed: z.boolean().optional(),
+        }).strict(), body);
+        return { action: service.changeActionStatus(id, resourceId, input.status, input.expectedStatus, input.confirmed) };
+      }
       if (!operation && method === 'PATCH')
         return {
           action: service.updateActionMetadata(

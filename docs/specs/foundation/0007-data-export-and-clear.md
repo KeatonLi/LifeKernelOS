@@ -33,7 +33,7 @@
 
 ```typescript
 type ExportPayload = {
-  schemaVersion: 6;
+  schemaVersion: 7;
   exportedAt: string;
   data: {
     goals: Goal[];
@@ -57,7 +57,7 @@ type ExportPayload = {
 ```gherkin
 Given 当前账号存在目标、行动、当前状态或画像记录
 When 用户在设置页点击导出
-Then 服务端返回 schemaVersion 为 6 的 JSON 文件
+Then 服务端返回 schemaVersion 为 7 的 JSON 文件
 And 文件包含所有当前支持的数据集合
 And 文件只包含当前账号的数据
 ```
@@ -89,8 +89,10 @@ And 页面不得提示导出成功
 
 ## 6. Definition of Done
 
-- [x] 当前支持的数据全部进入 v5 导出契约。
+- [x] 当前支持的数据全部进入 v7 导出契约。
 - [x] 不导出密码、Session、Cookie 或其他用户数据。
 - [x] 自动化测试覆盖完整和空数据导出。
 - [ ] 浏览器下载和失败反馈验收通过。
 - [ ] 所有验收场景通过后标记为 `Verified`。
+
+2026-10-04：[SPEC-0013](../current/0013-basic-todo-and-calendar.md) 增加 Action.scheduledDate，导出升级 v7；桌面兼容导入 v6，旧日期补空。

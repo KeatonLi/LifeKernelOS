@@ -36,4 +36,20 @@ Electron 启动在 Chromium singleton Unix socket 初始化时被执行环境拒
 - 900×640 主窗口、560×680 收集与480×580 专注实际布局。
 - macOS/Windows 构建与实机安装；签名、自动升级与运行时 AI 未纳入本轮。
 
-三平台 CI 已提供但尚未运行。使用 [工作流](../../.github/workflows/desktop.yml) 在对应平台完成下一轮验证。
+以上为 0.3 的历史验收状态。
+
+## 2026-10-04 基础 Todo 0.4
+
+关联：[SPEC-0013](../specs/current/0013-basic-todo-and-calendar.md)。保留已认可的冷白、石墨黑与朱橙，不接入运行时 AI。
+
+| 检查 | 证据 | 结果 |
+| --- | --- | --- |
+| 完整领域/HTTP/DOM/恢复回归 | `npm test` | 46/46；新增 17 项 Todo/日历回归 |
+| Electron 内置 SQLite | Electron 44.5.1 Node 模式运行 Todo 与 desktop 数据测试 | 12/12；真实 v6 DB 升级及 v6/v7 备份往返 |
+| 类型与生产构建 | `npm run build` | 通过；业务进程与本地 renderer 资源构建 |
+| 日期创建与编辑 | 浏览器 10月8日选日新建，清除后重新填日期并保存、刷新 | 内容与日期保留；清除进入未安排 |
+| 直接完成与恢复 | 浏览器勾选、即时撤销、移除取消/确认与恢复 | 恢复内容/日期；不释放其他当前任务 |
+| 多视图与筛选 | 浏览器列表、今日、月/周、搜索与主线筛选 | 同一任务 ID 与事实；选10月8日后周历为10月5—11日 |
+| 视觉与运行 | [QA](../../design-qa.md)、[月历](../images/todo-calendar.jpg)、[列表](../images/todo-list.jpg) | 保留主题；无页面横向溢出；未观察到应用来源 warn/error |
+
+真实 Electron 启动/IPC/隔离/重启测试已扩展日期与“处理其他任务不清除当前”场景。三平台 CI 和标签发布按 [CI/CD](ci-cd.md) 自动运行；本地环境的 Unix socket 限制仍存在，不将 Node 模式等同于原生桌面验证。原生对话框、快捷键、最小窗口和实机安装继续待验收。

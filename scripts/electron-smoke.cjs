@@ -37,6 +37,11 @@ app.on('browser-window-created', (_event, window) => {
       if (process.env.LK_SMOKE_REOPEN === '1') {
         assert.equal(goals.length, 1);
         assert.equal(goals[0].progress.completedTodoCount, 1);
+        const { actions } = await request('GET', '/api/todos');
+        assert.equal(actions.length, 2);
+        assert.equal(actions.find(item => item.title === '下一个行动').scheduledDate, '2024-02-29');
+        const persisted = await request('GET', '/api/current');
+        assert.equal(persisted.currentAction.title, '下一个行动');
         console.log(
           'DESKTOP REOPEN PASSED: identity, tasks and completion persist',
         );
@@ -64,12 +69,19 @@ app.on('browser-window-created', (_event, window) => {
         await request('POST', '/api/current/complete', {
           expectedActionId: action.id,
         });
+        await request('PATCH', `/api/actions/${action.id}`, {scheduledDate: '2026-10-04'});
+        await request('POST', `/api/actions/${action.id}/status`, {status: 'available', expectedStatus: 'completed'});
+        const { action: next } = await request('POST', `/api/goals/${goal.id}/actions`, {title: '下一个行动', scheduledDate: '2024-02-29'});
+        await request('POST', '/api/current/select', {actionId: next.id});
+        await request('POST', `/api/actions/${action.id}/status`, {status: 'completed', expectedStatus: 'available'});
         const workspace = await request('GET', '/api/current');
-        assert.equal(workspace.currentAction, null);
+        assert.equal(workspace.currentAction.id, next.id);
         const { profile } = await request('GET', '/api/profile');
         assert.equal(profile.factSummary.completedActionCount, 1);
         const exportData = await request('GET', '/api/export');
         assert.equal(exportData.data.captures[0].status, 'converted');
+        assert.equal(exportData.schemaVersion, 7);
+        assert.equal(exportData.data.actions.find(item => item.id === action.id).scheduledDate, '2026-10-04');
         const invalid = await window.webContents.executeJavaScript(
           "window.lifeKernel.request({method:'POST',path:'/api/sql',body:{sql:'DROP TABLE users'}})",
         );

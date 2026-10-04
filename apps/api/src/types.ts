@@ -56,6 +56,7 @@ export type Action = {
   parentActionId: string | null;
   title: string;
   content: string | null;
+  scheduledDate: string | null;
   estimatedMinutes: AvailableMinutes | null;
   energyRequired: Energy | null;
   status: ActionStatus;
@@ -157,7 +158,7 @@ export type ProfileView = {
 };
 
 export type ExportPayload = {
-  schemaVersion: 6;
+  schemaVersion: 7;
   exportedAt: string;
   data: {
     goals: Goal[];

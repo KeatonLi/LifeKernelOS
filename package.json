@@ -1,6 +1,6 @@
 {
   "name": "lifekernel-os",
-  "version": "0.3.0",
+  "version": "0.4.0",
   "private": true,
   "description": "LifeKernel OS：目标期望、当前行动与个人画像。",
   "type": "module",
@@ -91,6 +91,7 @@
       ],
       "category": "Office",
       "icon": "public/brand/lifekernel-icon.png"
-    }
+    },
+    "artifactName": "${productName}-${version}-${os}-${arch}.${ext}"
   }
 }

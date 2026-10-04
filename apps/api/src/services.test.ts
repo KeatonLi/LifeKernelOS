@@ -75,7 +75,7 @@ test('SPEC-0007：导出当前用户的完整数据，并支持空数据导出',
   const service = new LifeKernelService(database);
   const user = service.provisionInitialAccount('export@lifekernel.local', 'test-password-hash');
   const emptyExport = service.exportData(user.id);
-  assert.equal(emptyExport.schemaVersion, 6);
+  assert.equal(emptyExport.schemaVersion, 7);
   assert.deepEqual(emptyExport.data.goals, []);
   assert.deepEqual(emptyExport.data.actions, []);
   assert.deepEqual(emptyExport.data.goalReflections, []);
@@ -94,7 +94,7 @@ test('SPEC-0007：导出当前用户的完整数据，并支持空数据导出',
   service.createKnowledgeItem(user.id, { goalId: goal.id, title: '项目复盘方法', note: '先记录事实。' });
 
   const exported = service.exportData(user.id);
-  assert.equal(exported.schemaVersion, 6);
+  assert.equal(exported.schemaVersion, 7);
   assert.match(exported.exportedAt, /^\d{4}-\d{2}-\d{2}T/);
   assert.equal(exported.data.goals.length, 1);
   assert.equal(exported.data.actions.length, 1);
@@ -287,7 +287,7 @@ test('SPEC-0010：旧 Focus / Action 数据迁移到产品 0.5 且可重复启�
     await rm(directory, { recursive: true, force: true });
   });
   const service = new LifeKernelService(database);
-  assert.equal(database.sqlite.pragma('user_version', { simple: true }), 6);
+  assert.equal(database.sqlite.pragma('user_version', { simple: true }), 7);
   assert.ok(database.sqlite.prepare("SELECT 1 FROM sqlite_master WHERE type = 'table' AND name = 'current_contexts'").get());
   assert.ok(database.sqlite.prepare("SELECT 1 FROM sqlite_master WHERE type = 'table' AND name = 'goal_status_events'").get());
   assert.ok(database.sqlite.prepare("SELECT 1 FROM pragma_table_info('actions') WHERE name = 'content'").get());
@@ -303,7 +303,7 @@ test('SPEC-0010：旧 Focus / Action 数据迁移到产品 0.5 且可重复启�
   database.close();
   databaseClosed = true;
   reopened = createDatabase(databasePath);
-  assert.equal(reopened.sqlite.pragma('user_version', { simple: true }), 6);
+  assert.equal(reopened.sqlite.pragma('user_version', { simple: true }), 7);
   assert.equal((reopened.sqlite.prepare('SELECT COUNT(*) AS count FROM actions').get() as { count: number }).count, 1);
   assert.equal((reopened.sqlite.prepare("SELECT COUNT(*) AS count FROM focuses WHERE goal_status = 'active'").get() as { count: number }).count, 2);
 });
