@@ -32,6 +32,17 @@ jobs:
       - run: npm run docs:check
       - run: npm test
       - run: npm run build
+      - name: Prepare Linux Chromium sandbox
+        if: runner.os == 'Linux'
+        run: |
+          node --input-type=module <<'JS'
+          import electron from 'electron';
+          import { dirname, join } from 'node:path';
+          import { execFileSync } from 'node:child_process';
+          const helper = join(dirname(electron), 'chrome-sandbox');
+          execFileSync('sudo', ['chown', 'root:root', helper], { stdio: 'inherit' });
+          execFileSync('sudo', ['chmod', '4755', helper], { stdio: 'inherit' });
+          JS
       - name: Electron startup, IPC and restart
         if: runner.os == 'Linux'
         run: xvfb-run -a npm run test:desktop
