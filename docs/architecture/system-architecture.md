@@ -1,142 +1,31 @@
 # LifeKernelOS 架构基线
 
-> 版本：0.8
+> 版本：0.9
 > 状态：Accepted
-> 更新时间：2026-09-18
-> 文档域：Architecture
-> 对应产品：[PRD v0.8](../product/PRD.md)
-> 对应决策：[ADR-0003](decisions/0003-server-backed-mvp.md)、[ADR-0005](decisions/0005-evidence-based-profile.md)、[ADR-0007](decisions/0007-two-tab-console-information-architecture.md)、[ADR-0008](decisions/0008-mainline-groups-derived-todo-progress.md)
+> 更新时间：2026-10-03
+> 对应产品：[PRD](../product/PRD.md)
+> 决策：[ADR-0009](decisions/0009-electron-local-desktop.md)、[ADR-0008](decisions/0008-mainline-groups-derived-todo-progress.md)
 
-## 1. 架构目标
+## 系统边界
 
-当前架构只支撑两个一级工作区：
+默认运行形态是 Electron 本地桌面。React 渲染主线、画像及辅助窗口；受限 preload 将业务请求转交主进程，主进程转发到独占 SQLite 的 utility process。后台业务进程是事实源，前端不得读写数据库。Fastify 作为兼容入口，不随桌面启动。
 
-- **主线**：多条主线分组、To-do 内容、派生进度与唯一当前 To-do。
-- **我的画像**：主线、To-do 事实、经历、自我描述和知识的进度感知关系图谱。
+## 进程职责
 
-技术边界必须保证：服务端是数据事实源；所有数据按用户隔离；当前 To-do 切换和结果原子写入；进度可由事实重算；画像只聚合事实，不创造推断性结论。
-
-## 2. 系统上下文
-
-```text
-浏览器
-  ├─ /expectations  主线任务板
-  ├─ /profile       我的画像图谱
-  └─ /settings      账号辅助入口
-        │ HTTPS / JSON / HttpOnly Session
-        ▼
-Fastify 模块化单体
-  ├─ Identity
-  ├─ Goals & To-dos
-  ├─ Current Context
-  ├─ Progress Projection
-  ├─ Profile Aggregation
-  ├─ Quick Capture
-  └─ Export
-        │ 事务与归属校验
-        ▼
-SQLite
-```
-
-首轮采用单进程模块化单体，不引入微服务、消息队列、第三方画像服务或前端直连数据库。
-
-## 3. 前端信息架构
-
-| 路由 | 产品职责 | 导航层级 |
+| 层 | 职责 | 禁止 |
 | --- | --- | --- |
-| `/expectations` | 在一个任务板中查看主线、To-do、当前行动与派生进度 | 一级 Tab：主线 |
-| `/profile` | 展示以用户为中心的主线—知识图谱及其事实层 | 一级 Tab：我的画像 |
-| `/settings` | JSON 导出与后续账号设置 | 侧栏底部辅助入口 |
-| `/now`、`/goals`、`/workbench` | 兼容旧书签并重定向到 `/expectations` | 不展示 |
+| React | 导航、表单、展示、接收已提交变化 | 文件系统、SQL、Node API |
+| Preload | 固定 request、变更订阅、桌面命令 | 通用 ipcRenderer 暴露 |
+| Electron 主进程 | 窗口、协议、输入来源校验、快捷键、原生对话框 | 执行任意渲染端路径或 shell |
+| Utility process | 输入校验、身份、事务、进度、画像、备份恢复 | 加载远程代码、监听 HTTP |
+| SQLite | 本地事实、外键、迁移、WAL | 前端直接连接 |
 
-主线页首屏必须可理解当前 To-do、所属主线、完成数量和进度；画像页首屏必须以真实可交互图谱作为主要内容。设置不成为第三个 Tab。
-快速收集箱由 WorkspaceShell 以辅助抽屉提供，不新增路由或一级 Tab。
+## 领域约束
 
-## 4. 领域模型
+多个 Goal 分组、一个全局当前 Action；进度由 available/completed/blocked 的比例派生；completed Goal 由用户确认。画像只聚合可追溯事实。Capture 转换原子保存完整内容。多窗口操作携带预期行动 ID，提交后广播。导入在校验通过、明确确认和备份成功后才开始事务。
 
-### 4.1 Goal（界面：主线）
+## 数据与交付
 
-用户持续推进的结果分组。一个用户可以同时有多条 active Goal。
+SQLite 与最多 10 份 JSON 备份存于 OS userData；应用资源包含版本迁移，启动不依赖 cwd。主窗口关闭退出时先关闭数据库；辅助窗口支持 Escape。应用单实例。开发环境可使用 Vite，发布载入本地 app 协议，拒绝外部导航与权限。Electron Builder 打包 macOS/Windows/Linux；签名、自动升级、同步和运行时 AI 不在本轮交付范围。
 
-- 标题、可选完成定义与状态：active / paused / completed / abandoned。
-- 不存在唯一 Goal；completed 状态由用户明确确认。
-- 进度为 Action 状态的派生投影，不能手动编辑。
-
-### 4.2 Action（界面：To-do）
-
-归属一条 Goal 的可执行内容。
-
-- 标题、可选 `content`、可选预计时长和精力要求。
-- 生命周期：available / completed / blocked / abandoned / superseded。
-- 拆小后新 Action 通过 `parentActionId` 指向原 Action。
-- current Context 选中一条 available Action 表示全局唯一当前 To-do，不改变其生命周期。
-
-### 4.3 GoalProgress
-
-服务端读取时生成的只读事实：`completedTodoCount`、`totalTodoCount`、`progressPercent`。
-
-- 有效 To-do 为 available / completed / blocked。
-- abandoned / superseded 不计入总数；completed Goal 固定投影 100%。
-- GoalProgress 同时供主线任务板和 Profile 聚合使用，不持久化为可编辑列。
-
-### 4.4 Profile
-
-- `ProfileDescription`：用户自己确认的整体描述。
-- `GoalReflection`：完成主线的用户总结。
-- `KnowledgeItem`：关联一条主线的知识记录。
-- `GoalStatusEvent`：主线状态变化事实历史。
-- `ProfileGraph`：服务端读取 GoalProgress、知识与当前用户事实后实时生成的节点与边，不持久化快照。
-
-图谱只允许 self → goal 和 goal → knowledge 两类关系。它在 Goal 节点聚合 To-do 进度，但不把每条 To-do 绘制为节点。
-
-### 4.5 Capture
-
-独立于 Action 的临时记录，状态为 inbox / converted / archived。转换成功后保留原文和 convertedActionId；失败时仍为 inbox。
-
-## 5. 持久化与兼容
-
-当前数据库继续沿用历史表名：
-
-| 物理结构 | 当前领域含义 |
-| --- | --- |
-| `focuses` | Goal；当前状态读取 `goal_status`，完成定义读取 `done_definition` |
-| `actions.focus_id` | Action 的 `goalId` 外键 |
-| `actions.content` | To-do 可选详细内容 |
-| `focus_reflections.focus_id` | GoalReflection 的 `goalId` |
-| `knowledge_items.focus_id` | KnowledgeItem 的 `goalId` |
-| `current_contexts` | CurrentContext 与唯一 `selected_action_id` |
-| `captures` | 快速收集记录与可选的已转换 Action 外键 |
-
-`focuses.progress_percent` 和旧 `status` 仅用于历史迁移与 legacy API；现行 UI、Profile DTO 和导出用 Action 状态派生进度。启动迁移遵循 user_version `0 → 6`，其中版本 5 增加 Action 内容列，版本 6 增加 Capture。
-
-## 6. HTTP 与事务边界
-
-规范接口由当前 Web 客户端使用：
-
-- `/api/auth/*`
-- `/api/goals`、`/api/goals/:id`、`/api/goals/:id/status`
-- `/api/goals/:id/actions`、`/api/actions/:id`
-- `/api/current`、`/api/current/context`、`/api/current/select`、`/api/current/{complete|split|block|abandon}`
-- `/api/profile`、`/api/profile/description`、`/api/goals/:id/reflection`
-- `/api/knowledge`、`/api/knowledge/:id`
-- `/api/captures`、`/api/captures/:id`、`/api/captures/:id/{convert|archive}`
-- `/api/export`
-
-以下操作必须在单个 SQLite 事务中完成：选择或切换当前 To-do；完成、拆小、卡住或放弃当前 To-do；Capture 转为 To-do；改变含当前 To-do 的 Goal 状态；数据库迁移；导出一致性读取；Goal 状态事件写入。进度读取和画像聚合使用一致性读事务。
-
-## 7. 画像可信度与隐私
-
-- Profile 查询仅使用当前 Session 对应用户的数据。
-- 每个 goal / knowledge 图谱节点携带 `sourceId`，可以回到原始事实。
-- self 节点仅表示当前用户，不包含身份画像标签。
-- 完成数和进度不推断人格、能力、心理或价值观。
-- 画像正文不发送到第三方分析或 AI 服务。
-
-## 8. 验证基线
-
-- Domain / Application 测试覆盖 Action 内容、派生进度、多个 active Goal、唯一当前 To-do、状态匹配和四种处理结果。
-- HTTP 测试覆盖身份边界、资源归属、Capture 转换、规范 DTO 与 schemaVersion 6 导出。
-- 迁移测试覆盖旧 Focus / Action 数据升级、Action 内容列和重复启动。
-- 前端必须通过类型检查与生产构建，并在桌面和移动视口人工验证主线任务板、当前 To-do、图谱交互与事实回退。
-
-代码与自动化测试完成只可标记为 `Implemented`；逐条人工验收通过前不得标记为 `Verified`。
+相关行为见 [SPEC-0012](../specs/current/0012-electron-desktop.md)，可执行实现见 [技术设计](technical-design.md)。

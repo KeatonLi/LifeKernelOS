@@ -5,7 +5,7 @@ import { mkdtemp, rm } from 'node:fs/promises';
 import { tmpdir } from 'node:os';
 import { join, resolve } from 'node:path';
 import test from 'node:test';
-import Database from 'better-sqlite3';
+import { SqliteDatabase as Database } from './db.js';
 import { createDatabase } from './db.js';
 import { LifeKernelService } from './services.js';
 

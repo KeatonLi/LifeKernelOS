@@ -9,7 +9,7 @@
 - 未进入 `Accepted` 的 Spec 不开始实现；未进入 `Verified` 的 Spec 不宣称功能已完成。
 - `Deferred` 和 `Superseded` Spec 不属于当前实现上下文，除非任务明确要求迁移或历史追溯。
 - 不覆盖用户已有的未提交改动，不用破坏性 Git 命令清理工作区。
-- 服务端是业务数据事实源；前端不得直接读写数据库。
+- 客户端后台业务进程是业务数据事实源（兼容 Web 入口仍由服务端负责）；前端不得直接读写数据库。
 - 当前产品不使用“唯一主线”或手动百分比，也不根据画像事实推断人格、能力或心理状态。
 
 ## 1. AI 每次开始任务时的读取顺序
@@ -34,7 +34,7 @@
 
 ### 当前必须优先读取的文档
 
-- 产品事实源：[PRD v0.7](docs/product/PRD.md)
+- 产品事实源：[PRD v0.9](docs/product/PRD.md)
 - 系统边界：[系统架构](docs/architecture/system-architecture.md)
 - 可执行设计：[详细技术设计](docs/architecture/technical-design.md)
 - 当前目标模型决策：[ADR-0008](docs/architecture/decisions/0008-mainline-groups-derived-todo-progress.md)
@@ -42,6 +42,7 @@
 - 主线：[SPEC-0010](docs/specs/current/0010-long-term-goals-and-current-action.md)
 - 我的画像：[SPEC-0011](docs/specs/current/0011-aggregated-profile-graph.md)
 - 快速收集箱：[SPEC-0005](docs/specs/current/0005-quick-capture.md)
+- 桌面客户端：[SPEC-0012](docs/specs/current/0012-electron-desktop.md) 与 [ADR-0009](docs/architecture/decisions/0009-electron-local-desktop.md)
 - 交付协议：[SDD](docs/development/SDD.md)
 
 ## 3. 按任务类型自动路由
@@ -125,7 +126,7 @@ LifeKernelOS 只有两个一级 Tab：
 
 设置属于账号辅助入口，不是第三个 Tab。
 
-技术基线为响应式 Web + 后端模块化单体：React、TypeScript、Vite、Fastify、SQLite、Drizzle。认证使用 scrypt 密码摘要和服务端 Session；数据库迁移、HTTP DTO 与事务边界以详细技术设计为准。
+技术基线为 Electron + React + TypeScript + Vite + SQLite（Node 内置驱动）。客户端默认本地单用户无登录，preload 与 utility process 隔离渲染和业务。Fastify 保留为兼容 Web 入口。以 ADR-0009 和 SPEC-0012 为准。
 
 ## 7. 完成任务前的检查
 

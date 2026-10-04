@@ -11,7 +11,7 @@
 ## Current product facts
 
 - [Product entry](docs/product/README.md): product-document scope and update rules.
-- [PRD v0.7](docs/product/PRD.md): product intent, mainlines, To-dos, derived progress, profile graph, and acceptance criteria.
+- [PRD v0.9](docs/product/PRD.md): product intent, mainlines, To-dos, derived progress, profile graph, and acceptance criteria.
 - [ADR-0008: mainline groups and derived To-do progress](docs/architecture/decisions/0008-mainline-groups-derived-todo-progress.md): current core domain decision.
 - [ADR-0007: two-tab console](docs/architecture/decisions/0007-two-tab-console-information-architecture.md): current information architecture decision.
 - [SPEC-0010: mainline To-dos and current action](docs/specs/current/0010-long-term-goals-and-current-action.md): executable contract for the “主线” tab.
@@ -29,13 +29,16 @@
 - [Development entry](docs/development/README.md): delivery-document scope.
 - [AI-native SDD protocol](docs/development/SDD.md): lifecycle, change classification, and evidence requirements.
 
+- [Electron desktop](docs/specs/current/0012-electron-desktop.md): local identity, utility-process SQLite, guarded multi-window mutations, backup/import and desktop UX.
+- [ADR-0009](docs/architecture/decisions/0009-electron-local-desktop.md): accepted Electron local desktop decision, superseding default server deployment.
+
 ## Historical and deferred context
 
 These documents are part of the repository’s traceable context, but they never override the current product facts above.
 
 - [ADR-0001: local-first MVP](docs/architecture/decisions/0001-local-first-mvp.md): superseded historical architecture rationale.
 - [ADR-0002: early web stack](docs/architecture/decisions/0002-web-stack.md): superseded historical stack rationale.
-- [ADR-0003: server-backed MVP](docs/architecture/decisions/0003-server-backed-mvp.md): implemented server shape, still proposed pending formal architecture review.
+- [ADR-0003: server-backed MVP](docs/architecture/decisions/0003-server-backed-mvp.md): superseded default shape; retained Web compatibility only.
 - [ADR-0004: single-mainline workbench](docs/architecture/decisions/0004-single-mainline-workbench-mvp.md): superseded historical product model.
 - [ADR-0005: evidence-based profile](docs/architecture/decisions/0005-evidence-based-profile.md): accepted profile fact and user-confirmation boundary.
 - [SPEC-0007: data export](docs/specs/foundation/0007-data-export-and-clear.md): implemented foundation contract.
@@ -51,5 +54,5 @@ These documents are part of the repository’s traceable context, but they never
 ## Repository boundaries
 
 - `sources/` is synchronized read-only reference material. Do not edit, move, rename, or delete it.
-- Do not infer a third primary tab, a single unique mainline, manual progress percentages, or personality/capability inference. The current product has only “主线” and “我的画像”; settings is an auxiliary account entry.
+- Do not infer a third primary tab, a single unique mainline, manual progress percentages, or personality/capability inference. The current product has only “主线” and “我的画像”; settings is an auxiliary workspace entry.
 - Before changing behavior, locate the owning Product, ADR, and Spec document through the routes above. After changes, run `npm run docs:check` and relevant tests.

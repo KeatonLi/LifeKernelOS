@@ -1,7 +1,10 @@
 # SPEC-0007 数据导出
 
+> 2026-10-03 桌面增量：[SPEC-0012](../current/0012-electron-desktop.md) 规定无登录本地身份、跨窗口校验、2000 字符行动内容、阻塞恢复和备份导入。桌面数据事实源为后台业务进程；本文件服务端约束仅适用于兼容 Web 入口。
+
+
 > 状态：Implemented
-> 对应产品：[PRD v0.7](../../product/PRD.md) 数据所有权边界
+> 对应产品：[PRD v0.9](../../product/PRD.md) 数据所有权边界
 > 相关设计：[详细技术设计](../../architecture/technical-design.md#9-导出契约)
 > 依赖：`SPEC-0008`、`SPEC-0010`、`SPEC-0011`
 > 文档分区：Foundation

@@ -25,3 +25,6 @@ data/
 *.db-wal
 # Local runtime output
 .DS_Store
+
+dist-desktop/
+release/

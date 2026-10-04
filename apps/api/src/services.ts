@@ -375,7 +375,7 @@ export class LifeKernelService {
     const goal = this.getOwnedGoalRow(userId, goalId);
     if (goal.goal_status !== 'active') throw new AppError('GOAL_NOT_ACTIVE', '只能为 active 长期目标添加行动', 409);
     const title = normalizeText(input.title, 'title', 200);
-    const content = normalizeOptionalText(input.content, 'content', 1000) ?? null;
+    const content = normalizeOptionalText(input.content, 'content', 2000) ?? null;
     const estimatedMinutes = input.estimatedMinutes ?? null;
     const energyRequired = input.energyRequired ?? null;
     const createdAt = now();
@@ -387,7 +387,7 @@ export class LifeKernelService {
   updateActionMetadata(userId: string, actionId: string, input: { title?: string; content?: string | null; estimatedMinutes?: AvailableMinutes | null; energyRequired?: Energy | null }): Action {
     const row = this.getOwnedActionRow(userId, actionId);
     const title = input.title === undefined ? row.title : normalizeText(input.title, 'title', 200);
-    const content = input.content === undefined ? row.content : normalizeOptionalText(input.content, 'content', 1000) ?? null;
+    const content = input.content === undefined ? row.content : normalizeOptionalText(input.content, 'content', 2000) ?? null;
     const estimatedMinutes = input.estimatedMinutes === undefined ? row.estimated_minutes : input.estimatedMinutes;
     const energyRequired = input.energyRequired === undefined ? row.energy_required : input.energyRequired;
     const updatedAt = now();
@@ -438,26 +438,27 @@ export class LifeKernelService {
     return select();
   }
 
-  clearCurrentAction(userId: string): CurrentContext | null {
+  clearCurrentAction(userId: string, expectedActionId?: string): CurrentContext | null {
     const current = this.getCurrentContext(userId);
+    if (expectedActionId && current?.selectedActionId !== expectedActionId) throw new AppError('CURRENT_ACTION_CHANGED', '当前行动已在另一个窗口改变，请重新确认。', 409);
     if (!current) return null;
     const updatedAt = now();
     this.sqlite.prepare('UPDATE current_contexts SET selected_action_id = NULL, selected_at = NULL, updated_at = ? WHERE user_id = ?').run(updatedAt, userId);
     return { ...current, selectedActionId: null, selectedAt: null, updatedAt };
   }
 
-  completeCurrentAction(userId: string, outcomeNoteInput?: string | null): Action {
-    return this.resolveCurrentAction(userId, 'completed', { outcomeNote: normalizeOptionalText(outcomeNoteInput, 'outcomeNote', 500) ?? null });
+  completeCurrentAction(userId: string, outcomeNoteInput?: string | null, expectedActionId?: string): Action {
+    return this.resolveCurrentAction(userId, 'completed', { outcomeNote: normalizeOptionalText(outcomeNoteInput, 'outcomeNote', 500) ?? null, expectedActionId });
   }
 
-  splitCurrentAction(userId: string, input: { title: string; content?: string | null; estimatedMinutes?: AvailableMinutes | null; energyRequired?: Energy | null }): { original: Action; action: Action } {
+  splitCurrentAction(userId: string, input: { expectedActionId?: string; title: string; content?: string | null; estimatedMinutes?: AvailableMinutes | null; energyRequired?: Energy | null }): { original: Action; action: Action } {
     const split = this.sqlite.transaction(() => {
-      const current = this.requireCurrentActionRow(userId);
+      const current = this.requireCurrentActionRow(userId, input.expectedActionId);
       const goal = this.getOwnedGoalRow(userId, current.focus_id);
       if (goal.goal_status !== 'active') throw new AppError('GOAL_NOT_ACTIVE', '该长期目标已经不是 active', 409);
       if (current.status !== 'available') throw new AppError('ACTION_NOT_AVAILABLE', '只有 available 行动可以拆小', 409);
       const title = normalizeText(input.title, 'title', 200);
-      const content = normalizeOptionalText(input.content, 'content', 1000) ?? null;
+      const content = normalizeOptionalText(input.content, 'content', 2000) ?? null;
       const estimatedMinutes = input.estimatedMinutes ?? null;
       const energyRequired = input.energyRequired ?? null;
       const timestamp = now();
@@ -470,12 +471,24 @@ export class LifeKernelService {
     return split();
   }
 
-  blockCurrentAction(userId: string, blockerNoteInput?: string | null): Action {
-    return this.resolveCurrentAction(userId, 'blocked', { blockerNote: normalizeOptionalText(blockerNoteInput, 'blockerNote', 500) ?? null });
+  blockCurrentAction(userId: string, blockerNoteInput?: string | null, expectedActionId?: string): Action {
+    return this.resolveCurrentAction(userId, 'blocked', { blockerNote: normalizeOptionalText(blockerNoteInput, 'blockerNote', 500) ?? null, expectedActionId });
   }
 
-  abandonCurrentAction(userId: string, outcomeNoteInput?: string | null): Action {
-    return this.resolveCurrentAction(userId, 'abandoned', { outcomeNote: normalizeOptionalText(outcomeNoteInput, 'outcomeNote', 500) ?? null });
+  abandonCurrentAction(userId: string, outcomeNoteInput?: string | null, expectedActionId?: string): Action {
+    return this.resolveCurrentAction(userId, 'abandoned', { outcomeNote: normalizeOptionalText(outcomeNoteInput, 'outcomeNote', 500) ?? null, expectedActionId });
+  }
+
+  resumeAction(userId: string, actionId: string): Action {
+    return this.sqlite.transaction(() => {
+      const row = this.getOwnedActionRow(userId, actionId);
+      const goal = this.getOwnedGoalRow(userId, row.focus_id);
+      if (row.status !== 'blocked') throw new AppError('ACTION_NOT_BLOCKED', '只有卡住的行动可以恢复。', 409);
+      if (goal.goal_status !== 'active') throw new AppError('GOAL_NOT_ACTIVE', '请先恢复这条主线。', 409);
+      const updatedAt = now();
+      this.sqlite.prepare("UPDATE actions SET status = 'available', resolved_at = NULL, updated_at = ? WHERE id = ? AND user_id = ?").run(updatedAt, actionId, userId);
+      return mapAction({ ...row, status: 'available', resolved_at: null, updated_at: updatedAt });
+    })();
   }
 
   createCapture(userId: string, input: { content: string; type?: CaptureType | null }): Capture {
@@ -606,7 +619,7 @@ export class LifeKernelService {
   upsertGoalReflection(userId: string, goalId: string, summaryInput: string): GoalReflection | null {
     const goal = this.getOwnedGoalRow(userId, goalId);
     if (goal.goal_status !== 'completed') throw new AppError('GOAL_NOT_COMPLETED', '只有已完成的目标可以留下经历总结', 409);
-    const summary = normalizeOptionalText(summaryInput, 'summary', 500);
+    const summary = normalizeOptionalText(summaryInput, 'summary', 500) ?? null;
     if (summary === null) {
       this.sqlite.prepare('DELETE FROM focus_reflections WHERE user_id = ? AND focus_id = ?').run(userId, goalId);
       return null;
@@ -681,8 +694,9 @@ export class LifeKernelService {
     });
   }
 
-  private requireCurrentActionRow(userId: string): ActionRow {
+  private requireCurrentActionRow(userId: string, expectedActionId?: string): ActionRow {
     const context = this.getCurrentContext(userId);
+    if (expectedActionId && context?.selectedActionId !== expectedActionId) throw new AppError('CURRENT_ACTION_CHANGED', '当前行动已在另一个窗口改变，请重新确认。', 409);
     if (!context?.selectedActionId) throw new AppError('NO_CURRENT_ACTION', '当前还没有选择行动', 409);
     const row = this.sqlite.prepare('SELECT * FROM actions WHERE id = ? AND user_id = ?').get(context.selectedActionId, userId) as ActionRow | undefined;
     if (!row || row.status !== 'available') {
@@ -692,9 +706,9 @@ export class LifeKernelService {
     return row;
   }
 
-  private resolveCurrentAction(userId: string, status: Extract<ActionStatus, 'completed' | 'blocked' | 'abandoned'>, input: { blockerNote?: string | null; outcomeNote?: string | null }): Action {
+  private resolveCurrentAction(userId: string, status: Extract<ActionStatus, 'completed' | 'blocked' | 'abandoned'>, input: { blockerNote?: string | null; outcomeNote?: string | null; expectedActionId?: string }): Action {
     const resolve = this.sqlite.transaction(() => {
-      const row = this.requireCurrentActionRow(userId);
+      const row = this.requireCurrentActionRow(userId, input.expectedActionId);
       if (row.status !== 'available') throw new AppError('ACTION_NOT_AVAILABLE', '只有 available 行动可以处理', 409);
       const resolvedAt = now();
       const blockerNote = input.blockerNote === undefined ? row.blocker_note : input.blockerNote;

@@ -30,7 +30,7 @@
 
 ## 关联
 
-- [PRD v0.7](../../product/PRD.md)
+- [PRD v0.9](../../product/PRD.md)
 - [ADR-0005 我的画像以事实为依据](0005-evidence-based-profile.md)
 - [ADR-0008 主线分组与派生 To-do 进度](0008-mainline-groups-derived-todo-progress.md)
 - [SPEC-0010 主线](../../specs/current/0010-long-term-goals-and-current-action.md)

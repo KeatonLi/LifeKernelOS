@@ -191,7 +191,7 @@ test('SPEC-0010：HTTP API 暴露目标、状态匹配和唯一当前行动', as
   assert.deepEqual((current.json() as { strictMatches: Array<{ id: string }> }).strictMatches.map((action) => action.id).sort(), [firstActionId, secondActionId].sort());
   assert.equal((await app.inject({ method: 'POST', url: '/api/current/select', headers: { cookie: ownerCookie }, payload: { actionId: firstActionId } })).statusCode, 200);
   assert.equal((await app.inject({ method: 'POST', url: '/api/current/select', headers: { cookie: ownerCookie }, payload: { actionId: secondActionId } })).statusCode, 200);
-  const completed = await app.inject({ method: 'POST', url: '/api/current/complete', headers: { cookie: ownerCookie }, payload: { outcomeNote: '完成' } });
+  const completed = await app.inject({ method: 'POST', url: '/api/current/complete', headers: { cookie: ownerCookie }, payload: { expectedActionId: secondActionId, outcomeNote: '完成' } });
   assert.equal(completed.statusCode, 200);
   assert.equal((completed.json() as { action: { status: string } }).action.status, 'completed');
   assert.equal((await app.inject({ method: 'GET', url: '/api/current', headers: { cookie: ownerCookie } })).json().currentAction, null);

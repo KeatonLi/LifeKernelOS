@@ -1,81 +1,91 @@
-import { mkdirSync, readFileSync } from 'node:fs';
+import { mkdirSync, readFileSync, readdirSync } from 'node:fs';
 import { dirname, resolve } from 'node:path';
-import Database from 'better-sqlite3';
-import { drizzle } from 'drizzle-orm/better-sqlite3';
+import { fileURLToPath } from 'node:url';
+import { DatabaseSync, type SQLInputValue } from 'node:sqlite';
 
-export type DatabaseContext = {
-  sqlite: Database.Database;
-  orm: ReturnType<typeof drizzle>;
-  close: () => void;
-};
-
-export function createDatabase(databasePath: string): DatabaseContext {
+/** Compatibility boundary for existing synchronous SQL use cases. */
+export class SqliteDatabase {
+  private readonly connection: DatabaseSync;
+  private depth = 0;
+  constructor(path: string) {
+    this.connection = new DatabaseSync(path);
+  }
+  exec(sql: string) {
+    this.connection.exec(sql);
+  }
+  close() {
+    this.connection.close();
+  }
+  prepare(sql: string) {
+    const statement = this.connection.prepare(sql);
+    return {
+      get: (...values: SQLInputValue[]): unknown => statement.get(...values),
+      all: (...values: SQLInputValue[]): unknown[] => statement.all(...values),
+      run: (...values: SQLInputValue[]) => statement.run(...values),
+    };
+  }
+  pragma(sql: string, options?: { simple: boolean }): unknown {
+    const rows = this.connection.prepare(`PRAGMA ${sql}`).all();
+    return options?.simple ? Object.values(rows[0] ?? {})[0] : rows;
+  }
+  transaction<T>(fn: () => T): () => T {
+    return () => {
+      const level = this.depth++;
+      const savepoint = `lk_transaction_${level}`;
+      let started = false;
+      try {
+        this.exec(level ? `SAVEPOINT ${savepoint}` : 'BEGIN IMMEDIATE');
+        started = true;
+        const result = fn();
+        this.exec(level ? `RELEASE ${savepoint}` : 'COMMIT');
+        return result;
+      } catch (error) {
+        if (started) {
+          if (level) {
+            this.exec(`ROLLBACK TO ${savepoint}`);
+            this.exec(`RELEASE ${savepoint}`);
+          } else this.exec('ROLLBACK');
+        }
+        throw error;
+      } finally {
+        this.depth--;
+      }
+    };
+  }
+}
+export type DatabaseContext = { sqlite: SqliteDatabase; close: () => void };
+export function createDatabase(
+  databasePath: string,
+  migrationsPath = fileURLToPath(
+    new URL('../../../db/migrations', import.meta.url),
+  ),
+): DatabaseContext {
   mkdirSync(dirname(databasePath), { recursive: true });
-  const sqlite = new Database(databasePath);
-  sqlite.pragma('foreign_keys = ON');
-  sqlite.pragma('journal_mode = WAL');
-  sqlite.pragma('busy_timeout = 5000');
-  sqlite.pragma('synchronous = FULL');
-
+  const sqlite = new SqliteDatabase(databasePath);
   try {
-    let userVersion = (sqlite.pragma('user_version', { simple: true }) as number) ?? 0;
-    if (userVersion === 0) {
-      const initialMigrationPath = resolve(process.cwd(), 'db/migrations/001_initial.sql');
-      sqlite.exec(readFileSync(initialMigrationPath, 'utf8'));
-      userVersion = (sqlite.pragma('user_version', { simple: true }) as number) ?? 0;
+    sqlite.pragma('foreign_keys = ON');
+    sqlite.pragma('journal_mode = WAL');
+    sqlite.pragma('busy_timeout = 5000');
+    sqlite.pragma('synchronous = FULL');
+    const currentVersion = Number(
+      sqlite.pragma('user_version', { simple: true }),
+    );
+    const migrations = readdirSync(migrationsPath)
+      .filter((name) => /^\d{3}_.*\.sql$/.test(name))
+      .sort();
+    if (currentVersion > migrations.length)
+      throw new Error('数据库来自较新的版本，请升级客户端。');
+    for (const filename of migrations) {
+      const version = Number(filename.slice(0, 3));
+      if (version <= currentVersion) continue;
+      sqlite.transaction(() => {
+        sqlite.exec(readFileSync(resolve(migrationsPath, filename), 'utf8'));
+        sqlite.pragma(`user_version = ${version}`);
+      })();
     }
-    if (userVersion < 2) {
-      const v05MigrationPath = resolve(process.cwd(), 'db/migrations/002_v05_goal_current_action.sql');
-      const migrate = sqlite.transaction(() => {
-        sqlite.exec(readFileSync(v05MigrationPath, 'utf8'));
-        sqlite.pragma('user_version = 2');
-      });
-      migrate();
-    }
-    const currentUserVersion = (sqlite.pragma('user_version', { simple: true }) as number) ?? 0;
-    if (currentUserVersion < 3) {
-      const v05CompatibilityPath = resolve(process.cwd(), 'db/migrations/003_v05_remove_single_active_goal_constraint.sql');
-      const repair = sqlite.transaction(() => {
-        sqlite.exec(readFileSync(v05CompatibilityPath, 'utf8'));
-        sqlite.pragma('user_version = 3');
-      });
-      repair();
-    }
-    const latestUserVersion = (sqlite.pragma('user_version', { simple: true }) as number) ?? 0;
-    if (latestUserVersion < 4) {
-      const statusEventsPath = resolve(process.cwd(), 'db/migrations/004_goal_status_events.sql');
-      const addStatusEvents = sqlite.transaction(() => {
-        sqlite.exec(readFileSync(statusEventsPath, 'utf8'));
-        sqlite.pragma('user_version = 4');
-      });
-      addStatusEvents();
-    }
-    const v07UserVersion = (sqlite.pragma('user_version', { simple: true }) as number) ?? 0;
-    if (v07UserVersion < 5) {
-      const actionContentPath = resolve(process.cwd(), 'db/migrations/005_v07_action_content.sql');
-      const addActionContent = sqlite.transaction(() => {
-        sqlite.exec(readFileSync(actionContentPath, 'utf8'));
-        sqlite.pragma('user_version = 5');
-      });
-      addActionContent();
-    }
-    const v08UserVersion = (sqlite.pragma('user_version', { simple: true }) as number) ?? 0;
-    if (v08UserVersion < 6) {
-      const quickCapturePath = resolve(process.cwd(), 'db/migrations/006_quick_capture.sql');
-      const addQuickCapture = sqlite.transaction(() => {
-        sqlite.exec(readFileSync(quickCapturePath, 'utf8'));
-        sqlite.pragma('user_version = 6');
-      });
-      addQuickCapture();
-    }
+    return { sqlite, close: () => sqlite.close() };
   } catch (error) {
     sqlite.close();
     throw error;
   }
-
-  return {
-    sqlite,
-    orm: drizzle(sqlite),
-    close: () => sqlite.close()
-  };
 }

@@ -14,7 +14,7 @@ Object.defineProperties(globalThis, {
 const { render, fireEvent, waitFor, cleanup, act } = await import('@testing-library/react');
 const { MemoryRouter, useNavigate } = await import('react-router-dom');
 const { ExpectationsPage, ProfilePage, buildProfileFlow } = await import('./App.js');
-const { api } = await import('./api.js');
+const { api, dataChanged } = await import('./api.js');
 import type { Capture, Mainline, GoalAction, Profile, ProfileGraphNode } from './api.js';
 
 const user = { id: 'user', email: 'test@example.com', createdAt: '' };
@@ -195,4 +195,62 @@ test('SPEC-0011：多于五条主线及密集知识节点不重叠，边保持�
       assert.ok(Math.abs(a.x - b.x) >= 218 || Math.abs(a.y - b.y) >= 120, `${flow.nodes[i].id} overlaps ${flow.nodes[j].id}`);
     }
   }
+});
+
+test('SPEC-0012：快速收集转换立即刷新主线列表与派生进度', async () => {
+  let records = [action('old')];
+  mock.method(api, 'goals', async () => ({ goals: [{ ...goal('a'), progress: { completedTodoCount: 0, totalTodoCount: records.length, progressPercent: 0 } }] }));
+  mock.method(api, 'current', async () => ({ context: null, contextIsStale: false, currentAction: null, strictMatches: [], allAvailable: records }));
+  mock.method(api, 'goalActions', async () => ({ actions: [...records] }));
+  const item: Capture = { id: 'capture', userId: user.id, content: '立即出现的新步骤', type: null, status: 'inbox', convertedActionId: null, createdAt: new Date().toISOString(), updatedAt: new Date().toISOString() };
+  let captures = [item];
+  mock.method(api, 'captures', async () => ({ captures: [...captures] }));
+  mock.method(api, 'convertCapture', async () => { const created = { ...action('new'), title: item.content, content: item.content }; records.push(created); captures = []; return { capture: { ...item, status: 'converted' as const }, action: created }; });
+  const view = mainlineView();
+  await view.findByRole('heading', { name: '任务 old' });
+  fireEvent.click(view.getByRole('button', { name: /快速记下/ }));
+  fireEvent.click(await view.findByRole('button', { name: '转为 To-do' }));
+  fireEvent.click(view.getByRole('button', { name: '转为 To-do' }));
+  await waitFor(() => assert.match(view.container.querySelector('.todo-list')!.textContent!, /立即出现的新步骤/));
+  assert.match(view.container.querySelector('.progress-copy')!.textContent!, /0 \/ 2/);
+});
+
+test('SPEC-0012：收集抽屉 Escape 关闭并返回原键盘焦点', async () => {
+  setupMainlines();
+  mock.method(api, 'goalActions', async () => ({ actions: [] }));
+  mock.method(api, 'captures', async () => ({ captures: [] }));
+  const view = mainlineView();
+  const launcher = await view.findByRole('button', { name: '快速记下' });
+  launcher.focus(); fireEvent.click(launcher);
+  await view.findByRole('dialog', { name: '快速收集箱' });
+  fireEvent.keyDown(document, { key: 'Escape' });
+  await waitFor(() => assert.equal(view.queryByRole('dialog', { name: '快速收集箱' }), null));
+  await waitFor(() => assert.equal(document.activeElement, launcher));
+});
+
+test('SPEC-0012：已打开的收集抽屉同步其他窗口的新记录', async () => {
+  setupMainlines();
+  mock.method(api, 'goalActions', async () => ({ actions: [] }));
+  let records: Capture[] = [];
+  mock.method(api, 'captures', async () => ({ captures: [...records] }));
+  const view = mainlineView();
+  fireEvent.click(await view.findByRole('button', { name: '快速记下' }));
+  await view.findByText('收集箱已经清空。');
+  records = [{ id: 'from-other-window', userId: user.id, content: '另一个窗口记下的想法', type: null, status: 'inbox', convertedActionId: null, createdAt: new Date().toISOString(), updatedAt: new Date().toISOString() }];
+  await act(async () => dataChanged());
+  await view.findByText('另一个窗口记下的想法');
+  assert.equal(view.queryByText('收集箱已经清空。'), null);
+});
+
+test('SPEC-0012：工作区读取故障显示重试，不能伪装成登录失效', async () => {
+  const { default: App } = await import('./App.js');
+  const { ApiError } = await import('./api.js');
+  let attempts = 0;
+  mock.method(api, 'me', async () => { if (++attempts === 1) throw new ApiError('本地进程暂时未连接', undefined, 'LOCAL_UNAVAILABLE'); return { user }; });
+  setupMainlines(); mock.method(api, 'goalActions', async () => ({ actions: [] })); mock.method(api, 'captures', async () => ({ captures: [] }));
+  const view = render(<MemoryRouter initialEntries={['/expectations']}><App /></MemoryRouter>);
+  await view.findByRole('heading', { name: '工作区暂时没有打开' });
+  assert.equal(view.queryByLabelText('密码'), null);
+  fireEvent.click(view.getByRole('button', { name: '重新打开' }));
+  await view.findByRole('heading', { name: '今天，向前一步。' });
 });

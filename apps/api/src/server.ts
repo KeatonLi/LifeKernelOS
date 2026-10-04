@@ -1,5 +1,6 @@
 import { existsSync } from 'node:fs';
 import { resolve } from 'node:path';
+import { pathToFileURL } from 'node:url';
 import Fastify, { type FastifyRequest } from 'fastify';
 import cookie from '@fastify/cookie';
 import fastifyStatic from '@fastify/static';
@@ -186,7 +187,7 @@ export function buildApp(context?: DatabaseContext) {
     assertSafeOrigin(request);
     const user = await requireUser(request);
     const params = parseBody(z.object({ id: z.string().uuid() }), request.params);
-    const input = parseBody(z.object({ title: textSchema(200), content: textSchema(1000).nullable().optional(), estimatedMinutes: availableMinutesSchema.nullable().optional(), energyRequired: energySchema.nullable().optional() }), request.body);
+    const input = parseBody(z.object({ title: textSchema(200), content: textSchema(2000).nullable().optional(), estimatedMinutes: availableMinutesSchema.nullable().optional(), energyRequired: energySchema.nullable().optional() }), request.body);
     return reply.status(201).send({ action: service.createGoalAction(user.id, params.id, input) });
   });
 
@@ -194,8 +195,15 @@ export function buildApp(context?: DatabaseContext) {
     assertSafeOrigin(request);
     const user = await requireUser(request);
     const params = parseBody(z.object({ id: z.string().uuid() }), request.params);
-    const input = parseBody(z.object({ title: textSchema(200).optional(), content: textSchema(1000).nullable().optional(), estimatedMinutes: availableMinutesSchema.nullable().optional(), energyRequired: energySchema.nullable().optional() }).refine((value) => value.title !== undefined || value.content !== undefined || value.estimatedMinutes !== undefined || value.energyRequired !== undefined, '至少更新一项内容'), request.body);
+    const input = parseBody(z.object({ title: textSchema(200).optional(), content: textSchema(2000).nullable().optional(), estimatedMinutes: availableMinutesSchema.nullable().optional(), energyRequired: energySchema.nullable().optional() }).refine((value) => value.title !== undefined || value.content !== undefined || value.estimatedMinutes !== undefined || value.energyRequired !== undefined, '至少更新一项内容'), request.body);
     return { action: service.updateActionMetadata(user.id, params.id, input) };
+  });
+
+  app.post('/api/actions/:id/resume', async (request) => {
+    assertSafeOrigin(request);
+    const user = await requireUser(request);
+    const params = parseBody(z.object({ id: z.string().uuid() }), request.params);
+    return { action: service.resumeAction(user.id, params.id) };
   });
 
   app.get('/api/current', async (request) => {
@@ -220,35 +228,36 @@ export function buildApp(context?: DatabaseContext) {
   app.delete('/api/current/select', async (request) => {
     assertSafeOrigin(request);
     const user = await requireUser(request);
-    return { context: service.clearCurrentAction(user.id) };
+    const input = parseBody(z.object({ expectedActionId: z.string().uuid() }), request.body ?? {});
+    return { context: service.clearCurrentAction(user.id, input.expectedActionId) };
   });
 
   app.post('/api/current/complete', async (request) => {
     assertSafeOrigin(request);
     const user = await requireUser(request);
-    const input = parseBody(z.object({ outcomeNote: textSchema(500).nullable().optional() }), request.body ?? {});
-    return { action: service.completeCurrentAction(user.id, input.outcomeNote) };
+    const input = parseBody(z.object({ expectedActionId: z.string().uuid(), outcomeNote: textSchema(500).nullable().optional() }), request.body ?? {});
+    return { action: service.completeCurrentAction(user.id, input.outcomeNote, input.expectedActionId) };
   });
 
   app.post('/api/current/split', async (request) => {
     assertSafeOrigin(request);
     const user = await requireUser(request);
-    const input = parseBody(z.object({ title: textSchema(200), content: textSchema(1000).nullable().optional(), estimatedMinutes: availableMinutesSchema.nullable().optional(), energyRequired: energySchema.nullable().optional() }), request.body);
+    const input = parseBody(z.object({ expectedActionId: z.string().uuid(), title: textSchema(200), content: textSchema(2000).nullable().optional(), estimatedMinutes: availableMinutesSchema.nullable().optional(), energyRequired: energySchema.nullable().optional() }), request.body);
     return service.splitCurrentAction(user.id, input);
   });
 
   app.post('/api/current/block', async (request) => {
     assertSafeOrigin(request);
     const user = await requireUser(request);
-    const input = parseBody(z.object({ blockerNote: textSchema(500).nullable().optional() }), request.body ?? {});
-    return { action: service.blockCurrentAction(user.id, input.blockerNote) };
+    const input = parseBody(z.object({ expectedActionId: z.string().uuid(), blockerNote: textSchema(500).nullable().optional() }), request.body ?? {});
+    return { action: service.blockCurrentAction(user.id, input.blockerNote, input.expectedActionId) };
   });
 
   app.post('/api/current/abandon', async (request) => {
     assertSafeOrigin(request);
     const user = await requireUser(request);
-    const input = parseBody(z.object({ outcomeNote: textSchema(500).nullable().optional() }), request.body ?? {});
-    return { action: service.abandonCurrentAction(user.id, input.outcomeNote) };
+    const input = parseBody(z.object({ expectedActionId: z.string().uuid(), outcomeNote: textSchema(500).nullable().optional() }), request.body ?? {});
+    return { action: service.abandonCurrentAction(user.id, input.outcomeNote, input.expectedActionId) };
   });
 
   app.get('/api/captures', async (request) => {
@@ -381,7 +390,7 @@ export function buildApp(context?: DatabaseContext) {
   return { app, service, database };
 }
 
-if (import.meta.url === `file://${process.argv[1]}`) {
+if (process.argv[1] && import.meta.url === pathToFileURL(resolve(process.argv[1])).href) {
   const { app } = buildApp();
   const port = Number(process.env.PORT ?? '3000');
   app.listen({ port, host: '127.0.0.1' }).catch((error) => {

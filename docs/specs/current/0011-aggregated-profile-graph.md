@@ -3,7 +3,7 @@
 > 状态：Implemented
 > 版本：0.2
 > 日期：2026-09-06
-> 对应产品：[PRD v0.7](../../product/PRD.md)“我的画像”Tab
+> 对应产品：[PRD v0.9](../../product/PRD.md)“我的画像”Tab
 > 相关决策：[ADR-0005](../../architecture/decisions/0005-evidence-based-profile.md)、[ADR-0007](../../architecture/decisions/0007-two-tab-console-information-architecture.md)、[ADR-0008](../../architecture/decisions/0008-mainline-groups-derived-todo-progress.md)
 > 依赖：`SPEC-0010`、`SPEC-0008`
 > 文档分区：Current
@@ -19,6 +19,7 @@
 - 主线节点聚合 To-do 完成数和派生进度，不把每条 To-do 绘制成节点。
 - 图谱只表达用户、主线与知识的可追溯关系；进度是事实，不是评价。
 - 图谱必须可缩放、平移、适配视图和打开来源；图谱外保留等价事实入口。
+- 桌面图谱标题允许两行并保留完整标题提示，长名称不只显示难以辨认的省略文本；来源节点支持键盘 Enter/Space 打开，关系线按左右布局连接。
 
 ## 3. 范围
 

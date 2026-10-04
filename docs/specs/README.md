@@ -14,11 +14,14 @@ Spec 是功能开发与验收的直接契约：它把 [PRD](../product/PRD.md) �
 
 | 编号 | 名称 | 产品位置 | 依赖 | 状态 |
 | --- | --- | --- | --- | --- |
+| [SPEC-0012](current/0012-electron-desktop.md) | Electron 本地桌面行动工作区 | 桌面默认入口 | `SPEC-0010`、`SPEC-0011`、`SPEC-0005` | Implemented |
 | [SPEC-0010](current/0010-long-term-goals-and-current-action.md) | 主线：分组 To-do 与当前行动 | 主线 Tab | `SPEC-0008` | Implemented |
 | [SPEC-0011](current/0011-aggregated-profile-graph.md) | 我的画像：进度感知汇聚图谱 | 我的画像 Tab | `SPEC-0010`、`SPEC-0008` | Implemented |
 | [SPEC-0005](current/0005-quick-capture.md) | 快速收集箱 | 全局辅助抽屉 | `SPEC-0008`、`SPEC-0010` | Implemented |
 
 `SPEC-0010` 与 `SPEC-0011` 分别承接当前两个一级 Tab，`SPEC-0005` 作为跨页面辅助抽屉补齐入口。v0.8 的代码和自动化测试已经完成并进入 `Implemented`；浏览器人工验收和真实用户验证完成前不得标记为 `Verified`。
+
+桌面运行、无登录身份和导入恢复以 SPEC-0012 为准；SPEC-0008 保留兼容 Web 入口约束。
 
 ## Foundation：基础能力规格
 

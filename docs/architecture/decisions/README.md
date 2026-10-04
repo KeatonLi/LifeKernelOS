@@ -8,12 +8,14 @@ ADR 记录影响多个 Spec、需要长期遵守的关键选择，以及做出�
 | --- | --- | --- | --- |
 | [ADR-0001](0001-local-first-mvp.md) | MVP 采用本地优先架构 | Superseded | 早期本地优先方案记录；由 ADR-0003 替代 |
 | [ADR-0002](0002-web-stack.md) | React + TypeScript + Vite + Dexie | Superseded | 前端栈部分保留；本地持久化由 ADR-0003 替代 |
-| [ADR-0003](0003-server-backed-mvp.md) | 服务端持久化的模块化单体 | Proposed（已实现，待评审） | 只记录运行形态；目标模型以 ADR-0008 为准 |
+| [ADR-0003](0003-server-backed-mvp.md) | 服务端持久化的模块化单体 | Superseded | 默认部署由 ADR-0009 替代，保留兼容 Web 入口 |
 | [ADR-0004](0004-single-mainline-workbench-mvp.md) | 单一主线工作台 | Superseded | 历史产品模型；由 ADR-0008 替代 |
 | [ADR-0005](0005-evidence-based-profile.md) | 画像以目标与行动事实为依据 | Accepted | 画像的事实、可追溯与用户确认边界 |
 | [ADR-0006](0006-multiple-long-term-goals-and-single-current-action.md) | 多个长期目标与单一当前行动 | Superseded | 由 ADR-0008 替代，保留历史演进 |
 | [ADR-0007](0007-two-tab-console-information-architecture.md) | 两个一级 Tab | Accepted | “目标期望”和“我的画像”的当前信息架构 |
 | [ADR-0008](0008-mainline-groups-derived-todo-progress.md) | 主线分组与派生 To-do 进度 | Accepted | 主线、To-do、进度与画像的当前核心模型 |
+
+| [ADR-0009](0009-electron-local-desktop.md) | Electron 本地桌面客户端 | Accepted | 本地身份、后台 SQLite、IPC 与桌面体验 |
 
 ## 状态规则
 

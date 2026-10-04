@@ -5,6 +5,8 @@ const projectRoot = process.cwd();
 const ignoredDirectories = new Set([
   ".git",
   "dist",
+  "dist-desktop",
+  "release",
   "node_modules",
   "sources",
 ]);
@@ -30,6 +32,8 @@ const requiredContextFiles = [
   "docs/specs/README.md",
   "docs/specs/current/0010-long-term-goals-and-current-action.md",
   "docs/specs/current/0011-aggregated-profile-graph.md",
+  "docs/specs/current/0012-electron-desktop.md",
+  "docs/architecture/decisions/0009-electron-local-desktop.md",
   "docs/specs/current/0005-quick-capture.md",
   "docs/development/SDD.md",
 ];
@@ -43,6 +47,8 @@ const requiredAgentRoutes = [
   "docs/architecture/decisions/0007-two-tab-console-information-architecture.md",
   "docs/specs/current/0010-long-term-goals-and-current-action.md",
   "docs/specs/current/0011-aggregated-profile-graph.md",
+  "docs/specs/current/0012-electron-desktop.md",
+  "docs/architecture/decisions/0009-electron-local-desktop.md",
   "docs/specs/current/0005-quick-capture.md",
   "docs/development/SDD.md",
 ];

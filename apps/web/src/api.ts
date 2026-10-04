@@ -1,3 +1,4 @@
+import type { DesktopCommand } from '../../desktop/src/bridge.js';
 export type User = { id: string; email: string; createdAt: string };
 export type GoalStatus = 'active' | 'paused' | 'completed' | 'abandoned';
 export type ActionStatus = 'available' | 'completed' | 'blocked' | 'abandoned' | 'superseded';
@@ -57,26 +58,31 @@ export type Profile = {
 };
 
 export class ApiError extends Error {
-  constructor(message: string, readonly fields?: Record<string, string>) {
+  constructor(message: string, readonly fields?: Record<string, string>, readonly code?: string) {
     super(message);
   }
 }
 
 async function request<T>(path: string, init: RequestInit = {}): Promise<T> {
+  if (window.lifeKernel) {
+    const result = await window.lifeKernel.request({ method: (init.method ?? 'GET') as 'GET' | 'POST' | 'PATCH' | 'PUT' | 'DELETE', path, body: typeof init.body === 'string' ? JSON.parse(init.body) : undefined });
+    if (!result.ok) throw new ApiError(result.error.message, result.error.fields, result.error.code);
+    return result.data as T;
+  }
   const response = await fetch(path, {
     credentials: 'include',
     headers: { 'Content-Type': 'application/json', ...init.headers },
     ...init
   });
-  const payload = await response.json().catch(() => null) as T & { error?: { message?: string; fields?: Record<string, string> } } | null;
-  if (!response.ok) throw new ApiError(payload?.error?.message ?? '请求没有成功，请稍后再试。', payload?.error?.fields);
+  const payload = await response.json().catch(() => null) as T & { error?: { message?: string; fields?: Record<string, string>; code?: string } } | null;
+  if (!response.ok) throw new ApiError(payload?.error?.message ?? '请求没有成功，请稍后再试。', payload?.error?.fields, payload?.error?.code ?? (response.status === 401 ? 'UNAUTHENTICATED' : undefined));
   return payload as T;
 }
 
 async function download(path: string): Promise<{ blob: Blob; filename: string }> {
   const response = await fetch(path, { credentials: 'include' });
   if (!response.ok) {
-    const payload = await response.json().catch(() => null) as { error?: { message?: string; fields?: Record<string, string> } } | null;
+    const payload = await response.json().catch(() => null) as { error?: { message?: string; fields?: Record<string, string>; code?: string } } | null;
     throw new ApiError(payload?.error?.message ?? '导出失败，请稍后再试。', payload?.error?.fields);
   }
   return { blob: await response.blob(), filename: 'lifekernel-export.json' };
@@ -93,14 +99,15 @@ export const api = {
   goalActions: (goalId: string) => request<{ actions: GoalAction[] }>(`/api/goals/${goalId}/actions`),
   createGoalAction: (goalId: string, input: { title: string; content?: string | null; estimatedMinutes?: AvailableMinutes | null; energyRequired?: Energy | null }) => request<{ action: GoalAction }>(`/api/goals/${goalId}/actions`, { method: 'POST', body: JSON.stringify(input) }),
   updateAction: (id: string, input: { title?: string; content?: string | null; estimatedMinutes?: AvailableMinutes | null; energyRequired?: Energy | null }) => request<{ action: GoalAction }>(`/api/actions/${id}`, { method: 'PATCH', body: JSON.stringify(input) }),
+  resumeAction: (id: string) => request<{ action: GoalAction }>(`/api/actions/${id}/resume`, { method: 'POST' }),
   current: () => request<CurrentWorkspace>('/api/current'),
   recordContext: (input: { availableMinutes?: AvailableMinutes | null; energy?: Energy | null }) => request<{ context: CurrentContext }>('/api/current/context', { method: 'PUT', body: JSON.stringify(input) }),
   selectCurrent: (actionId: string) => request<{ context: CurrentContext }>('/api/current/select', { method: 'POST', body: JSON.stringify({ actionId }) }),
-  clearCurrent: () => request<{ context: CurrentContext | null }>('/api/current/select', { method: 'DELETE' }),
-  completeCurrent: (outcomeNote?: string) => request<{ action: GoalAction }>('/api/current/complete', { method: 'POST', body: JSON.stringify({ outcomeNote: outcomeNote || null }) }),
-  splitCurrent: (input: { title: string; content?: string | null; estimatedMinutes?: AvailableMinutes | null; energyRequired?: Energy | null }) => request<{ original: GoalAction; action: GoalAction }>('/api/current/split', { method: 'POST', body: JSON.stringify(input) }),
-  blockCurrent: (blockerNote?: string) => request<{ action: GoalAction }>('/api/current/block', { method: 'POST', body: JSON.stringify({ blockerNote: blockerNote || null }) }),
-  abandonCurrent: (outcomeNote?: string) => request<{ action: GoalAction }>('/api/current/abandon', { method: 'POST', body: JSON.stringify({ outcomeNote: outcomeNote || null }) }),
+  clearCurrent: (expectedActionId: string) => request<{ context: CurrentContext | null }>('/api/current/select', { method: 'DELETE', body: JSON.stringify({ expectedActionId }) }),
+  completeCurrent: (expectedActionId: string, outcomeNote?: string) => request<{ action: GoalAction }>('/api/current/complete', { method: 'POST', body: JSON.stringify({ expectedActionId, outcomeNote: outcomeNote || null }) }),
+  splitCurrent: (input: { expectedActionId: string; title: string; content?: string | null; estimatedMinutes?: AvailableMinutes | null; energyRequired?: Energy | null }) => request<{ original: GoalAction; action: GoalAction }>('/api/current/split', { method: 'POST', body: JSON.stringify(input) }),
+  blockCurrent: (expectedActionId: string, blockerNote?: string) => request<{ action: GoalAction }>('/api/current/block', { method: 'POST', body: JSON.stringify({ expectedActionId, blockerNote: blockerNote || null }) }),
+  abandonCurrent: (expectedActionId: string, outcomeNote?: string) => request<{ action: GoalAction }>('/api/current/abandon', { method: 'POST', body: JSON.stringify({ expectedActionId, outcomeNote: outcomeNote || null }) }),
   captures: (status: CaptureStatus = 'inbox') => request<{ captures: Capture[] }>(`/api/captures?status=${status}`),
   createCapture: (input: { content: string; type?: CaptureType | null }) => request<{ capture: Capture }>('/api/captures', { method: 'POST', body: JSON.stringify(input) }),
   updateCapture: (id: string, input: { type: CaptureType | null }) => request<{ capture: Capture }>(`/api/captures/${id}`, { method: 'PATCH', body: JSON.stringify(input) }),
@@ -115,3 +122,17 @@ export const api = {
   updateKnowledge: (id: string, input: Partial<Pick<KnowledgeItem, 'title' | 'note' | 'status'>>) => request<{ knowledge: KnowledgeItem }>(`/api/knowledge/${id}`, { method: 'PATCH', body: JSON.stringify(input) }),
   deleteKnowledge: (id: string) => request<{ success: true }>(`/api/knowledge/${id}`, { method: 'DELETE' })
 };
+
+export const isDesktop = () => Boolean(window.lifeKernel);
+export async function desktop<T = unknown>(command: DesktopCommand): Promise<T> {
+  if (!window.lifeKernel) throw new ApiError('请在桌面客户端中使用这项功能。');
+  const result = await window.lifeKernel.desktop(command);
+  if (!result.ok) throw new ApiError(result.error.message, result.error.fields, result.error.code);
+  return result.data as T;
+}
+export function subscribeData(listener: () => void) {
+  const unsubscribe = window.lifeKernel?.onChange(listener);
+  window.addEventListener('lifekernel:changed', listener);
+  return () => { unsubscribe?.(); window.removeEventListener('lifekernel:changed', listener); };
+}
+export function dataChanged() { window.dispatchEvent(new window.Event('lifekernel:changed')); }

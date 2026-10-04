@@ -1,9 +1,11 @@
 # ADR-0003：MVP 采用服务端持久化的模块化单体
 
 > 分类：Architecture Decision Record
-> 状态：Proposed（服务端方案已实现，仍待架构评审）
+> 状态：Superseded（服务端方案已实现，仍待架构评审）
 > 日期：2026-09-04
 > 影响范围：MVP 运行方式、身份、数据存储和部署
+
+> 2026-10-03：默认产品形态由 [ADR-0009](0009-electron-local-desktop.md) 替代。以下保留旧 Web 部署背景。
 
 ## 背景
 
