@@ -82,8 +82,12 @@ test('SPEC-0014：解密/加密与落盘失败不暴露秘密，并行写入只�
 });
 
 async function controllerFixture(context: Parameters<typeof folder>[0], implementation?: typeof fetch, timeoutMs?: number) {
-  const path = await folder(context), database = createDatabase(join(path, 'db.sqlite'));
-  context.after(async () => database.close());
+  const path = await mkdtemp(join(tmpdir(), 'lk-ai-controller-'));
+  const database = createDatabase(join(path, 'db.sqlite'));
+  context.after(async () => {
+    database.close();
+    await rm(path, { recursive: true, force: true });
+  });
   const service = new LifeKernelService(database);
   const user = service.provisionInitialAccount('unit@lk.test', 'LOCAL');
   const goal = service.createGoal(user.id, { title: '做一个小产品', doneDefinition: '能实际使用' });
