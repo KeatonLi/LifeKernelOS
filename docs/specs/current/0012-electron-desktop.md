@@ -1,5 +1,7 @@
 # SPEC-0012 本地桌面行动工作区
 
+> 2026-10-04 AI 增量：[SPEC-0014](0014-byok-ai-task-decomposition.md) 承接用户 Key 配置与主动拆解；现有任务详情增加入口，采纳仍使用同一任务事实源。
+
 > 状态：Implemented
 > 日期：2026-10-03
 > 对应决策：[ADR-0009](../../architecture/decisions/0009-electron-local-desktop.md)

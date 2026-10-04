@@ -1,4 +1,5 @@
 import type { BusinessRequest } from '../../api/src/commands.js';
+import type { AiCommand } from '../../../shared/ai.js';
 export type Result<T = unknown> =
   | { ok: true; data: T }
   | {
@@ -19,6 +20,7 @@ export type DesktopCommand =
 export type DesktopBridge = {
   request: (request: BusinessRequest) => Promise<Result>;
   desktop: (command: DesktopCommand) => Promise<Result>;
+  ai: (command: AiCommand) => Promise<Result>;
   onChange: (listener: () => void) => () => void;
   platform: string;
 };

@@ -1,6 +1,6 @@
 {
   "name": "lifekernel-os",
-  "version": "0.4.0",
+  "version": "0.5.0",
   "private": true,
   "description": "LifeKernel OS：目标期望、当前行动与个人画像。",
   "type": "module",

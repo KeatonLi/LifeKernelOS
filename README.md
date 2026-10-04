@@ -1,6 +1,6 @@
 # LifeKernelOS
 
-LifeKernelOS 是一个本地桌面行动工作区：把想法随手记下来，把主线拆成可执行的小步骤，此刻只做一件事，并把真实行动与知识留在自己的画像里。
+LifeKernelOS 是一个目标驱动的个人行动工具，让重要的事变成每天能开始的一步。基础 Todo 与日历本地可用；用户可配置自己的 API Key，用 AI 把任务拆成可执行的小步骤。
 
 默认客户端使用 **Electron + React + TypeScript**。打开即可用，无需登录、部署服务或联网。记录保存在本机；主线进度来自完成事实。
 
@@ -13,10 +13,11 @@ LifeKernelOS 是一个本地桌面行动工作区：把想法随手记下来，�
 - **日期与视图**：主线内切换任务列表、今日、月历和周历；选日新建，日期可清除，未安排任务仍可访问。
 - **快速记下**：不必先分类，稍后再整理到主线。完整保留最多 2000 字符。
 - **我的画像**：主线、完成事实、知识、自我描述和经历的可追溯图谱。
+- **AI 任务拆解**：配置自己的 API Key，查看并编辑建议、选择采纳；保留来源与原日期，结果面板支持安全撤销。
 - **桌面体验**：专注小窗、收集小窗、快捷键、自动保存、导出、确认后备份导入。
 - **视觉**：冷白与石墨黑，朱橙强调当前行动和主要操作；清楚的文字层级、低噪声侧栏，完成操作留在首屏。
 
-当前优先把基础 Todo 与日历做稳，**尚未连接运行时 AI**。之后再为产品线加入任务拆解、下一步建议与处理卡住等增强；AI 建议须由用户确认，不替用户判断人格、能力或人生优先级。体验参考见[官方产品调研](docs/product/todo-reference-products.md)。
+当前已接入用户 Key 的任务拆解，基础 Todo 与日历继续独立使用。AI 仅在用户请求时提供建议，须确认后才修改任务；不替用户判断人格、能力或人生优先级。体验参考见[官方产品调研](docs/product/todo-reference-products.md)。
 
 ## 启动桌面客户端
 
@@ -38,12 +39,22 @@ npm start
 
 快捷键：`Cmd/Ctrl + K` 快速记下，`Cmd/Ctrl + Shift + Space` 全局收集小窗，辅助窗口 `Esc` 关闭。如果全局快捷键被占用，可从应用菜单打开。
 
+## 使用自己的 API Key
+
+1. 打开桌面客户端的设置，在 AI 设置填写 Base URL、模型名称和 Key。
+2. 示例配置为 `https://api.deepseek.com` / `deepseek-flash`；也可填写服务商提供的 OpenAI Chat Completions 兼容地址与文本模型名。Base URL 不包含 `/chat/completions`。原生 Anthropic 协议暂不支持。
+3. 保存后可测试连接。测试发送一条非任务消息，费用取决于所选服务。远程服务需 HTTPS；本机回环模型可使用 HTTP。
+4. 在任务详情点“AI 拆解”，检查将发送的任务、主线和补充要求；生成后编辑并选择步骤，再点“应用所选步骤”。原任务保留为已拆分，新步骤沿用原安排日期。
+5. 结果面板支持撤销；后续已修改、处理或正在被选为当前的步骤会阻止整批撤销，保护你的工作。
+
+Key 只由桌面主进程使用，系统加密保存；也可选择仅本次运行。系统安全存储不可用时禁止持久化 Key。Key 不进入任务数据库、JSON 备份或模型提示词。连接错误不影响本地 Todo。兼容 Web 入口不添加 Key。
+
 ## 数据与迁移
 
 - 数据存于操作系统的应用 userData，包含 `lifekernel.sqlite` 与 `backups/`。设置页可打开目录。
 - 每次启动和导入前生成 JSON 备份，保留最近 10 份。
 - 当前导出 schemaVersion 7 JSON，包含安排日期；兼容导入 v6，旧任务日期为空。客户端会显示数量，明确确认后备份并事务替换；失败回滚。
-- 导出不含密码或 Session。当前无云同步、自动升级与模型调用。
+- 导出不含密码、Session 或 API Key。当前无云同步或自动升级。
 
 ## 构建安装包
 
@@ -63,7 +74,7 @@ npm run build
 npm run test:desktop # 真实 Electron 启动、IPC、小窗及重启测试；需要图形环境
 ```
 
-PRD v0.10、ADR-0009/0010 已接受；SPEC-0012/0013 为 `Implemented`。46 项自动化回归、浏览器 Todo 闭环、类型与生产构建、Electron 内置 SQLite 数据测试通过。当前执行环境禁止 Electron 所需的 Unix socket；真实三平台启动交由 CI，**原生对话框、全局快捷键与实机安装仍待人工验收**，未标记 `Verified`。
+PRD v0.11、ADR-0009/0010/0012 已接受；SPEC-0012/0013/0014 为 `Implemented`。68 项自动化回归、浏览器 Todo 闭环、类型与生产构建通过；新增 Key 隔离、错误恢复、采纳幂等与撤销保护。原生 CI 使用本机脚本服务测试模型请求流程，不代表真实模型质量已验收。当前执行环境禁止 Electron 所需的 Unix socket；真实三平台启动交由 CI，**真实 Key / 模型调用、系统密钥服务、原生对话框、全局快捷键与实机安装仍待人工验收**，未标记 `Verified`。
 
 详见 [桌面验收记录](docs/development/desktop-acceptance.md) 与 [视觉 QA](design-qa.md)。界面预览使用独立示例工作区，不会在首次桌面启动时生成示例记录：
 
@@ -82,8 +93,8 @@ npm run dev:legacy
 
 ## 产品与协作事实源
 
-从 [AGENTS.md](AGENTS.md) 或 [llms.txt](llms.txt) 进入，按 [文档索引](docs/README.md) 路由。[PRD](docs/product/PRD.md) 记录产品范围，[ADR-0009](docs/architecture/decisions/0009-electron-local-desktop.md) 记录桌面选择，[SPEC-0012](docs/specs/current/0012-electron-desktop.md) 和 [SPEC-0013](docs/specs/current/0013-basic-todo-and-calendar.md) 记录可验证行为。
+从 [AGENTS.md](AGENTS.md) 或 [llms.txt](llms.txt) 进入，按 [文档索引](docs/README.md) 路由。[PRD](docs/product/PRD.md) 记录产品范围，[ADR-0009](docs/architecture/decisions/0009-electron-local-desktop.md) 记录桌面选择，[SPEC-0012](docs/specs/current/0012-electron-desktop.md) 和 [SPEC-0013](docs/specs/current/0013-basic-todo-and-calendar.md) 记录可验证行为。用户 Key 与拆解见 [ADR-0012](docs/architecture/decisions/0012-local-byok-ai.md) / [SPEC-0014](docs/specs/current/0014-byok-ai-task-decomposition.md)。
 
 需求先进入 PRD/ADR/Spec，再实现与验证；`Implemented` 与 `Verified` 分开记录。`sources/` 保持只读。
 
-下一版产品方向见 [PRD v0.11 草案](docs/product/next-direction-prd.md)：简约的个人行动工作区，先验证稳定的日常 Todo，再验证事实回顾与场景 AI。草案为 `Proposed`，现有产品与界面仍按当前 Accepted 基线运行。
+下一版产品方向见 [PRD v0.11 草案](docs/product/next-direction-prd.md)：目标驱动定位与用户 Key 拆解已经确认，纳入当前 PRD；更简约的渐进展示、事实回顾与画像调整继续保留为 `Proposed`。

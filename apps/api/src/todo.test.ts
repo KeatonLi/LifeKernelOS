@@ -326,7 +326,7 @@ test('SPEC-0013：真实 v6 数据库升级与重开不丢任务和当前选择'
     upgraded.getCurrentWorkspace(user.id).currentAction?.id,
     'old-action',
   );
-  assert.equal(database.sqlite.pragma('user_version', { simple: true }), 7);
+  assert.equal(database.sqlite.pragma('user_version', { simple: true }), 8);
   upgraded.updateActionMetadata(user.id, 'old-action', {
     scheduledDate: '2026-10-04',
   });

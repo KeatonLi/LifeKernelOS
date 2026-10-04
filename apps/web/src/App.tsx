@@ -63,6 +63,8 @@ import {
 
 import { TodoEditor } from './TodoEditor.js';
 import { TodoPlanner } from './TodoPlanner.js';
+import { AiWorkspace, AiSplitButton } from './AiTask.js';
+import { AiSettingsPanel } from './AiSettings.js';
 import { CalendarIcon, SunIcon } from '@phosphor-icons/react';
 const ProfileGraph = lazy(() => import('./ProfileGraph.js'));
 export { buildProfileFlow } from './profile-flow.js';
@@ -402,7 +404,7 @@ function WorkspaceShell({
     }
   }
   return (
-    <div className={`workspace-shell ${isDesktop() ? 'desktop-shell' : ''}`}>
+    <AiWorkspace><div className={`workspace-shell ${isDesktop() ? 'desktop-shell' : ''}`}>
       <aside className="workspace-sidebar" inert={captureOpen}>
         <Brand />
         <p className="sidebar-caption">让想法，慢慢成为日常。</p>
@@ -479,7 +481,7 @@ function WorkspaceShell({
       {captureOpen && (
         <CaptureDrawer onClose={closeCapture} onCountChange={setCaptureCount} />
       )}
-    </div>
+    </div></AiWorkspace>
   );
 }
 
@@ -1669,6 +1671,8 @@ function TodoDetail({
           {!current && <p>设为当前 To-do 后，它会成为全局唯一的现在行动。</p>}
         </div>
       )}
+      {mainline.status === 'active' && (action.status === 'available' || action.status === 'blocked') &&
+        <AiSplitButton actionId={action.id} disabled={saving} />}
       {current && (
         <div className="resolution-links">
           <button onClick={() => onResolve('split')}>拆小</button>
@@ -2251,6 +2255,7 @@ function SettingsPage({
             {info.backupWarning}
           </p>
         )}
+        <AiSettingsPanel />
         <section className="settings-card">
           <div className="settings-icon">
             <HardDriveIcon size={23} />
@@ -2326,19 +2331,6 @@ function SettingsPage({
             {info && !info.captureShortcut && (
               <p>全局快捷键已被其他程序占用，仍可从菜单打开收集小窗。</p>
             )}
-          </div>
-        </section>
-        <section className="settings-card future-card">
-          <div className="settings-icon">
-            <SparkleIcon size={23} />
-          </div>
-          <div>
-            <span className="status-label">下一阶段</span>
-            <h2>在需要时，帮你往前一步</h2>
-            <p>
-              AI
-              将围绕任务拆解、下一步建议和卡住的时刻提供帮助。本版尚未连接模型。
-            </p>
           </div>
         </section>
         <footer className="settings-footer">

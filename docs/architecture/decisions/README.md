@@ -17,6 +17,7 @@ ADR 记录影响多个 Spec、需要长期遵守的关键选择，以及做出�
 | [ADR-0009](0009-electron-local-desktop.md) | Electron 本地桌面客户端 | Accepted | 本地身份、后台 SQLite、IPC 与桌面体验 |
 | [ADR-0010](0010-todo-calendar-views.md) | 基础 Todo 与日历共用任务事实 | Accepted | 日期、直接处理、多视图与 v6/v7 备份 |
 | [ADR-0011](0011-progressive-action-workspace.md) | 个人行动工作区采用渐进展示 | Proposed | 日常操作优先、辅助内容按需展开、事实概览与图谱分工的待评审提案 |
+| [ADR-0012](0012-local-byok-ai.md) | 用户 API Key 与桌面 AI 请求边界 | Accepted | 主进程密钥、明确请求和业务事务采纳/撤销 |
 
 ## 状态规则
 

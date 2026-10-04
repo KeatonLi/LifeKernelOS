@@ -21,6 +21,7 @@ import {
   type Mainline,
 } from './api.js';
 import { TodoEditor } from './TodoEditor.js';
+import { AiSplitButton } from './AiTask.js';
 import {
   calendarDays,
   civilDate,
@@ -789,6 +790,8 @@ export function TodoPlanner({
                     )}
                   </div>
                 )}
+                {canChange && (selected.status === 'available' || selected.status === 'blocked') &&
+                  <AiSplitButton actionId={selected.id} disabled={saving} />}
                 {!canChange && (
                   <p className="planner-hint">
                     所属主线已暂停或结束，先恢复主线即可继续处理。

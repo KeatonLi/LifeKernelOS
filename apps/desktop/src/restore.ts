@@ -233,6 +233,7 @@ export function restoreBackup(
     for (const table of [
       'current_contexts',
       'captures',
+      'action_split_batches',
       'actions',
       'focus_reflections',
       'knowledge_items',

@@ -34,11 +34,12 @@
 
 ### 当前必须优先读取的文档
 
-- 产品事实源：[PRD v0.10](docs/product/PRD.md)
+- 产品事实源：[PRD v0.11](docs/product/PRD.md)
 - 系统边界：[系统架构](docs/architecture/system-architecture.md)
 - 可执行设计：[详细技术设计](docs/architecture/technical-design.md)
 - 当前目标模型决策：[ADR-0008](docs/architecture/decisions/0008-mainline-groups-derived-todo-progress.md)
 - 当前信息架构决策：[ADR-0007](docs/architecture/decisions/0007-two-tab-console-information-architecture.md)
+- 用户 Key 与 AI 拆解：[SPEC-0014](docs/specs/current/0014-byok-ai-task-decomposition.md) 与 [ADR-0012](docs/architecture/decisions/0012-local-byok-ai.md)
 - Todo 和日历：[SPEC-0013](docs/specs/current/0013-basic-todo-and-calendar.md) 与 [ADR-0010](docs/architecture/decisions/0010-todo-calendar-views.md)
 - 主线：[SPEC-0010](docs/specs/current/0010-long-term-goals-and-current-action.md)
 - 我的画像：[SPEC-0011](docs/specs/current/0011-aggregated-profile-graph.md)
@@ -46,7 +47,7 @@
 - 桌面客户端：[SPEC-0012](docs/specs/current/0012-electron-desktop.md) 与 [ADR-0009](docs/architecture/decisions/0009-electron-local-desktop.md)
 - 交付协议：[SDD](docs/development/SDD.md)
 
-讨论下一版产品方向时，再读 [PRD v0.11 草案](docs/product/next-direction-prd.md) 与 [ADR-0011](docs/architecture/decisions/0011-progressive-action-workspace.md)。两者均为 `Proposed`，不能替代当前 Accepted 基线或直接作为新行为的实现授权。
+讨论下一版产品方向时，再读 [PRD v0.11 草案](docs/product/next-direction-prd.md) 与 [ADR-0011](docs/architecture/decisions/0011-progressive-action-workspace.md)。定位与用户 Key 拆解已确认并进入当前 PRD / SPEC-0014；草案中其余渐进展示、回顾与画像调整仍为 `Proposed`，不能直接作为新行为的实现授权。
 
 ## 3. 按任务类型自动路由
 
@@ -129,7 +130,7 @@ LifeKernelOS 只有两个一级 Tab：
 
 设置属于账号辅助入口，不是第三个 Tab。
 
-技术基线为 Electron + React + TypeScript + Vite + SQLite（Node 内置驱动）。客户端默认本地单用户无登录，preload 与 utility process 隔离渲染和业务。Fastify 保留为兼容 Web 入口。以 ADR-0009 和 SPEC-0012 为准。
+技术基线为 Electron + React + TypeScript + Vite + SQLite（Node 内置驱动）。客户端默认本地单用户无登录，preload 与 utility process 隔离渲染和业务。Fastify 保留为兼容 Web 入口。以 ADR-0009 和 SPEC-0012 为准。AI 由主进程持有用户 Key 并显式请求兼容文本模型；预览经用户确认后由业务进程事务写入，以 ADR-0012 / SPEC-0014 为准。
 
 ## 7. 完成任务前的检查
 

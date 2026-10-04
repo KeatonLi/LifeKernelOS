@@ -1,4 +1,5 @@
 import type { DesktopCommand } from '../../desktop/src/bridge.js';
+import type { AiCommand } from '../../../shared/ai.js';
 export type User = { id: string; email: string; createdAt: string };
 export type GoalStatus = 'active' | 'paused' | 'completed' | 'abandoned';
 export type ActionStatus = 'available' | 'completed' | 'blocked' | 'abandoned' | 'superseded';
@@ -127,6 +128,13 @@ export const api = {
 };
 
 export const isDesktop = () => Boolean(window.lifeKernel);
+export const aiAvailable = () => typeof window.lifeKernel?.ai === 'function';
+export async function ai<T = unknown>(command: AiCommand): Promise<T> {
+  if (!aiAvailable()) throw new ApiError('请在桌面客户端配置和使用 AI。');
+  const result = await window.lifeKernel!.ai(command);
+  if (!result.ok) throw new ApiError(result.error.message, result.error.fields, result.error.code);
+  return result.data as T;
+}
 export async function desktop<T = unknown>(command: DesktopCommand): Promise<T> {
   if (!window.lifeKernel) throw new ApiError('请在桌面客户端中使用这项功能。');
   const result = await window.lifeKernel.desktop(command);

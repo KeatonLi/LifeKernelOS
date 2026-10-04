@@ -7,6 +7,8 @@ import {
   Menu,
   protocol,
   session,
+  safeStorage,
+  net,
   utilityProcess,
   type IpcMainInvokeEvent,
   type UtilityProcess,
@@ -17,6 +19,8 @@ import { join, resolve, extname, sep } from 'node:path';
 import { requestSchema, type BusinessRequest } from '../../api/src/commands.js';
 import type { ExportPayload } from '../../api/src/types.js';
 import type { DesktopCommand, Result } from './bridge.js';
+import { AiSettingsStore } from './ai-settings.js';
+import { AiController } from './ai.js';
 
 protocol.registerSchemesAsPrivileged([
   {
@@ -43,6 +47,18 @@ let backupWarning: string | null = null;
 let mainBounds = { width: 1360, height: 900 };
 const dataFolder = app.getPath('userData');
 const appRoot = app.getAppPath();
+const aiSettings = new AiSettingsStore(dataFolder, {
+  available: async () => {
+    if (process.platform === 'linux' && safeStorage.getSelectedStorageBackend() === 'basic_text') return false;
+    return safeStorage.isAsyncEncryptionAvailable();
+  },
+  encrypt: value => safeStorage.encryptStringAsync(value),
+  decrypt: async value => (await safeStorage.decryptStringAsync(value)).result,
+});
+const ai = new AiController(aiSettings, {
+  rpc, changed: broadcast,
+  fetch: (input, init) => net.fetch(input instanceof URL ? input.href : input, init),
+});
 const fail = (message: string, code = 'LOCAL_UNAVAILABLE'): Result => ({
   ok: false,
   error: { code, message },
@@ -157,7 +173,8 @@ function openWindow(kind: 'main' | 'capture' | 'focus') {
       for (const [key, other] of windows) if (key !== 'main') other.close();
     }
   });
-  window.on('closed', () => windows.delete(kind));
+  const ownerId = window.webContents.id;
+  window.on('closed', () => { ai.cancelOwner(ownerId); windows.delete(kind); });
   const route = kind === 'main' ? '/expectations' : `/${kind}`;
   void window.loadURL(`${devUrl ?? 'app://lifekernel/index.html'}#${route}`);
   return window;
@@ -303,6 +320,7 @@ async function desktopCommand(
     });
     if (confirmation.response !== 1)
       return { ok: true, data: { canceled: true } };
+    ai.invalidate();
     const result = await rpc('import', payload);
     if (result.ok) {
       broadcast();
@@ -368,6 +386,10 @@ else {
         });
       }
       await startWorker();
+      ipcMain.handle('lk:ai', async (event, raw): Promise<Result> => {
+        if (!trusted(event)) return fail('请求来源不可用。', 'UNTRUSTED_SENDER');
+        return ai.invoke(event.sender.id, raw);
+      });
       ipcMain.handle('lk:request', async (event, raw): Promise<Result> => {
         if (!trusted(event))
           return fail('请求来源不可用。', 'UNTRUSTED_SENDER');
@@ -454,6 +476,7 @@ else {
     if (shuttingDown) return;
     event.preventDefault();
     quitting = true;
+    ai.invalidate();
     globalShortcut.unregisterAll();
     void rpc('shutdown').finally(() => {
       shuttingDown = true;

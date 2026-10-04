@@ -287,7 +287,7 @@ test('SPEC-0010：旧 Focus / Action 数据迁移到产品 0.5 且可重复启�
     await rm(directory, { recursive: true, force: true });
   });
   const service = new LifeKernelService(database);
-  assert.equal(database.sqlite.pragma('user_version', { simple: true }), 7);
+  assert.equal(database.sqlite.pragma('user_version', { simple: true }), 8);
   assert.ok(database.sqlite.prepare("SELECT 1 FROM sqlite_master WHERE type = 'table' AND name = 'current_contexts'").get());
   assert.ok(database.sqlite.prepare("SELECT 1 FROM sqlite_master WHERE type = 'table' AND name = 'goal_status_events'").get());
   assert.ok(database.sqlite.prepare("SELECT 1 FROM pragma_table_info('actions') WHERE name = 'content'").get());
@@ -303,7 +303,7 @@ test('SPEC-0010：旧 Focus / Action 数据迁移到产品 0.5 且可重复启�
   database.close();
   databaseClosed = true;
   reopened = createDatabase(databasePath);
-  assert.equal(reopened.sqlite.pragma('user_version', { simple: true }), 7);
+  assert.equal(reopened.sqlite.pragma('user_version', { simple: true }), 8);
   assert.equal((reopened.sqlite.prepare('SELECT COUNT(*) AS count FROM actions').get() as { count: number }).count, 1);
   assert.equal((reopened.sqlite.prepare("SELECT COUNT(*) AS count FROM focuses WHERE goal_status = 'active'").get() as { count: number }).count, 2);
 });

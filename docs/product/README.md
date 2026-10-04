@@ -17,8 +17,8 @@ Product 文档是 LifeKernelOS 产品意图的事实源，回答“为什么做�
 | 文档 | 状态 | 用途 |
 | --- | --- | --- |
 | [Todo 体验参考](todo-reference-products.md) | Research | 官方产品能力与本项目取舍 |
-| [PRD v0.10](PRD.md) | Accepted | 当前主线、To-do、快速收集箱、派生进度、画像图谱与 MVP 验收口径 |
-| [PRD v0.11 草案](next-direction-prd.md) | Proposed | 简约的个人行动工作区、分阶段回顾与 AI 路线；待评审，不改变当前实现基线 |
+| [PRD v0.11](PRD.md) | Accepted | 目标驱动定位、基础 Todo / 日历、画像事实、用户 Key AI 拆解与验收口径 |
+| [PRD v0.11 草案](next-direction-prd.md) | Proposed | 定位与 BYOK 已并入当前 PRD；渐进展示、回顾与画像调整仍待评审 |
 
 ## AI 读取与更新规则
 

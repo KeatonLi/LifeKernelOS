@@ -1,5 +1,7 @@
 # SPEC-0013 基础 Todo 与日历视图
 
+> 2026-10-04 AI 增量：[SPEC-0014](0014-byok-ai-task-decomposition.md) 承接用户 Key 配置与主动拆解；现有任务详情增加入口，采纳仍使用同一任务事实源。
+
 > 状态：Implemented
 > 版本：0.1
 > 日期：2026-10-04

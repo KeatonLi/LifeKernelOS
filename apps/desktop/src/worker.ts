@@ -5,6 +5,8 @@ import { dispatch } from '../../api/src/commands.js';
 import { AppError } from '../../api/src/types.js';
 import { readBackup, restoreBackup, writeBackup } from './restore.js';
 import type { Result } from './bridge.js';
+import { z } from 'zod';
+import { splitApplySchema, splitUndoSchema } from '../../../shared/ai.js';
 
 type ParentPort = {
   on(
@@ -46,6 +48,15 @@ try {
       switch (message.kind) {
         case 'request':
           result = dispatch(service, user, message.payload);
+          break;
+        case 'ai-source':
+          result = service.getSplitSource(user.id, z.object({ actionId: z.string().uuid() }).strict().parse(message.payload).actionId);
+          break;
+        case 'ai-apply':
+          result = service.applyAiSplit(user.id, splitApplySchema.parse(message.payload));
+          break;
+        case 'ai-undo':
+          result = service.undoAiSplit(user.id, splitUndoSchema.parse(message.payload).operationId);
           break;
         case 'export':
           result = service.exportData(user.id);

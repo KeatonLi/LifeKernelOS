@@ -14,6 +14,7 @@ Spec 是功能开发与验收的直接契约：它把 [PRD](../product/PRD.md) �
 
 | 编号 | 名称 | 产品位置 | 依赖 | 状态 |
 | --- | --- | --- | --- | --- |
+| [SPEC-0014](current/0014-byok-ai-task-decomposition.md) | 用户 API Key 与 AI 任务拆解 | 桌面设置、任务详情 | `SPEC-0010`、`SPEC-0012`、`SPEC-0013` | Implemented |
 | [SPEC-0013](current/0013-basic-todo-and-calendar.md) | 基础 Todo 与日历 | 主线内多视图 | `SPEC-0010`、`SPEC-0012` | Implemented |
 | [SPEC-0012](current/0012-electron-desktop.md) | Electron 本地桌面行动工作区 | 桌面默认入口 | `SPEC-0010`、`SPEC-0011`、`SPEC-0005` | Implemented |
 | [SPEC-0010](current/0010-long-term-goals-and-current-action.md) | 主线：分组 To-do 与当前行动 | 主线 Tab | `SPEC-0008` | Implemented |

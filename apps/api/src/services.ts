@@ -1,4 +1,5 @@
-import { randomUUID } from 'node:crypto';
+import { randomUUID, createHash } from 'node:crypto';
+import { splitApplySchema, type SplitApply, type SplitSource, type SplitResult } from '../../../shared/ai.js';
 import type { DatabaseContext } from './db.js';
 import { isCalendarDate } from '../../../shared/calendar.js';
 import {
@@ -481,6 +482,75 @@ export class LifeKernelService {
 
   completeCurrentAction(userId: string, outcomeNoteInput?: string | null, expectedActionId?: string): Action {
     return this.resolveCurrentAction(userId, 'completed', { outcomeNote: normalizeOptionalText(outcomeNoteInput, 'outcomeNote', 500) ?? null, expectedActionId });
+  }
+
+  getSplitSource(userId: string, actionId: string): SplitSource {
+    const action = mapAction(this.getOwnedActionRow(userId, actionId));
+    const goal = mapGoal(this.getOwnedGoalRow(userId, action.goalId));
+    if (goal.status !== 'active' || !['available', 'blocked'].includes(action.status))
+      throw new AppError('AI_SOURCE_CHANGED', '任务已处理或主线已结束，请重新选择任务。', 409);
+    const revision = createHash('sha256').update(JSON.stringify({ action, goal })).digest('hex');
+    return { action, goal, revision };
+  }
+
+  applyAiSplit(userId: string, raw: SplitApply): SplitResult {
+    const parsed = splitApplySchema.safeParse(raw);
+    if (!parsed.success) throw new AppError('VALIDATION_ERROR', '请检查步骤标题、内容与选择。');
+    const input = parsed.data;
+    const steps = input.steps.map(step => ({ title: step.title, content: step.content || null }));
+    const hash = createHash('sha256').update(JSON.stringify({ actionId: input.actionId, sourceRevision: input.sourceRevision, steps })).digest('hex');
+    return this.sqlite.transaction(() => {
+      const receipt = this.sqlite.prepare('SELECT * FROM action_split_batches WHERE id = ? AND user_id = ?').get(input.operationId, userId) as
+        { request_hash: string; applied_json: string; state: string } | undefined;
+      if (receipt) {
+        if (receipt.request_hash !== hash) throw new AppError('AI_OPERATION_CHANGED', '该拆解操作已应用，请刷新后查看结果。', 409);
+        return { ...JSON.parse(receipt.applied_json) as SplitResult, undone: receipt.state === 'undone' };
+      }
+      const source = this.getSplitSource(userId, input.actionId);
+      if (source.revision !== input.sourceRevision) throw new AppError('AI_SOURCE_CHANGED', '任务或主线已改变，请重新读取后再拆解。', 409);
+      const timestamp = now();
+      this.sqlite.prepare('UPDATE actions SET status = ?, resolved_at = ?, updated_at = ? WHERE id = ? AND user_id = ?')
+        .run('superseded', timestamp, timestamp, source.action.id, userId);
+      const actions = steps.map(step => {
+        const action = this.createGoalAction(userId, source.action.goalId, { ...step, scheduledDate: source.action.scheduledDate });
+        this.sqlite.prepare('UPDATE actions SET parent_action_id = ? WHERE id = ? AND user_id = ?').run(source.action.id, action.id, userId);
+        return { ...action, parentActionId: source.action.id };
+      });
+      if (this.getCurrentContext(userId)?.selectedActionId === source.action.id) this.clearCurrentAction(userId, source.action.id);
+      const original = mapAction(this.getOwnedActionRow(userId, source.action.id));
+      const result: SplitResult = { operationId: input.operationId, original, actions, undone: false };
+      this.sqlite.prepare('INSERT INTO action_split_batches (id, user_id, source_action_id, request_hash, original_json, applied_json, state, created_at) VALUES (?, ?, ?, ?, ?, ?, ?, ?)')
+        .run(input.operationId, userId, original.id, hash, JSON.stringify(source.action), JSON.stringify(result), 'applied', timestamp);
+      return result;
+    })();
+  }
+
+  undoAiSplit(userId: string, operationId: string): SplitResult {
+    return this.sqlite.transaction(() => {
+      const receipt = this.sqlite.prepare('SELECT * FROM action_split_batches WHERE id = ? AND user_id = ?').get(operationId, userId) as
+        { original_json: string; applied_json: string; state: string } | undefined;
+      if (!receipt) throw new AppError('AI_OPERATION_NOT_FOUND', '拆解回执已不可用，请刷新任务。', 404);
+      const applied = JSON.parse(receipt.applied_json) as SplitResult;
+      const before = JSON.parse(receipt.original_json) as Action;
+      const original = mapAction(this.getOwnedActionRow(userId, before.id));
+      const actions = applied.actions.map(action => mapAction(this.getOwnedActionRow(userId, action.id)));
+      if (receipt.state === 'undone') return { operationId, original, actions, undone: true };
+      const fingerprint = (value: Action) => JSON.stringify(value);
+      const selected = this.getCurrentContext(userId)?.selectedActionId;
+      const goal = this.getOwnedGoalRow(userId, before.goalId);
+      if (goal.goal_status !== 'active' || fingerprint(original) !== fingerprint(applied.original) ||
+          actions.some((action, index) => fingerprint(action) !== fingerprint(applied.actions[index])) ||
+          selected === original.id || actions.some(action => action.id === selected))
+        throw new AppError('AI_UNDO_CONFLICT', '任务已被修改、处理或选为当前，无法整批撤销；请按需要单独调整。', 409);
+      const timestamp = now();
+      this.sqlite.prepare('UPDATE actions SET status = ?, resolved_at = ?, updated_at = ? WHERE id = ? AND user_id = ?')
+        .run(before.status, before.resolvedAt, timestamp, original.id, userId);
+      for (const action of actions) this.sqlite.prepare('UPDATE actions SET status = ?, resolved_at = ?, updated_at = ? WHERE id = ? AND user_id = ?')
+        .run('abandoned', timestamp, timestamp, action.id, userId);
+      this.sqlite.prepare('UPDATE action_split_batches SET state = ? WHERE id = ? AND user_id = ?').run('undone', operationId, userId);
+      return { operationId, original: mapAction(this.getOwnedActionRow(userId, original.id)),
+        actions: actions.map(action => mapAction(this.getOwnedActionRow(userId, action.id))), undone: true };
+    })();
   }
 
   splitCurrentAction(userId: string, input: { expectedActionId?: string; title: string; content?: string | null; scheduledDate?: string | null; estimatedMinutes?: AvailableMinutes | null; energyRequired?: Energy | null }): { original: Action; action: Action } {

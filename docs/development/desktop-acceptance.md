@@ -53,3 +53,19 @@ Electron 启动在 Chromium singleton Unix socket 初始化时被执行环境拒
 | 视觉与运行 | [QA](../../design-qa.md)、[月历](../images/todo-calendar.jpg)、[列表](../images/todo-list.jpg) | 保留主题；无页面横向溢出；未观察到应用来源 warn/error |
 
 真实 Electron 启动/IPC/隔离/重启测试已扩展日期与“处理其他任务不清除当前”场景。三平台 CI 和标签发布按 [CI/CD](ci-cd.md) 自动运行；本地环境的 Unix socket 限制仍存在，不将 Node 模式等同于原生桌面验证。原生对话框、快捷键、最小窗口和实机安装继续待验收。
+
+## 2026-10-04 用户 Key 与 AI 拆解 0.5
+
+关联：[SPEC-0014](../specs/current/0014-byok-ai-task-decomposition.md) / [ADR-0012](../architecture/decisions/0012-local-byok-ai.md)。定位采用用户确认的“目标驱动的个人行动工具，让重要的事变成每天能开始的一步”。
+
+| 检查 | 证据 | 结果 |
+| --- | --- | --- |
+| 完整领域、HTTP、DOM、迁移和恢复回归 | `npm test` | 68/68；新增 22 项 AI 回归 |
+| 主进程配置与模型边界 | `apps/desktop/src/ai.test.ts` | 加密/仅会话、配置冲突、地址校验、最小上下文、错误脱敏、超时、取消和旧快照保护 |
+| 采纳与撤销事务 | `apps/api/src/ai-split.test.ts` | 来源/日期/进度/唯一当前、幂等重启、回滚、后续修改保护、v7 导入清回执 |
+| 设置与面板交互 | `apps/web/src/ai-ui.test.tsx` | 保存失败保留 Key、成功清空、编辑选择采纳、数据刷新保留结果与撤销、取消忽略晚到响应 |
+| 文档、类型与生产构建 | `npm run docs:check` / `npm run build` | 通过 |
+
+真实 Electron smoke 已增加临时本机脚本服务，覆盖 main → preload → worker → 模型 HTTP 请求、鉴权、预览、幂等采纳、撤销、任务备份不含 Key，以及重启后会话 Key 清空；由三平台 CI 执行。本机浏览器策略阻止预览，本轮不提交新的视觉截图，也不将 DOM 测试视为视觉验收。
+
+尚未验收：用户自己的真实 Key / 模型权限 / 建议质量，三平台原生密钥服务及权限提示、未签名 macOS 更新权限、最小窗口人工操作；现有原生对话框、全局快捷键与实机安装项目继续保留。SPEC-0014 标记 `Implemented`，不标记 `Verified`。

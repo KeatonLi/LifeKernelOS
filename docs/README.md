@@ -17,20 +17,21 @@
 
 | 想确认什么 | 当前文档 |
 | --- | --- |
-| 产品定位、主线、快速收集箱、我的画像及价值问题 | [PRD v0.10](product/PRD.md) |
+| 产品定位、主线、快速收集箱、我的画像及价值问题 | [PRD v0.11](product/PRD.md) |
 | 系统边界和模块关系 | [系统架构](architecture/system-architecture.md) |
 | 数据模型、HTTP DTO、事务和交付切片 | [详细技术设计](architecture/technical-design.md) |
 | 主线分组、To-do 与派生进度 | [ADR-0008](architecture/decisions/0008-mainline-groups-derived-todo-progress.md) |
 | 双 Tab 控制台结构 | [ADR-0007](architecture/decisions/0007-two-tab-console-information-architecture.md) |
 | “主线”可执行行为 | [SPEC-0010](specs/current/0010-long-term-goals-and-current-action.md) |
 | 基础 Todo、今日与月/周日历 | [SPEC-0013](specs/current/0013-basic-todo-and-calendar.md) |
+| 用户 API Key 与 AI 任务拆解 | [SPEC-0014](specs/current/0014-byok-ai-task-decomposition.md) / [ADR-0012](architecture/decisions/0012-local-byok-ai.md) |
 | 自动检查与桌面发布 | [CI/CD](development/ci-cd.md) |
 | “我的画像”汇聚图谱行为 | [SPEC-0011](specs/current/0011-aggregated-profile-graph.md) |
 | 快速收集与转为 To-do | [SPEC-0005](specs/current/0005-quick-capture.md) |
 | 规格状态和开发顺序 | [Spec 索引](specs/README.md) |
 | AI-native 交付协议 | [SDD](development/SDD.md) |
 
-下一版方向讨论： [PRD v0.11 草案](product/next-direction-prd.md) 与 [ADR-0011](architecture/decisions/0011-progressive-action-workspace.md) 均为 `Proposed`。用于评审简约化、事实回顾与 AI 路线；当前 Accepted 基线和实现契约继续有效。
+下一版方向讨论： [PRD v0.11 草案](product/next-direction-prd.md) 与 [ADR-0011](architecture/decisions/0011-progressive-action-workspace.md) 其余渐进展示和事实回顾仍为 `Proposed`。用户已确认目标驱动定位与 BYOK 拆解，见当前 PRD 和 SPEC-0014；其他提案继续评审。
 
 ## 3. 文档之间如何流动
 

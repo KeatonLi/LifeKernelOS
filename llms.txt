@@ -11,7 +11,7 @@
 ## Current product facts
 
 - [Product entry](docs/product/README.md): product-document scope and update rules.
-- [PRD v0.10](docs/product/PRD.md): product intent, mainlines, To-dos, derived progress, profile graph, and acceptance criteria.
+- [PRD v0.11](docs/product/PRD.md): confirmed goal-driven positioning, mainlines, To-dos, calendar, profile facts, BYOK AI decomposition, and acceptance criteria.
 - [ADR-0008: mainline groups and derived To-do progress](docs/architecture/decisions/0008-mainline-groups-derived-todo-progress.md): current core domain decision.
 - [ADR-0007: two-tab console](docs/architecture/decisions/0007-two-tab-console-information-architecture.md): current information architecture decision.
 - [SPEC-0010: mainline To-dos and current action](docs/specs/current/0010-long-term-goals-and-current-action.md): executable contract for the “主线” tab.
@@ -20,9 +20,12 @@
 - [Basic Todo and calendar](docs/specs/current/0013-basic-todo-and-calendar.md): direct completion, undo, recoverable removal, civil dates, list/today/month/week views.
 - [Todo experience references](docs/product/todo-reference-products.md): official product sources and adopted interaction rules.
 
+- [BYOK task decomposition](docs/specs/current/0014-byok-ai-task-decomposition.md): client Key configuration, explicit generation, editable suggestions, transactional apply and guarded undo.
+- [ADR-0012](docs/architecture/decisions/0012-local-byok-ai.md): main-process secret storage and compatible text-model transport.
+
 ## Product direction proposal
 
-- [PRD v0.11 draft](docs/product/next-direction-prd.md): Proposed direction for a simpler daily action workspace, factual review and staged AI enhancement. It does not replace the Accepted PRD.
+- [PRD v0.11 draft](docs/product/next-direction-prd.md): Goal-driven positioning and BYOK decomposition have been accepted in the current PRD. Progressive display, factual review and profile changes remain Proposed.
 - [ADR-0011](docs/architecture/decisions/0011-progressive-action-workspace.md): Proposed progressive display across task and profile views. Review and accept the affected specs before implementation.
 
 ## Architecture and delivery facts

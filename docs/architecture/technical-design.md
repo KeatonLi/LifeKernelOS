@@ -1,6 +1,6 @@
 # LifeKernelOS 详细技术设计
 
-> 版本：0.10
+> 版本：0.11
 > 状态：Accepted
 > 更新时间：2026-10-04
 > 范围：SPEC-0012 与现有主线、画像、快速收集
@@ -27,7 +27,7 @@
 
 ## 桌面与视觉
 
-主窗口默认 1360×900、最小 900×640，持久化尺寸。快速收集约 520×620；专注窗约 460×540，可置顶。主窗口 Cmd/Ctrl+K 收集，Cmd/Ctrl+Shift+Space 全局收集。导航仅主线和画像，设置底部。暖白背景、墨绿当前行动、柔和边框、统一字号和间距；窄窗独立布局。用户正文按文本渲染，不允许 HTML。
+主窗口默认 1360×900、最小 900×640，持久化尺寸。快速收集和专注小窗保持独立布局。Cmd/Ctrl+K 收集，Cmd/Ctrl+Shift+Space 全局收集。导航仅主线和画像，设置底部。冷白、石墨黑与朱橙基线不变。用户正文及模型建议按文本渲染，不允许 HTML。
 
 ## 验证
 
@@ -36,3 +36,12 @@
 ## 基础 Todo 与日期视图增量
 
 以 [ADR-0010](decisions/0010-todo-calendar-views.md) 和 [SPEC-0013](../specs/current/0013-basic-todo-and-calendar.md) 为准。Action 新增可空 scheduledDate（本地 YYYY-MM-DD）；迁移 007 为旧任务补空，索引 user_id/scheduled_date。列表、今日、月/周日历读取同一份用户隔离事实。按 ID 完成/恢复/移除带 expectedStatus；状态、resolvedAt 与对应当前选择同事务提交，保留其他当前任务。导出 v7；导入 v6/v7 时先校验并归一化，v6 缺日期补 null。共享日期函数不依赖 Node 或 SQL，UI 不接触数据库。CI/CD 见[交付说明](../development/ci-cd.md)。
+
+## BYOK AI（SPEC-0014）
+
+- shared/ai 定义严格命令与步骤校验；preload 只暴露 ai 命令。main 校验 trusted sender，AiController 发请求；不扩大渲染网络策略。
+- AiSettingsStore 串行比对配置 revision，原子保存 userData/ai-connection.json。safeStorage 使用异步 API；Linux basic_text 禁止持久化。新地址要求新 Key，失败不覆盖已存配置。
+- source 在 worker 获取 Action/Goal 快照，SHA-256 覆盖字段与时间。generate 带源版本和配置版本，发送前、生成后再查来源。只发送显式任务上下文，Key 仅在 Authorization。
+- 主进程通过 Electron net.fetch 请求 chat/completions，支持系统代理，不携带浏览器 Cookie。采用非流式文本请求，60 秒超时，256 KiB 响应上限，无自动重试或重定向。输出 JSON 1–6 步，严格限长；错误使用固定中文消息，回显当前 Key 被隐藏。
+- 预览保存在主进程内存并绑定窗口。apply 以 previewId 作 operationId，经 worker 单事务保存来源、原状态、新任务和回执。action_split_batches 支持幂等与未改任务撤销；任何步骤失败回滚。
+- 结果面板在 AiWorkspace 中独立于任务列表，数据刷新不卸载结果与撤销入口；关闭/取消忽略晚到结果。导入取消请求、清预览与回执，Key 不受任务导入影响。

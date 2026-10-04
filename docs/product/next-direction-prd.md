@@ -5,7 +5,7 @@
 > 日期：2026-10-04
 > 文档域：Product
 > 依据：用户认可现有产品样式，希望进一步简约；先做好基础 Todo、日历与可靠性，之后推进 AI 增强。
-> 当前基线：[PRD v0.10](PRD.md) 仍为 Accepted。本文的新定位、页面调整、回顾与 AI 路线是待评审建议，尚未实施。
+> 当前基线：[PRD v0.11](PRD.md)。用户已确认定位与 BYOK 任务拆解，见 SPEC-0014；本文其余页面调整、画像优先级、回顾及后续 AI 场景仍为待评审建议。
 > 配套提案：[ADR-0011](../architecture/decisions/0011-progressive-action-workspace.md)。
 
 ## 1. 推荐的产品方向
