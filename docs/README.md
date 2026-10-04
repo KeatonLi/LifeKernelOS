@@ -30,6 +30,8 @@
 | 规格状态和开发顺序 | [Spec 索引](specs/README.md) |
 | AI-native 交付协议 | [SDD](development/SDD.md) |
 
+下一版方向讨论： [PRD v0.11 草案](product/next-direction-prd.md) 与 [ADR-0011](architecture/decisions/0011-progressive-action-workspace.md) 均为 `Proposed`。用于评审简约化、事实回顾与 AI 路线；当前 Accepted 基线和实现契约继续有效。
+
 ## 3. 文档之间如何流动
 
 ```text

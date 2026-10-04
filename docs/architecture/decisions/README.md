@@ -12,12 +12,11 @@ ADR 记录影响多个 Spec、需要长期遵守的关键选择，以及做出�
 | [ADR-0004](0004-single-mainline-workbench-mvp.md) | 单一主线工作台 | Superseded | 历史产品模型；由 ADR-0008 替代 |
 | [ADR-0005](0005-evidence-based-profile.md) | 画像以目标与行动事实为依据 | Accepted | 画像的事实、可追溯与用户确认边界 |
 | [ADR-0006](0006-multiple-long-term-goals-and-single-current-action.md) | 多个长期目标与单一当前行动 | Superseded | 由 ADR-0008 替代，保留历史演进 |
-| [ADR-0007](0007-two-tab-console-information-architecture.md) | 两个一级 Tab | Accepted | “目标期望”和“我的画像”的当前信息架构 |
+| [ADR-0007](0007-two-tab-console-information-architecture.md) | 两个一级 Tab | Accepted | “主线”和“我的画像”的当前信息架构 |
 | [ADR-0008](0008-mainline-groups-derived-todo-progress.md) | 主线分组与派生 To-do 进度 | Accepted | 主线、To-do、进度与画像的当前核心模型 |
-
 | [ADR-0009](0009-electron-local-desktop.md) | Electron 本地桌面客户端 | Accepted | 本地身份、后台 SQLite、IPC 与桌面体验 |
-
 | [ADR-0010](0010-todo-calendar-views.md) | 基础 Todo 与日历共用任务事实 | Accepted | 日期、直接处理、多视图与 v6/v7 备份 |
+| [ADR-0011](0011-progressive-action-workspace.md) | 个人行动工作区采用渐进展示 | Proposed | 日常操作优先、辅助内容按需展开、事实概览与图谱分工的待评审提案 |
 
 ## 状态规则
 

@@ -136,8 +136,10 @@ Spec 应描述结果，不提前固定不必要的组件结构或未来扩展点
 1. 以已接受的 `ADR-0008` 和 `ADR-0007` 为产品模型与信息架构依据。
 2. `SPEC-0010` 承接“主线”的分组 To-do、派生进度和全局唯一当前 To-do。
 3. `SPEC-0011` 承接“我的画像”的进度感知事实聚合与可追溯关系图谱。
-4. 两个 Spec 当前为 `Implemented`，完成浏览器人工验收后才能标记 `Verified`。
-5. 双 Tab 核心假设验证前，不扩展离线同步、价值观体系、AI 人格推断、日历或社交能力。
+4. `ADR-0009` / `SPEC-0012` 承接 Electron 本地桌面；`ADR-0010` / `SPEC-0013` 承接基础 Todo、今日与月/周日历。日历已属于当前接受范围。
+5. 上述当前 Spec 保持 `Implemented`；按各自验收清单补齐人工验收后才可标记 `Verified`，不能用某个环境的通过替代其他尚未覆盖场景。
+6. 当前优先保证 Todo、日期、保存与恢复可靠；运行时 AI、云同步、人格推断与社交能力不属于本轮交付范围。
+7. [PRD v0.11 草案](../product/next-direction-prd.md) 与 [ADR-0011](../architecture/decisions/0011-progressive-action-workspace.md) 是下一版方向提案。确认后再更新相关 Spec；不能直接实施 Proposed 内容或重启 Deferred 规格。
 
 `SPEC-0001`、`SPEC-0002` 和 `SPEC-0009` 仅作为旧 Focus / 主线原型与迁移事实，不再定义当前导航和术语。
 

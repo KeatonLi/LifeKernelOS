@@ -7,6 +7,8 @@
 > 核心变更：先交付稳定的基础 Todo、今日和日历视图，再独立推进 AI 增强；保留已确认的冷白、石墨黑与朱橙配色。
 > 产品决策：[ADR-0007 双 Tab 控制台信息架构](../architecture/decisions/0007-two-tab-console-information-architecture.md)、[ADR-0008 主线分组与派生 To-do 进度](../architecture/decisions/0008-mainline-groups-derived-todo-progress.md)
 
+下一版方向见 [PRD v0.11 草案](next-direction-prd.md)：收敛日常行动、页面简约化与后续增强路线。草案状态为 `Proposed`，尚未替代本文，也不代表新能力已实现。
+
 ## 1. 产品是什么
 
 LifeKernelOS 是一个帮助用户推进主线、看见积累的个人系统。它只做两件事：
@@ -170,4 +172,4 @@ LifeKernelOS 要让他一眼知道：**我现在做什么、它属于哪条主�
 - `SPEC-0011`：我的画像的进度感知图谱与事实层。
 - `SPEC-0005`：全局快速收集箱及 Capture 到 To-do 的原子转换。
 - `SPEC-0007`：数据导出契约随 Action 内容字段升级。
-- 三个规格在代码和自动化测试完成后才可标记 `Implemented`；逐条人工验收通过后才可标记 `Verified`。
+- 各规格在代码和自动化测试完成后才可标记 `Implemented`；逐条人工验收通过后才可标记 `Verified`。

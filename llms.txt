@@ -20,6 +20,11 @@
 - [Basic Todo and calendar](docs/specs/current/0013-basic-todo-and-calendar.md): direct completion, undo, recoverable removal, civil dates, list/today/month/week views.
 - [Todo experience references](docs/product/todo-reference-products.md): official product sources and adopted interaction rules.
 
+## Product direction proposal
+
+- [PRD v0.11 draft](docs/product/next-direction-prd.md): Proposed direction for a simpler daily action workspace, factual review and staged AI enhancement. It does not replace the Accepted PRD.
+- [ADR-0011](docs/architecture/decisions/0011-progressive-action-workspace.md): Proposed progressive display across task and profile views. Review and accept the affected specs before implementation.
+
 ## Architecture and delivery facts
 
 - [Architecture entry](docs/architecture/README.md): architecture-document scope and ADR routing.

@@ -46,6 +46,8 @@
 - 桌面客户端：[SPEC-0012](docs/specs/current/0012-electron-desktop.md) 与 [ADR-0009](docs/architecture/decisions/0009-electron-local-desktop.md)
 - 交付协议：[SDD](docs/development/SDD.md)
 
+讨论下一版产品方向时，再读 [PRD v0.11 草案](docs/product/next-direction-prd.md) 与 [ADR-0011](docs/architecture/decisions/0011-progressive-action-workspace.md)。两者均为 `Proposed`，不能替代当前 Accepted 基线或直接作为新行为的实现授权。
+
 ## 3. 按任务类型自动路由
 
 ### 产品设计、页面职责、用户价值或范围

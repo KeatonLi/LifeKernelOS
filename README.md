@@ -85,3 +85,5 @@ npm run dev:legacy
 从 [AGENTS.md](AGENTS.md) 或 [llms.txt](llms.txt) 进入，按 [文档索引](docs/README.md) 路由。[PRD](docs/product/PRD.md) 记录产品范围，[ADR-0009](docs/architecture/decisions/0009-electron-local-desktop.md) 记录桌面选择，[SPEC-0012](docs/specs/current/0012-electron-desktop.md) 和 [SPEC-0013](docs/specs/current/0013-basic-todo-and-calendar.md) 记录可验证行为。
 
 需求先进入 PRD/ADR/Spec，再实现与验证；`Implemented` 与 `Verified` 分开记录。`sources/` 保持只读。
+
+下一版产品方向见 [PRD v0.11 草案](docs/product/next-direction-prd.md)：简约的个人行动工作区，先验证稳定的日常 Todo，再验证事实回顾与场景 AI。草案为 `Proposed`，现有产品与界面仍按当前 Accepted 基线运行。
