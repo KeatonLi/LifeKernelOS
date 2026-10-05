@@ -14,10 +14,10 @@ main 与手动运行在全部检查通过后生成 Linux x64、Windows x64、mac
 
 ```bash
 # 先提交版本变更并等 main CI 成功，然后有意发布对应版本：
-git tag v0.5.0
-git push origin v0.5.0
+git tag v0.5.1
+git push origin v0.5.1
 ```
 
 默认工作流只读仓库；仅最终发布 job 拥有 contents:write 和 actions:read。使用 GitHub 自动提供的 GITHUB_TOKEN，无需新增 PAT 或硬编码凭证。正式代码签名和自动升级以后单独配置。当前安装包明确标注未签名。
 
-版本标签与发布须由用户明确授权。2026-10-05 用户已要求将简约界面推送至 main 并触发 GitHub Release，使用现有包版本对应的 `v0.5.0` 标签。正式发布状态以 [GitHub Releases](https://github.com/KeatonLi/LifeKernelOS/releases) 与对应工作流结果为准。CI 检查进程启动与数据闭环，原生对话框、快捷键和实机安装体验仍需按[桌面验收](desktop-acceptance.md)人工验证。
+版本标签与发布须由用户明确授权。2026-10-05 用户已要求将简约界面推送至 main 并触发 GitHub Release。首轮 main 的三平台检查与打包成功，但 `v0.5.0` 的 Windows 发布检查被 Tab 菜单测试超时阻断，未创建 Release。已修正测试的异步等待，后续使用修正版本 `v0.5.1`；保留原标签及失败记录。正式发布状态以 [GitHub Releases](https://github.com/KeatonLi/LifeKernelOS/releases) 与对应工作流结果为准。CI 检查进程启动与数据闭环，原生对话框、快捷键和实机安装体验仍需按[桌面验收](desktop-acceptance.md)人工验证。

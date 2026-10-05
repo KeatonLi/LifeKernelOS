@@ -10,7 +10,7 @@ Object.defineProperties(globalThis, {
   HTMLElement: { value: dom.window.HTMLElement, configurable: true },
   IS_REACT_ACT_ENVIRONMENT: { value: true, writable: true, configurable: true },
 });
-const { render, fireEvent, waitFor, cleanup, act } = await import('@testing-library/react');
+const { render, fireEvent, cleanup, act } = await import('@testing-library/react');
 const { ActionMenu } = await import('./ActionMenu.js');
 
 afterEach(cleanup);
@@ -69,11 +69,18 @@ test('SPEC-0015：Tab 不拦截原生焦点移动，外部点击与外部焦点�
   const trigger = view.getByRole('button', { name: '更多任务操作' });
   const outside = view.getByRole('button', { name: '外部操作' });
   fireEvent.click(trigger);
-  assert.equal(fireEvent.keyDown(view.getByRole('menuitem'), { key: 'Tab' }), true);
-  await waitFor(() => assert.ok(view.queryByRole('menu') === null));
+  await act(async () => {
+    assert.equal(fireEvent.keyDown(view.getByRole('menuitem'), { key: 'Tab' }), true);
+    // Flush the deferred close and React update without racing a polling timeout.
+    await new Promise<void>(resolve => setTimeout(resolve, 0));
+  });
+  assert.equal(view.queryByRole('menu'), null);
   fireEvent.click(trigger);
-  assert.equal(fireEvent.keyDown(view.getByRole('menuitem'), { key: 'Tab', shiftKey: true }), true);
-  await waitFor(() => assert.ok(view.queryByRole('menu') === null));
+  await act(async () => {
+    assert.equal(fireEvent.keyDown(view.getByRole('menuitem'), { key: 'Tab', shiftKey: true }), true);
+    await new Promise<void>(resolve => setTimeout(resolve, 0));
+  });
+  assert.equal(view.queryByRole('menu'), null);
   fireEvent.click(trigger);
   fireEvent.pointerDown(outside);
   assert.equal(view.queryByRole('menu'), null);
