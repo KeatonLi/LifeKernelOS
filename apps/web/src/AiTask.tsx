@@ -15,7 +15,7 @@ export function AiWorkspace({ children }: { children: ReactNode }) {
 export function AiSplitButton({ actionId, disabled = false }: { actionId: string; disabled?: boolean }) {
   const open = useContext(OpenAiTask);
   if (!aiAvailable()) return null;
-  return <button className="secondary-button ai-task-button" disabled={disabled} onClick={() => open(actionId)}>
+  return <button className="text-button ai-task-button" disabled={disabled} onClick={() => open(actionId)}>
     <SparkleIcon size={17} />AI 拆解</button>;
 }
 

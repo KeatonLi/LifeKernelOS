@@ -1,4 +1,5 @@
 import { useState } from 'react';
+import { CaretDownIcon } from '@phosphor-icons/react';
 import type { GoalAction, AvailableMinutes } from './api.js';
 const minuteOptions = [
   { value: 5, label: '5 分钟' },
@@ -35,6 +36,9 @@ export function TodoEditor({
     action?.estimatedMinutes?.toString() ?? '',
   );
   const [energy, setEnergy] = useState(action?.energyRequired ?? '');
+  const [optionsOpen, setOptionsOpen] = useState(
+    Boolean(action?.estimatedMinutes || action?.energyRequired),
+  );
   return (
     <form
       className="todo-editor"
@@ -55,6 +59,7 @@ export function TodoEditor({
         To-do 标题
         <input
           autoFocus
+          disabled={saving}
           value={title}
           onChange={(event) => setTitle(event.target.value)}
           maxLength={200}
@@ -62,8 +67,9 @@ export function TodoEditor({
         />
       </label>
       <label>
-        内容 <span>可选</span>
+        <span className="editor-field-label">内容 <small>可选</small></span>
         <textarea
+          disabled={saving}
           value={content}
           onChange={(event) => setContent(event.target.value)}
           maxLength={2000}
@@ -71,12 +77,13 @@ export function TodoEditor({
         />
       </label>
       <label>
-        安排日期 <span>可选</span>
+        <span className="editor-field-label">安排日期 <small>可选</small></span>
         <div className="date-input-row">
           <input
             type="date"
             name="scheduledDate"
             aria-label="安排日期"
+            disabled={saving}
             value={scheduledDate}
             min="1900-01-01"
             max="9999-12-31"
@@ -87,6 +94,7 @@ export function TodoEditor({
             <button
               type="button"
               className="text-link"
+              disabled={saving}
               onClick={() => setScheduledDate('')}
             >
               清除日期
@@ -94,39 +102,65 @@ export function TodoEditor({
           )}
         </div>
       </label>
-      <div className="todo-meta-fields">
-        <label>
-          预计时长
-          <select
-            value={minutes}
-            onChange={(event) => setMinutes(event.target.value)}
-          >
-            <option value="">未设置</option>
-            {minuteOptions.map((option) => (
-              <option key={option.value} value={option.value}>
-                {option.label}
-              </option>
-            ))}
-          </select>
-        </label>
-        <label>
-          精力要求
-          <select
-            value={energy}
-            onChange={(event) => setEnergy(event.target.value)}
-          >
-            <option value="">未设置</option>
-            <option value="low">低</option>
-            <option value="medium">中</option>
-            <option value="high">高</option>
-          </select>
-        </label>
-      </div>
+      <details
+        className="editor-options"
+        open={optionsOpen}
+        onToggle={(event) => setOptionsOpen(event.currentTarget.open)}
+      >
+        <summary
+          aria-disabled={saving || undefined}
+          tabIndex={saving ? -1 : 0}
+          onClick={(event) => {
+            if (saving) event.preventDefault();
+          }}
+          onKeyDown={(event) => {
+            if (saving && (event.key === 'Enter' || event.key === ' '))
+              event.preventDefault();
+          }}
+        >
+          更多选项 <CaretDownIcon size={13} aria-hidden="true" />
+        </summary>
+        <div className="todo-meta-fields">
+          <label>
+            预计时长
+            <select
+              disabled={saving}
+              value={minutes}
+              onChange={(event) => setMinutes(event.target.value)}
+            >
+              <option value="">未设置</option>
+              {minuteOptions.map((option) => (
+                <option key={option.value} value={option.value}>
+                  {option.label}
+                </option>
+              ))}
+            </select>
+          </label>
+          <label>
+            精力要求
+            <select
+              disabled={saving}
+              value={energy}
+              onChange={(event) => setEnergy(event.target.value)}
+            >
+              <option value="">未设置</option>
+              <option value="low">低</option>
+              <option value="medium">中</option>
+              <option value="high">高</option>
+            </select>
+          </label>
+        </div>
+      </details>
       <div className="editor-actions">
         <button className="primary-button" disabled={saving}>
           {action ? '保存 To-do' : '加入主线'}
         </button>
-        <button type="button" className="secondary-button" onClick={onCancel}>
+        <button
+          type="button"
+          className="text-button"
+          disabled={saving}
+          onClick={onCancel}
+        >
           取消
         </button>
       </div>

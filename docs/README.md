@@ -24,6 +24,7 @@
 | 双 Tab 控制台结构 | [ADR-0007](architecture/decisions/0007-two-tab-console-information-architecture.md) |
 | “主线”可执行行为 | [SPEC-0010](specs/current/0010-long-term-goals-and-current-action.md) |
 | 基础 Todo、今日与月/周日历 | [SPEC-0013](specs/current/0013-basic-todo-and-calendar.md) |
+| 简约日常页头、按钮、更多菜单与按需展示 | [SPEC-0015](specs/current/0015-minimal-action-interface.md) / [ADR-0011](architecture/decisions/0011-progressive-action-workspace.md) |
 | 用户 API Key 与 AI 任务拆解 | [SPEC-0014](specs/current/0014-byok-ai-task-decomposition.md) / [ADR-0012](architecture/decisions/0012-local-byok-ai.md) |
 | 自动检查与桌面发布 | [CI/CD](development/ci-cd.md) |
 | “我的画像”汇聚图谱行为 | [SPEC-0011](specs/current/0011-aggregated-profile-graph.md) |
@@ -31,7 +32,7 @@
 | 规格状态和开发顺序 | [Spec 索引](specs/README.md) |
 | AI-native 交付协议 | [SDD](development/SDD.md) |
 
-下一版方向讨论： [PRD v0.11 草案](product/next-direction-prd.md) 与 [ADR-0011](architecture/decisions/0011-progressive-action-workspace.md) 其余渐进展示和事实回顾仍为 `Proposed`。用户已确认目标驱动定位与 BYOK 拆解，见当前 PRD 和 SPEC-0014；其他提案继续评审。
+下一版方向讨论： [PRD v0.11 草案](product/next-direction-prd.md) 保留余下提案。目标驱动定位、BYOK 拆解与日常界面简约化已确认，见当前 PRD、SPEC-0014、SPEC-0015；[ADR-0011](architecture/decisions/0011-progressive-action-workspace.md) 已接受日常渐进展示范围。画像概览优先、事实回顾与新 AI 场景仍为 `Proposed`，图谱继续是画像主画面。
 
 ## 3. 文档之间如何流动
 
@@ -56,6 +57,7 @@
 | --- | --- |
 | 讨论产品方向或页面职责 | Product 入口 → PRD → 相关 Spec |
 | 修改主线 | PRD → ADR-0008 / ADR-0007 → SPEC-0010 → 相关设计和代码 |
+| 简化日常界面 | PRD → ADR-0011 已接受范围 → SPEC-0015 → SPEC-0010/0013/0014 的既有事实与恢复契约 |
 | 修改我的画像 | PRD → ADR-0005 / ADR-0007 → SPEC-0011 → 相关设计和代码 |
 | 修改 API、数据库或认证 | Architecture 入口 → 系统架构 → 详细技术设计 → 相关 ADR / Spec |
 | 修复 Bug | 相关 Spec → 测试 → 实现；若 Spec 缺失或行为要改变，先补文档 |

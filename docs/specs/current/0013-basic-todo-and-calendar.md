@@ -1,11 +1,13 @@
 # SPEC-0013 基础 Todo 与日历视图
 
+> 2026-10-05 界面增量：[SPEC-0015](0015-minimal-action-interface.md) 接受紧凑页头、更多菜单、辅助字段与空详情收起；本规格的搜索、日期、直接处理、确认与恢复规则继续有效。
+
 > 2026-10-04 AI 增量：[SPEC-0014](0014-byok-ai-task-decomposition.md) 承接用户 Key 配置与主动拆解；现有任务详情增加入口，采纳仍使用同一任务事实源。
 
 > 状态：Implemented
 > 版本：0.1
 > 日期：2026-10-04
-> 对应产品：[PRD v0.10](../../product/PRD.md)
+> 对应产品：[PRD v0.11](../../product/PRD.md)
 > 相关决策：[ADR-0010](../../architecture/decisions/0010-todo-calendar-views.md)
 > 依赖：SPEC-0010、SPEC-0012
 > 目标：让用户可靠地记录、安排、完成和调整任务，再用列表、今日与日历查看同一批事实。

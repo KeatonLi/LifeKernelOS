@@ -3,7 +3,6 @@ import { useNavigate } from 'react-router-dom';
 import {
   ArchiveIcon,
   ArrowCounterClockwiseIcon,
-  CalendarBlankIcon,
   CaretLeftIcon,
   CaretRightIcon,
   CheckCircleIcon,
@@ -22,6 +21,7 @@ import {
 } from './api.js';
 import { TodoEditor } from './TodoEditor.js';
 import { AiSplitButton } from './AiTask.js';
+import { ActionMenu } from './ActionMenu.js';
 import {
   calendarDays,
   civilDate,
@@ -47,7 +47,7 @@ export function TodoPlanner({
   viewSwitch,
 }: {
   view: View;
-  viewSwitch: ReactNode;
+  viewSwitch: ReactNode | ((disabled: boolean) => ReactNode);
 }) {
   const navigate = useNavigate();
   const [goals, setGoals] = useState<Mainline[]>([]);
@@ -74,12 +74,23 @@ export function TodoPlanner({
   const returnFocus = useRef<HTMLElement | null>(null);
   const inspector = useRef<HTMLElement | null>(null);
   const newTaskButton = useRef<HTMLButtonElement | null>(null);
+  const currentTaskButton = useRef<HTMLButtonElement | null>(null);
   const focusAfterClose = useRef(false);
+  const detailReturnFocus = useRef<HTMLElement | null>(null);
+  const detailFocusTarget = useRef<'inspector' | 'origin' | null>(null);
   const goalMap = new Map(goals.map((goal) => [goal.id, goal]));
   const selected = todos.find((todo) => todo.id === selectedId) ?? null;
+  const currentTodo = todos.find((todo) => todo.id === currentId) ?? null;
+  const showInspector = Boolean(editor || selected || view === 'calendar');
   const activeGoals = goals.filter((goal) => goal.status === 'active');
   const canChange =
     selected && goalMap.get(selected.goalId)?.status === 'active';
+  const navigationLocked = saving || Boolean(editor);
+
+  function revealInspector() {
+    inspector.current?.focus({ preventScroll: true });
+    inspector.current?.scrollIntoView?.({ block: 'nearest' });
+  }
 
   async function load() {
     const request = ++version.current;
@@ -129,6 +140,20 @@ export function TodoPlanner({
       else newTaskButton.current?.focus();
     }
   }, [editor]);
+  useEffect(() => {
+    if (editor) return;
+    if (detailFocusTarget.current === 'inspector' && selected) {
+      detailFocusTarget.current = null;
+      revealInspector();
+    } else if (detailFocusTarget.current === 'origin') {
+      detailFocusTarget.current = null;
+      const origin = detailReturnFocus.current?.isConnected
+        ? detailReturnFocus.current
+        : currentTaskButton.current ?? newTaskButton.current;
+      origin?.focus({ preventScroll: true });
+      origin?.scrollIntoView?.({ block: 'nearest' });
+    }
+  }, [selectedId, editor]);
 
   const filtered = todos
     .filter((todo) => {
@@ -213,9 +238,17 @@ export function TodoPlanner({
     return success;
   }
 
-  function choose(todo: GoalAction) {
+  function choose(todo: GoalAction, origin: HTMLElement) {
+    detailReturnFocus.current = origin;
+    if (selectedId === todo.id && !editor) revealInspector();
+    else detailFocusTarget.current = 'inspector';
     setSelectedId(todo.id);
     setEditor(null);
+    setRemoveConfirm(false);
+  }
+  function closeDetails() {
+    detailFocusTarget.current = 'origin';
+    setSelectedId(null);
     setRemoveConfirm(false);
   }
   function startEditor(mode: 'new' | 'edit') {
@@ -263,7 +296,7 @@ export function TodoPlanner({
             }
           />
         )}
-        <button className="planner-row-copy" disabled={saving || Boolean(editor)} onClick={() => choose(todo)}>
+        <button className="planner-row-copy" disabled={navigationLocked} onClick={(event) => choose(todo, event.currentTarget)}>
           <strong>{todo.title}</strong>
           <small>
             {goalMap.get(todo.goalId)?.title ?? '主线'}
@@ -299,16 +332,9 @@ export function TodoPlanner({
     <div className="mainline-page planner-page">
       <header className="workspace-heading">
         <div>
-          <p className="eyebrow">A PLACE FOR WHAT MATTERS</p>
           <h1>
-            {view === 'calendar'
-              ? '给想做的事，留一天'
-              : view === 'today'
-                ? '今天，从一件事开始'
-                : '把想法，变成行动'}
-            <span>。</span>
+            {view === 'calendar' ? '日历' : view === 'today' ? '今日' : '任务'}
           </h1>
-          <p>记录、安排、完成。每个视图都是你的同一份清单。</p>
         </div>
         <div className="workspace-date">
           <span>{dayLabel(today)}</span>
@@ -317,7 +343,7 @@ export function TodoPlanner({
           </small>
         </div>
       </header>
-      {viewSwitch}
+      {typeof viewSwitch === 'function' ? viewSwitch(navigationLocked) : viewSwitch}
       {error && (
         <div className="page-error" role="alert">
           {error}
@@ -353,7 +379,7 @@ export function TodoPlanner({
           <MagnifyingGlassIcon size={18} />
           <input
             type="search"
-            disabled={Boolean(editor)}
+            disabled={navigationLocked}
             aria-label="搜索任务"
             placeholder="搜索任务…"
             value={query}
@@ -364,7 +390,7 @@ export function TodoPlanner({
           />
         </label>
         <select
-          disabled={Boolean(editor)}
+          disabled={navigationLocked}
           aria-label="筛选主线"
           value={goalFilter}
           onChange={(event) => {
@@ -380,7 +406,7 @@ export function TodoPlanner({
           ))}
         </select>
         <select
-          disabled={Boolean(editor)}
+          disabled={navigationLocked}
           aria-label="筛选任务状态"
           value={filter}
           onChange={(event) => {
@@ -414,8 +440,8 @@ export function TodoPlanner({
       ) : !goals.length ? (
         <div className="planner-zero">
           <TargetIcon size={36} weight="thin" />
-          <h2>先建一条主线，开始你的清单。</h2>
-          <p>任务会留在属于它的方向里。</p>
+          <h2>先建一条主线</h2>
+          <p>任务按主线整理。</p>
           <button
             className="primary-button"
             onClick={() => navigate('/expectations')}
@@ -424,8 +450,25 @@ export function TodoPlanner({
           </button>
         </div>
       ) : (
+        <>
+        {view !== 'calendar' && !editor &&
+          (!selected || (currentTodo && selected.id !== currentTodo.id)) && (
+          <div className="planner-selection-hint">
+            {!selected && <span>选择任务查看详情</span>}
+            {currentTodo && selected?.id !== currentTodo.id && (
+              <button
+                ref={currentTaskButton}
+                className="text-button"
+                disabled={saving}
+                onClick={(event) => choose(currentTodo, event.currentTarget)}
+              >
+                返回当前任务
+              </button>
+            )}
+          </div>
+        )}
         <div
-          className={`planner-layout ${view === 'calendar' ? 'with-calendar' : ''}`}
+          className={`planner-layout ${view === 'calendar' ? 'with-calendar' : ''} ${showInspector ? '' : 'is-single'}`}
           aria-busy={loading}
         >
           <div className="planner-main">
@@ -433,7 +476,6 @@ export function TodoPlanner({
               <>
                 <div className="calendar-toolbar">
                   <div>
-                    <p className="eyebrow">YOUR SCHEDULE</p>
                     <h2>
                       {calendarView === 'month'
                         ? civilDate(anchor).toLocaleDateString('zh-CN', {
@@ -446,7 +488,7 @@ export function TodoPlanner({
                   <div className="calendar-controls">
                     <button
                       className="secondary-button"
-                      disabled={Boolean(editor)}
+                      disabled={navigationLocked}
                       onClick={() => {
                         setAnchor(today);
                         pickDay(today);
@@ -457,7 +499,7 @@ export function TodoPlanner({
                     <button
                       className="icon-control"
                       disabled={
-                        Boolean(editor) || !isCalendarDate(previousPeriod)
+                        navigationLocked || !isCalendarDate(previousPeriod)
                       }
                       aria-label={
                         calendarView === 'month' ? '上个月' : '上一周'
@@ -472,7 +514,7 @@ export function TodoPlanner({
                     </button>
                     <button
                       className="icon-control"
-                      disabled={Boolean(editor) || !isCalendarDate(nextPeriod)}
+                      disabled={navigationLocked || !isCalendarDate(nextPeriod)}
                       aria-label={
                         calendarView === 'month' ? '下个月' : '下一周'
                       }
@@ -486,7 +528,7 @@ export function TodoPlanner({
                     </button>
                     <div className="calendar-mode" aria-label="日历范围">
                       <button
-                        disabled={Boolean(editor)}
+                        disabled={navigationLocked}
                         aria-pressed={calendarView === 'month'}
                         onClick={() => {
                           setCalendarView('month');
@@ -496,7 +538,7 @@ export function TodoPlanner({
                         月
                       </button>
                       <button
-                        disabled={Boolean(editor)}
+                        disabled={navigationLocked}
                         aria-pressed={calendarView === 'week'}
                         onClick={() => {
                           setCalendarView('week');
@@ -544,7 +586,7 @@ export function TodoPlanner({
                               >
                                 <button
                                   disabled={
-                                    Boolean(editor) || !isCalendarDate(day)
+                                    navigationLocked || !isCalendarDate(day)
                                   }
                                   className={`calendar-day ${day === today ? 'is-today' : ''}`}
                                   aria-label={`${day}，${records.length} 条任务`}
@@ -557,7 +599,7 @@ export function TodoPlanner({
                                     .slice(0, previewCount)
                                     .map((todo) => (
                                       <button
-                                        disabled={Boolean(editor)}
+                                        disabled={navigationLocked}
                                         key={todo.id}
                                         title={todo.title}
                                         className={
@@ -565,9 +607,9 @@ export function TodoPlanner({
                                             ? 'done'
                                             : ''
                                         }
-                                        onClick={() => {
+                                        onClick={(event) => {
                                           setSelectedDay(day);
-                                          choose(todo);
+                                          choose(todo, event.currentTarget);
                                         }}
                                       >
                                         {todo.title}
@@ -576,7 +618,7 @@ export function TodoPlanner({
                                   {records.length > previewCount && (
                                     <button
                                       className="calendar-more"
-                                      disabled={Boolean(editor)}
+                                      disabled={navigationLocked}
                                       onClick={() => pickDay(day)}
                                     >
                                       还有 {records.length - previewCount} 条
@@ -598,7 +640,7 @@ export function TodoPlanner({
                   {unplanned.length ? (
                     <ul className="planner-list">{unplanned.map(row)}</ul>
                   ) : (
-                    <p className="planner-empty">每件事都有了自己的日期。</p>
+                    <p className="planner-empty">没有未安排日期的任务。</p>
                   )}
                 </details>
               </>
@@ -608,7 +650,7 @@ export function TodoPlanner({
                 {group(
                   '安排在今天',
                   todayTasks,
-                  '今天还没有安排任务，可以从一件小事开始。',
+                  '今天还没有安排任务。',
                 )}
                 <button
                   className="text-link unplanned-link"
@@ -627,10 +669,12 @@ export function TodoPlanner({
               )
             )}
           </div>
+          {showInspector && (
           <aside
             className="planner-inspector"
             ref={inspector}
             aria-label="任务详情"
+            tabIndex={-1}
           >
             {editor ? (
               <>
@@ -697,6 +741,23 @@ export function TodoPlanner({
                       : stateName[selected.status]}
                   </span>
                   <div className="inspector-actions">
+                    {selected.status !== 'abandoned' && selected.status !== 'superseded' && (
+                      <ActionMenu
+                        key={selected.id}
+                        label="更多"
+                        ariaLabel="更多任务操作"
+                        placement="below"
+                        disabled={saving}
+                        items={[
+                          {
+                            label: '移除任务',
+                            danger: true,
+                            disabled: saving,
+                            onSelect: () => setRemoveConfirm(true),
+                          },
+                        ]}
+                      />
+                    )}
                     <button
                       className="icon-control"
                       aria-label="编辑任务"
@@ -708,10 +769,7 @@ export function TodoPlanner({
                     <button
                       className="icon-control"
                       aria-label="关闭任务详情"
-                      onClick={() => {
-                        setSelectedId(null);
-                        setRemoveConfirm(false);
-                      }}
+                      onClick={closeDetails}
                     >
                       <XIcon size={18} />
                     </button>
@@ -771,12 +829,13 @@ export function TodoPlanner({
                         </>
                       )}
                     </button>
-                    {selected.status === 'available' && (
+                  </div>
+                )}
+                <div className="inspector-secondary-actions">
+                  {selected.status === 'available' && selected.id !== currentId && (
                       <button
-                        className="secondary-button"
-                        disabled={
-                          saving || !canChange || selected.id === currentId
-                        }
+                        className="text-button"
+                        disabled={saving || !canChange}
                         onClick={() =>
                           void write(
                             () => api.selectCurrent(selected.id),
@@ -785,30 +844,17 @@ export function TodoPlanner({
                         }
                       >
                         <TargetIcon size={17} />
-                        {selected.id === currentId ? '正在做' : '设为现在要做'}
+                        设为现在要做
                       </button>
                     )}
-                  </div>
-                )}
                 {canChange && (selected.status === 'available' || selected.status === 'blocked') &&
                   <AiSplitButton actionId={selected.id} disabled={saving} />}
+                </div>
                 {!canChange && (
                   <p className="planner-hint">
                     所属主线已暂停或结束，先恢复主线即可继续处理。
                   </p>
                 )}
-                {selected.status !== 'abandoned' &&
-                  selected.status !== 'superseded' &&
-                  !removeConfirm && (
-                    <button
-                      className="text-link inspector-remove"
-                      disabled={saving}
-                      onClick={() => setRemoveConfirm(true)}
-                    >
-                      <ArchiveIcon size={16} />
-                      移除任务
-                    </button>
-                  )}
                 {removeConfirm && (
                   <div
                     className="remove-confirm"
@@ -821,8 +867,7 @@ export function TodoPlanner({
                       disabled={saving}
                       onClick={async () => {
                         if (await changeStatus(selected, 'abandoned', true)) {
-                          setRemoveConfirm(false);
-                          setSelectedId(null);
+                          closeDetails();
                         }
                       }}
                     >
@@ -840,7 +885,6 @@ export function TodoPlanner({
               </>
             ) : view === 'calendar' ? (
               <>
-                <p className="eyebrow">SELECTED DAY</p>
                 <h2>{dayLabel(selectedDay)}</h2>
                 <p className="planner-hint">
                   {civilDate(selectedDay).toLocaleDateString('zh-CN', {
@@ -852,7 +896,7 @@ export function TodoPlanner({
                   <ul className="planner-list compact">{onDay.map(row)}</ul>
                 ) : (
                   <p className="planner-empty">
-                    这一天还没有任务，留一点空间也很好。
+                    这一天没有任务。
                   </p>
                 )}
                 <button
@@ -864,27 +908,11 @@ export function TodoPlanner({
                   在这天新建任务
                 </button>
               </>
-            ) : (
-              <div className="planner-detail-empty">
-                <CalendarBlankIcon size={34} weight="thin" />
-                <h2>留意眼前的一件事。</h2>
-                <p>选择任务，查看内容、安排日期或调整状态。</p>
-                <small>
-                  未完成{' '}
-                  {
-                    todos.filter(
-                      (todo) =>
-                        todo.status === 'available' ||
-                        todo.status === 'blocked',
-                    ).length
-                  }{' '}
-                  · 已完成{' '}
-                  {todos.filter((todo) => todo.status === 'completed').length}
-                </small>
-              </div>
-            )}
+            ) : null}
           </aside>
+          )}
         </div>
+        </>
       )}
     </div>
   );

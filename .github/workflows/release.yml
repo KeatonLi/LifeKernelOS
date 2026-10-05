@@ -60,7 +60,7 @@ jobs:
           for folder in release-assets/*; do (cd "$folder" && sha256sum --check *.sha256); done
           mapfile -d '' assets < <(find release-assets -type f -print0)
           test "${#assets[@]}" -gt 0
-          printf '%s\n' '本版本提供未签名桌面安装包。macOS/Windows 可能需要用户在系统中确认运行。' '校验文件随安装包提供；当前不包含自动升级、云同步或运行时 AI。' > release-notes.md
+          printf '%s\n' '本版本简化主线、任务列表、今日与日历界面：主要操作更明确，低频操作进入“更多”，时长与精力按需展开。' '保留本地任务、进度、画像图谱与用户 Key 的 AI 拆解；AI 建议须由用户明确生成和采纳。' '安装包未签名，macOS/Windows 可能需要在系统中确认运行。SHA-256 校验文件随安装包提供；当前没有自动升级或云同步。' '三平台自动化启动与数据检查通过后才发布；真实 Key/模型、系统密钥服务及实机安装体验仍需人工验收。' > release-notes.md
           flags=()
           if [[ "$RELEASE_TAG" == *-* ]]; then flags+=(--prerelease); fi
           gh release create "$RELEASE_TAG" "${assets[@]}" --verify-tag --title "LifeKernelOS $RELEASE_TAG" --notes-file release-notes.md --generate-notes "${flags[@]}"

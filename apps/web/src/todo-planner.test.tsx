@@ -11,6 +11,11 @@ Object.defineProperties(globalThis, {
   HTMLElement: { value: dom.window.HTMLElement, configurable: true },
   IS_REACT_ACT_ENVIRONMENT: { value: true, writable: true, configurable: true },
 });
+Object.defineProperty(dom.window.HTMLElement.prototype, 'scrollIntoView', {
+  value() {},
+  configurable: true,
+  writable: true,
+});
 const { render, fireEvent, waitFor, cleanup, act } = await import(
   '@testing-library/react'
 );
@@ -212,10 +217,12 @@ test('SPEC-0013：移除取消不写入，确认后可在已移除中恢复', as
   const { changes, records } = setup([action('remove', localDay())]);
   const page = view();
   fireEvent.click(await page.findByRole('button', { name: /任务 remove/ }));
-  fireEvent.click(page.getByRole('button', { name: '移除任务' }));
+  fireEvent.click(page.getByRole('button', { name: '更多任务操作' }));
+  fireEvent.click(page.getByRole('menuitem', { name: '移除任务' }));
   fireEvent.click(page.getByRole('button', { name: '取消' }));
   assert.equal(changes.mock.calls.length, 0);
-  fireEvent.click(page.getByRole('button', { name: '移除任务' }));
+  fireEvent.click(page.getByRole('button', { name: '更多任务操作' }));
+  fireEvent.click(page.getByRole('menuitem', { name: '移除任务' }));
   fireEvent.click(page.getByRole('button', { name: '确认移除' }));
   await page.findByRole('button', { name: '撤销' });
   assert.equal(records[0].status, 'abandoned');
@@ -307,4 +314,218 @@ test('SPEC-0013：更早的读取迟到不能覆盖最新任务', async () => {
   await page.findByRole('checkbox', { name: '完成 任务 new' });
   await act(async () => resolveOld({ actions: [action('old')] }));
   assert.equal(page.queryByRole('checkbox', { name: '完成 任务 old' }), null);
+});
+
+test('SPEC-0015：列表与今日按需显示详情，返回当前任务不会改筛选或当前事实', async () => {
+  const current = { ...action('current'), content: '当前任务的完整内容' };
+  setup([current, { ...action('other'), goalId: 'b' }]);
+  mock.method(api, 'current', async () => ({
+    context: null,
+    contextIsStale: false,
+    currentAction: current,
+    strictMatches: [],
+    allAvailable: [],
+  }));
+  const select = mock.method(api, 'selectCurrent', async () => ({ action: current }));
+  const page = view();
+  await page.findByRole('checkbox', { name: '完成 任务 current' });
+  assert.equal(page.queryByRole('complementary', { name: '任务详情' }), null);
+  assert.ok(page.getByText('选择任务查看详情'));
+  fireEvent.change(page.getByLabelText('筛选主线'), { target: { value: 'b' } });
+  fireEvent.change(page.getByLabelText('搜索任务'), { target: { value: 'other' } });
+  fireEvent.click(page.getByRole('button', { name: /任务 other/ }));
+  assert.ok(page.getByRole('complementary', { name: '任务详情' }));
+  fireEvent.click(page.getByRole('button', { name: '返回当前任务' }));
+  assert.ok(page.getByRole('heading', { name: '任务 current' }));
+  assert.ok(page.getByText('当前任务的完整内容'));
+  assert.ok(page.getByText('现在做这件事'));
+  assert.equal(page.queryByRole('button', { name: '正在做' }), null);
+  assert.equal((page.getByLabelText('筛选主线') as HTMLSelectElement).value, 'b');
+  assert.equal((page.getByLabelText('搜索任务') as HTMLInputElement).value, 'other');
+  assert.equal(select.mock.calls.length, 0);
+  fireEvent.click(page.getByRole('button', { name: '关闭任务详情' }));
+  assert.equal(page.queryByRole('complementary', { name: '任务详情' }), null);
+  cleanup();
+  const todayPage = view('today');
+  await todayPage.findByRole('button', { name: '返回当前任务' });
+  assert.equal(todayPage.queryByRole('complementary', { name: '任务详情' }), null);
+  fireEvent.click(todayPage.getByRole('button', { name: '返回当前任务' }));
+  assert.ok(todayPage.getByRole('heading', { name: '任务 current' }));
+  assert.equal(select.mock.calls.length, 0);
+});
+
+test('SPEC-0015：新建任务的辅助字段收起再展开保留草稿，收起保存仍写入已填值', async () => {
+  const { records } = setup([]);
+  mock.method(api, 'createGoalAction', async (goalId: string, input: Partial<GoalAction>) => {
+    const created = { ...action('options'), ...input, goalId };
+    records.push(created);
+    return { action: created };
+  });
+  const page = view();
+  const newTask = await page.findByRole('button', { name: '新建任务' });
+  await waitFor(() => assert.equal((newTask as HTMLButtonElement).disabled, false));
+  fireEvent.click(newTask);
+  const summary = page.getByText('更多选项');
+  const details = summary.closest('details')!;
+  assert.equal(details.open, false);
+  fireEvent.click(summary);
+  await waitFor(() => assert.equal(details.open, true));
+  fireEvent.change(page.getByLabelText('预计时长'), { target: { value: '30' } });
+  fireEvent.change(page.getByLabelText('精力要求'), { target: { value: 'medium' } });
+  fireEvent.click(summary);
+  await waitFor(() => assert.equal(details.open, false));
+  fireEvent.change(page.getByLabelText('To-do 标题'), { target: { value: '保留辅助字段的任务' } });
+  fireEvent.click(summary);
+  await waitFor(() => assert.equal(details.open, true));
+  assert.equal((page.getByLabelText('预计时长') as HTMLSelectElement).value, '30');
+  assert.equal((page.getByLabelText('精力要求') as HTMLSelectElement).value, 'medium');
+  fireEvent.click(summary);
+  await waitFor(() => assert.equal(details.open, false));
+  fireEvent.click(page.getByRole('button', { name: '加入主线' }));
+  await page.findByRole('heading', { name: '保留辅助字段的任务' });
+  assert.equal(records[0].estimatedMinutes, 30);
+  assert.equal(records[0].energyRequired, 'medium');
+});
+
+test('SPEC-0015：已有辅助字段默认展开，仅修改标题并收起保存不清空既有值', async () => {
+  const { records } = setup([{ ...action('existing-options'), estimatedMinutes: 15, energyRequired: 'low' }]);
+  mock.method(api, 'updateAction', async (_id: string, input: Partial<GoalAction>) => {
+    Object.assign(records[0], input);
+    return { action: records[0] };
+  });
+  const page = view();
+  fireEvent.click(await page.findByRole('button', { name: /任务 existing-options/ }));
+  fireEvent.click(page.getByRole('button', { name: '编辑任务' }));
+  const summary = page.getByText('更多选项');
+  assert.equal(summary.closest('details')!.open, true);
+  fireEvent.click(summary);
+  await waitFor(() => assert.equal(summary.closest('details')!.open, false));
+  fireEvent.change(page.getByLabelText('To-do 标题'), { target: { value: '只修改标题' } });
+  fireEvent.click(page.getByRole('button', { name: '保存 To-do' }));
+  await page.findByRole('heading', { name: '只修改标题' });
+  assert.equal(records[0].estimatedMinutes, 15);
+  assert.equal(records[0].energyRequired, 'low');
+});
+
+test('SPEC-0015：保存失败保留辅助字段输入与展开状态，可重试保存', async () => {
+  const { records } = setup([]);
+  let attempts = 0;
+  mock.method(api, 'createGoalAction', async (goalId: string, input: Partial<GoalAction>) => {
+    if (++attempts === 1) throw new Error('保存暂时失败');
+    const created = { ...action('retry-options'), ...input, goalId };
+    records.push(created);
+    return { action: created };
+  });
+  const page = view();
+  const newTask = await page.findByRole('button', { name: '新建任务' });
+  await waitFor(() => assert.equal((newTask as HTMLButtonElement).disabled, false));
+  fireEvent.click(newTask);
+  const summary = page.getByText('更多选项');
+  fireEvent.click(summary);
+  await waitFor(() => assert.equal(summary.closest('details')!.open, true));
+  fireEvent.change(page.getByLabelText('To-do 标题'), { target: { value: '失败后重试的任务' } });
+  fireEvent.change(page.getByLabelText('预计时长'), { target: { value: '60' } });
+  fireEvent.change(page.getByLabelText('精力要求'), { target: { value: 'high' } });
+  fireEvent.click(page.getByRole('button', { name: '加入主线' }));
+  await page.findByText('保存暂时失败');
+  assert.equal(summary.closest('details')!.open, true);
+  assert.equal((page.getByLabelText('预计时长') as HTMLSelectElement).value, '60');
+  assert.equal((page.getByLabelText('精力要求') as HTMLSelectElement).value, 'high');
+  fireEvent.click(page.getByRole('button', { name: '加入主线' }));
+  await page.findByRole('heading', { name: '失败后重试的任务' });
+  assert.equal(records[0].estimatedMinutes, 60);
+  assert.equal(records[0].energyRequired, 'high');
+});
+
+test('SPEC-0015：暂停或结束主线仍能确认移除任务，完成和恢复继续受主线状态限制', async () => {
+  for (const status of ['paused', 'completed', 'abandoned'] as const) {
+    const { changes, records } = setup([action(`inactive-${status}`)]);
+    mock.method(api, 'goals', async () => ({ goals: [{ ...goal('a'), status }] }));
+    const page = view();
+    fireEvent.click(await page.findByRole('button', { name: new RegExp(`任务 inactive-${status}`) }));
+    assert.equal((page.getByRole('button', { name: '完成任务' }) as HTMLButtonElement).disabled, true);
+    const more = page.getByRole('button', { name: '更多任务操作' });
+    assert.equal((more as HTMLButtonElement).disabled, false);
+    fireEvent.click(more);
+    fireEvent.click(page.getByRole('menuitem', { name: '移除任务' }));
+    fireEvent.click(page.getByRole('button', { name: '取消' }));
+    assert.equal(changes.mock.calls.length, 0);
+    fireEvent.click(more);
+    fireEvent.click(page.getByRole('menuitem', { name: '移除任务' }));
+    fireEvent.click(page.getByRole('button', { name: '确认移除' }));
+    await page.findByText('任务已移除，可以恢复。');
+    assert.equal(records[0].status, 'abandoned');
+    assert.equal(changes.mock.calls[0].arguments[2], true);
+    fireEvent.change(page.getByLabelText('筛选任务状态'), { target: { value: 'abandoned' } });
+    fireEvent.click(page.getByRole('button', { name: new RegExp(`任务 inactive-${status}`) }));
+    assert.equal((page.getByRole('button', { name: '恢复任务' }) as HTMLButtonElement).disabled, true);
+    cleanup();
+    mock.restoreAll();
+  }
+});
+
+test('SPEC-0015：选择与返回当前定位详情，关闭后键盘焦点回到可用入口', async () => {
+  const current = action('focus-current');
+  setup([current, action('focus-other')]);
+  mock.method(api, 'current', async () => ({
+    context: null,
+    contextIsStale: false,
+    currentAction: current,
+    strictMatches: [],
+    allAvailable: [],
+  }));
+  const scrollTargets: HTMLElement[] = [];
+  mock.method(HTMLElement.prototype, 'scrollIntoView', function(this: HTMLElement) {
+    scrollTargets.push(this);
+  });
+  const page = view();
+  const row = await page.findByRole('button', { name: /任务 focus-other/ });
+  row.focus();
+  fireEvent.click(row);
+  const inspector = page.getByRole('complementary', { name: '任务详情' });
+  assert.equal(document.activeElement, inspector);
+  assert.equal(scrollTargets.at(-1), inspector);
+  fireEvent.click(page.getByRole('button', { name: '关闭任务详情' }));
+  assert.equal(document.activeElement, row);
+  assert.equal(scrollTargets.at(-1), row);
+  fireEvent.change(page.getByLabelText('搜索任务'), { target: { value: 'focus-other' } });
+  const returnCurrent = page.getByRole('button', { name: '返回当前任务' });
+  returnCurrent.focus();
+  fireEvent.click(returnCurrent);
+  const currentInspector = page.getByRole('complementary', { name: '任务详情' });
+  assert.equal(document.activeElement, currentInspector);
+  assert.equal(scrollTargets.at(-1), currentInspector);
+  assert.equal((page.getByLabelText('搜索任务') as HTMLInputElement).value, 'focus-other');
+  fireEvent.click(page.getByRole('button', { name: '关闭任务详情' }));
+  const nextReturn = page.getByRole('button', { name: '返回当前任务' });
+  assert.equal(document.activeElement, nextReturn);
+  assert.equal(scrollTargets.at(-1), nextReturn);
+});
+
+test('SPEC-0015：可交互视图入口在编辑和写入期间禁用，保存后恢复且保留草稿', async () => {
+  const { records } = setup([action('nav-lock')]);
+  let resolveSave!: (result: { action: GoalAction }) => void;
+  const pendingSave = new Promise<{ action: GoalAction }>((resolve) => { resolveSave = resolve; });
+  const writes = mock.method(api, 'updateAction', async (_id: string, input: Partial<GoalAction>) => {
+    Object.assign(records[0], input);
+    return pendingSave;
+  });
+  const page = render(
+    <MemoryRouter>
+      <TodoPlanner view="list" viewSwitch={(disabled) => <nav><button disabled={disabled}>切换视图</button></nav>} />
+    </MemoryRouter>,
+  );
+  fireEvent.click(await page.findByRole('button', { name: /任务 nav-lock/ }));
+  const navigation = page.getByRole('button', { name: '切换视图' }) as HTMLButtonElement;
+  assert.equal(navigation.disabled, false);
+  fireEvent.click(page.getByRole('button', { name: '编辑任务' }));
+  assert.equal(navigation.disabled, true);
+  fireEvent.change(page.getByLabelText('To-do 标题'), { target: { value: '保存期间保持视图' } });
+  fireEvent.click(page.getByRole('button', { name: '保存 To-do' }));
+  await waitFor(() => assert.equal(writes.mock.calls.length, 1));
+  assert.equal(navigation.disabled, true);
+  assert.equal((page.getByLabelText('搜索任务') as HTMLInputElement).disabled, true);
+  await act(async () => resolveSave({ action: records[0] }));
+  await page.findByRole('heading', { name: '保存期间保持视图' });
+  assert.equal(navigation.disabled, false);
 });

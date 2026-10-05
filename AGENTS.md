@@ -41,13 +41,14 @@
 - 当前信息架构决策：[ADR-0007](docs/architecture/decisions/0007-two-tab-console-information-architecture.md)
 - 用户 Key 与 AI 拆解：[SPEC-0014](docs/specs/current/0014-byok-ai-task-decomposition.md) 与 [ADR-0012](docs/architecture/decisions/0012-local-byok-ai.md)
 - Todo 和日历：[SPEC-0013](docs/specs/current/0013-basic-todo-and-calendar.md) 与 [ADR-0010](docs/architecture/decisions/0010-todo-calendar-views.md)
+- 简约行动界面：[SPEC-0015](docs/specs/current/0015-minimal-action-interface.md) 与 [ADR-0011](docs/architecture/decisions/0011-progressive-action-workspace.md) 的已接受日常范围
 - 主线：[SPEC-0010](docs/specs/current/0010-long-term-goals-and-current-action.md)
 - 我的画像：[SPEC-0011](docs/specs/current/0011-aggregated-profile-graph.md)
 - 快速收集箱：[SPEC-0005](docs/specs/current/0005-quick-capture.md)
 - 桌面客户端：[SPEC-0012](docs/specs/current/0012-electron-desktop.md) 与 [ADR-0009](docs/architecture/decisions/0009-electron-local-desktop.md)
 - 交付协议：[SDD](docs/development/SDD.md)
 
-讨论下一版产品方向时，再读 [PRD v0.11 草案](docs/product/next-direction-prd.md) 与 [ADR-0011](docs/architecture/decisions/0011-progressive-action-workspace.md)。定位与用户 Key 拆解已确认并进入当前 PRD / SPEC-0014；草案中其余渐进展示、回顾与画像调整仍为 `Proposed`，不能直接作为新行为的实现授权。
+讨论下一版产品方向时，再读 [PRD v0.11 方向讨论](docs/product/next-direction-prd.md)。定位、用户 Key 拆解与日常界面简约化已确认，分别进入当前 PRD、SPEC-0014、SPEC-0015；ADR-0011 已接受日常展示范围。画像概览优先、回顾与新 AI 场景仍为 `Proposed`，不能直接作为新行为的实现授权。用户要求先完成本轮界面，再研发新功能。
 
 ## 3. 按任务类型自动路由
 

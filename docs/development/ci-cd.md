@@ -20,4 +20,4 @@ git push origin v0.5.0
 
 默认工作流只读仓库；仅最终发布 job 拥有 contents:write 和 actions:read。使用 GitHub 自动提供的 GITHUB_TOKEN，无需新增 PAT 或硬编码凭证。正式代码签名和自动升级以后单独配置。当前安装包明确标注未签名。
 
-本轮配置发布能力，不创建版本标签。CI 检查进程启动与数据闭环，原生对话框、快捷键和实机安装体验仍需按[桌面验收](desktop-acceptance.md)人工验证。
+版本标签与发布须由用户明确授权。2026-10-05 用户已要求将简约界面推送至 main 并触发 GitHub Release，使用现有包版本对应的 `v0.5.0` 标签。正式发布状态以 [GitHub Releases](https://github.com/KeatonLi/LifeKernelOS/releases) 与对应工作流结果为准。CI 检查进程启动与数据闭环，原生对话框、快捷键和实机安装体验仍需按[桌面验收](desktop-acceptance.md)人工验证。

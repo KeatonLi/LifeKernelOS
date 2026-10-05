@@ -63,9 +63,9 @@ import {
 
 import { TodoEditor } from './TodoEditor.js';
 import { TodoPlanner } from './TodoPlanner.js';
+import { ActionMenu } from './ActionMenu.js';
 import { AiWorkspace, AiSplitButton } from './AiTask.js';
 import { AiSettingsPanel } from './AiSettings.js';
-import { CalendarIcon, SunIcon } from '@phosphor-icons/react';
 const ProfileGraph = lazy(() => import('./ProfileGraph.js'));
 export { buildProfileFlow } from './profile-flow.js';
 
@@ -407,8 +407,6 @@ function WorkspaceShell({
     <AiWorkspace><div className={`workspace-shell ${isDesktop() ? 'desktop-shell' : ''}`}>
       <aside className="workspace-sidebar" inert={captureOpen}>
         <Brand />
-        <p className="sidebar-caption">让想法，慢慢成为日常。</p>
-        <p className="sidebar-label">我的工作区</p>
         <nav className="workspace-nav" aria-label="主导航">
           <NavLink
             to="/expectations"
@@ -416,7 +414,6 @@ function WorkspaceShell({
           >
             <ListBulletsIcon size={19} />
             <span>主线</span>
-            <span className="nav-hint">01</span>
           </NavLink>
           <NavLink
             to="/profile"
@@ -424,7 +421,6 @@ function WorkspaceShell({
           >
             <GraphIcon size={19} />
             <span>我的画像</span>
-            <span className="nav-hint">02</span>
           </NavLink>
         </nav>
         <button className="capture-launcher" onClick={openCapture}>
@@ -437,16 +433,8 @@ function WorkspaceShell({
           )}
         </button>
         <span className="shortcut-hint">
-          <CommandIcon size={12} /> K · 随手捕捉一个想法
+          <CommandIcon size={12} /> K 快速记下
         </span>
-        <div className="sidebar-note">
-          <span className="eyebrow">ONE STEP AT A TIME</span>
-          <p>
-            不必一次做完。
-            <br />
-            先往前走一小步。
-          </p>
-        </div>
         <div className="sidebar-bottom">
           <NavLink
             to="/settings"
@@ -588,7 +576,6 @@ function CaptureDrawer({
       >
         <header>
           <div>
-            <p className="eyebrow">QUICK CAPTURE</p>
             <h2>先记下，稍后整理</h2>
           </div>
           <button className="icon-control" onClick={onClose} aria-label="关闭">
@@ -759,12 +746,21 @@ export function ExpectationsPage({ user, onLogout }: { user: User; onLogout: () 
   const requested = new URLSearchParams(search).get('view');
   const view = requested === 'list' || requested === 'today' || requested === 'calendar' ? requested : 'mainline';
   const choices = [
-    { id: 'mainline', label: '主线', icon: TargetIcon },
-    { id: 'list', label: '任务列表', icon: ListBulletsIcon },
-    { id: 'today', label: '今日', icon: SunIcon },
-    { id: 'calendar', label: '日历', icon: CalendarIcon },
+    { id: 'mainline', label: '主线' },
+    { id: 'list', label: '任务列表' },
+    { id: 'today', label: '今日' },
+    { id: 'calendar', label: '日历' },
   ];
-  const viewSwitch = <nav className="workspace-views" aria-label="任务视图">{choices.map(({id, label, icon: Icon}) => <button key={id} aria-current={view === id ? 'page' : undefined} onClick={() => navigate(id === 'mainline' ? '/expectations' : `/expectations?view=${id}`)}><Icon size={17} weight={view === id ? 'bold' : 'regular'} />{label}</button>)}</nav>;
+  const viewSwitch = (disabled: boolean) => (
+    <nav className="workspace-views" aria-label="任务视图">
+      {choices.map(({id, label}) => (
+        <button key={id} disabled={disabled} aria-current={view === id ? 'page' : undefined}
+          onClick={() => navigate(id === 'mainline' ? '/expectations' : `/expectations?view=${id}`)}>
+          {label}
+        </button>
+      ))}
+    </nav>
+  );
   if (view === 'mainline') return <MainlineBoard user={user} onLogout={onLogout} viewSwitch={viewSwitch} />;
   return <WorkspaceShell user={user} onLogout={onLogout}><TodoPlanner view={view} viewSwitch={viewSwitch} /></WorkspaceShell>;
 }
@@ -774,7 +770,7 @@ function MainlineBoard({
   user,
   onLogout,
 }: {
-  viewSwitch: ReactNode;
+  viewSwitch: (disabled: boolean) => ReactNode;
   user: User;
   onLogout: () => void;
 }) {
@@ -800,6 +796,7 @@ function MainlineBoard({
   const [editingTodo, setEditingTodo] = useState(false);
   const [showMainlineTools, setShowMainlineTools] = useState(false);
   const [resolutionMode, setResolutionMode] = useState<ResolutionMode>(null);
+  const navigationLocked = loading || saving || editingTodo || showNewTodo || Boolean(resolutionMode);
 
   async function load(
     preferredGoalId?: string | null,
@@ -874,6 +871,7 @@ function MainlineBoard({
     (action) => filter === 'all' || action.status === filter,
   );
   const selectedAction =
+    ((editingTodo || resolutionMode) ? actions.find((action) => action.id === selectedActionId) : undefined) ??
     visibleActions.find((action) => action.id === selectedActionId) ??
     visibleActions[0] ??
     null;
@@ -917,17 +915,17 @@ function MainlineBoard({
     mode: Exclude<ResolutionMode, null>,
     value: string,
   ) {
-    if (!currentAction) return;
+    if (!selectedAction) return;
     setSaving(true);
     setError('');
     try {
       if (mode === 'split')
         await api.splitCurrent({
-          expectedActionId: currentAction.id,
+          expectedActionId: selectedAction.id,
           title: value,
         });
-      if (mode === 'block') await api.blockCurrent(currentAction.id, value);
-      if (mode === 'abandon') await api.abandonCurrent(currentAction.id, value);
+      if (mode === 'block') await api.blockCurrent(selectedAction.id, value);
+      if (mode === 'abandon') await api.abandonCurrent(selectedAction.id, value);
       setNotice(
         mode === 'split'
           ? '已拆成一条更小的 To-do。'
@@ -936,13 +934,13 @@ function MainlineBoard({
             : '已放弃这条 To-do。',
       );
       setResolutionMode(null);
-      await load(currentAction.goalId);
+      await load(selectedAction.goalId);
     } catch (reason) {
       if (
         reason instanceof ApiError &&
         reason.code === 'CURRENT_ACTION_CHANGED'
       )
-        await load(loadTarget.current);
+        await load(loadTarget.current, selectedAction.id);
       setError(messageFor(reason));
     } finally {
       setSaving(false);
@@ -954,11 +952,7 @@ function MainlineBoard({
       <div className="mainline-page">
         <header className="workspace-heading">
           <div>
-            <p className="eyebrow">YOUR EVERYDAY, A LITTLE CLEARER</p>
-            <h1>
-              今天，向前一步<span>。</span>
-            </h1>
-            <p>把注意力留给此刻，把积累留给以后。</p>
+            <h1>主线</h1>
           </div>
           <div className="workspace-date">
             <span>
@@ -972,20 +966,20 @@ function MainlineBoard({
             </small>
           </div>
         </header>
-        {viewSwitch}
+        {viewSwitch(navigationLocked)}
         {error && (
           <div role="alert" className="page-error">
             {error}
             <button
               className="secondary-button"
-              onClick={() => void load(loadTarget.current)}
+              onClick={() => void load(loadTarget.current, selectedActionId)}
               disabled={loading}
             >
               重试
             </button>
           </div>
         )}
-        {loading ? (
+        {loading && !mainline ? (
           <InlineLoading />
         ) : !mainline && error ? null : !mainline ? (
           <FirstMainline
@@ -996,38 +990,6 @@ function MainlineBoard({
           />
         ) : (
           <>
-            <header className="mainline-topbar">
-              <label className="mainline-select-label">
-                当前主线
-                <select
-                  value={mainline.id}
-                  onChange={(event) => {
-                    void load(event.target.value);
-                    setEditingTodo(false);
-                    setShowNewTodo(false);
-                    setResolutionMode(null);
-                    setShowMainlineTools(false);
-                    setNotice('');
-                  }}
-                >
-                  <option value={mainline.id}>{mainline.title}</option>
-                  {mainlines
-                    .filter((goal) => goal.id !== mainline.id)
-                    .map((goal) => (
-                      <option key={goal.id} value={goal.id}>
-                        {goal.title}
-                      </option>
-                    ))}
-                </select>
-                <CaretDownIcon size={14} weight="bold" />
-              </label>
-              <button
-                className="quiet-action"
-                onClick={() => setShowNewGoal(true)}
-              >
-                <PlusIcon size={17} weight="bold" /> 新建主线
-              </button>
-            </header>
             {showNewGoal && (
               <MainlineEditor
                 onCancel={() => setShowNewGoal(false)}
@@ -1055,17 +1017,45 @@ function MainlineBoard({
               id={`goal-${mainline.id}`}
             >
               <div className="mainline-hero-copy">
-                <p className="eyebrow">MAINLINE</p>
-                <h2>{mainline.title}</h2>
+                <div className="mainline-heading-select">
+                  <h2>{mainline.title}</h2>
+                  <CaretDownIcon size={16} aria-hidden="true" />
+                  <select
+                    aria-label="当前主线"
+                    title="切换主线"
+                    value={mainline.id}
+                    disabled={navigationLocked}
+                    onChange={(event) => {
+                      void load(event.target.value);
+                      setEditingTodo(false);
+                      setShowNewTodo(false);
+                      setResolutionMode(null);
+                      setShowMainlineTools(false);
+                      setNotice('');
+                    }}
+                  >
+                    {mainlines.map((goal) => (
+                      <option key={goal.id} value={goal.id}>{goal.title}</option>
+                    ))}
+                  </select>
+                </div>
                 {mainline.doneDefinition && <p>{mainline.doneDefinition}</p>}
               </div>
-              <button
-                className="icon-control"
-                onClick={() => setShowMainlineTools((current) => !current)}
-                aria-label="主线设置"
-              >
-                <DotsThreeIcon size={22} weight="bold" />
-              </button>
+              <div className="mainline-hero-actions">
+                <button className="text-button" disabled={navigationLocked}
+                  onClick={() => setShowNewGoal(true)}>
+                  <PlusIcon size={16} /> 新建主线
+                </button>
+                <button
+                  className="icon-control"
+                  disabled={navigationLocked}
+                  onClick={() => setShowMainlineTools((current) => !current)}
+                  aria-label="主线设置"
+                  aria-expanded={showMainlineTools}
+                >
+                  <DotsThreeIcon size={22} />
+                </button>
+              </div>
               <ProgressLine progress={mainline.progress.progressPercent} />
               <div className="progress-copy">
                 <strong>
@@ -1123,13 +1113,12 @@ function MainlineBoard({
             <div className="board-caption">
               <span>
                 <span className="saved-dot" />{' '}
-                {currentAction
-                  ? '已有一件事，值得此刻专注。'
-                  : '选一个足够小的开始。'}
+                  {currentAction ? '已有当前行动' : '选择任务，开始行动'}
               </span>
               {currentAction && (
                 <button
                   className="text-link"
+                  disabled={navigationLocked}
                   onClick={() => {
                     if (isDesktop()) void desktop('focus');
                     else navigateFocus();
@@ -1143,24 +1132,24 @@ function MainlineBoard({
               <div className="todo-list-pane">
                 <div className="pane-heading">
                   <div>
-                    <p className="eyebrow">TO-DOS</p>
-                    <h2>这条主线的步骤</h2>
+                    <h2>任务 <span className="pane-count">{actions.length}</span></h2>
                   </div>
                   <button
-                    className="icon-control accent"
+                    className="text-button add-task-button"
+                    disabled={navigationLocked || mainline.status !== 'active'}
                     onClick={() => {
                       setShowNewTodo(true);
                       setEditingTodo(false);
                     }}
                     aria-label="新建 To-do"
                   >
-                    <PlusIcon size={19} weight="bold" />
+                    <PlusIcon size={16} /> 添加任务
                   </button>
                 </div>
                 {showNewTodo && (
                   <TodoEditor
                     onCancel={() => setShowNewTodo(false)}
-                    saving={saving}
+                    saving={saving || loading}
                     onSaved={async (input) => {
                       setSaving(true);
                       try {
@@ -1182,18 +1171,21 @@ function MainlineBoard({
                 <div className="task-filters" aria-label="行动筛选">
                   <button
                     className={filter === 'all' ? 'active' : ''}
+                    disabled={navigationLocked}
                     onClick={() => setFilter('all')}
                   >
                     全部 <span>{actions.length}</span>
                   </button>
                   <button
                     className={filter === 'available' ? 'active' : ''}
+                    disabled={navigationLocked}
                     onClick={() => setFilter('available')}
                   >
                     待进行
                   </button>
                   <button
                     className={filter === 'completed' ? 'active' : ''}
+                    disabled={navigationLocked}
                     onClick={() => setFilter('completed')}
                   >
                     已完成
@@ -1207,6 +1199,7 @@ function MainlineBoard({
                       index={index + 1}
                       selected={action.id === selectedAction?.id}
                       current={action.id === currentAction?.id}
+                      disabled={navigationLocked}
                       onSelect={() => {
                         setSelectedActionId(action.id);
                         setEditingTodo(false);
@@ -1226,10 +1219,11 @@ function MainlineBoard({
               <div className="todo-detail-pane">
                 {selectedAction ? (
                   <TodoDetail
+                    key={selectedAction.id}
                     action={selectedAction}
                     mainline={mainline}
                     current={currentAction?.id === selectedAction.id}
-                    saving={saving}
+                    saving={saving || loading}
                     editing={editingTodo}
                     resolutionMode={resolutionMode}
                     onEdit={() => {
@@ -1310,7 +1304,6 @@ function FirstMainline({ onCreated }: { onCreated: (id: string) => void }) {
   return (
     <section className="first-mainline">
       <Brand />
-      <p className="eyebrow">FIRST MAINLINE</p>
       <h1>从一条想持续推进的主线开始。</h1>
       <p>它可以是学习、健康、一个作品，或任何你不想轻易放下的方向。</p>
       <MainlineEditor
@@ -1502,12 +1495,14 @@ function TodoRow({
   index,
   selected,
   current,
+  disabled,
   onSelect,
 }: {
   action: GoalAction;
   index: number;
   selected: boolean;
   current: boolean;
+  disabled: boolean;
   onSelect: () => void;
 }) {
   const statusLabel =
@@ -1526,7 +1521,7 @@ function TodoRow({
     <li
       className={`todo-row ${selected ? 'selected' : ''} status-${action.status}`}
     >
-      <button onClick={onSelect}>
+      <button disabled={disabled} onClick={onSelect}>
         <span className="todo-index">
           {action.status === 'completed' ? (
             <CheckIcon size={16} weight="bold" />
@@ -1585,6 +1580,13 @@ function TodoDetail({
   onCancelResolution: () => void;
   onSubmitResolution: (value: string) => void;
 }) {
+  const secondaryActions = useRef<HTMLDivElement>(null);
+  const wasResolving = useRef(false);
+  useEffect(() => {
+    if (wasResolving.current && !resolutionMode)
+      secondaryActions.current?.querySelector<HTMLButtonElement>('[aria-haspopup="menu"]')?.focus();
+    wasResolving.current = Boolean(resolutionMode);
+  }, [resolutionMode]);
   if (editing)
     return (
       <TodoEditor
@@ -1613,42 +1615,36 @@ function TodoDetail({
         <button
           className="icon-control"
           onClick={onEdit}
+          disabled={saving || Boolean(resolutionMode)}
           aria-label="编辑 To-do"
         >
           <PencilSimpleIcon size={18} weight="bold" />
         </button>
       </div>
+      <div className="todo-detail-body">
       <h2>{action.title}</h2>
       <p className="todo-content">
         {action.content ||
-          '这条 To-do 还没有补充内容。点击右上角编辑，写下具体怎么做。'}
+          '暂无补充内容，可从右上角编辑。'}
       </p>
-      <div className="detail-rule">
-        <span>所属主线</span>
-        <strong>{mainline.title}</strong>
-      </div>
-      <div className="detail-rule">
-        <span>完成标准</span>
-        <strong>
-          {mainline.doneDefinition || '完成这条 To-do 后，再判断主线是否达成。'}
-        </strong>
-      </div>
       <div className="detail-meta">
-        <span>{actionMeta(action)}{action.scheduledDate ? ` · ${action.scheduledDate}` : ''}</span>
-        <span>
-          {mainline.progress.completedTodoCount} /{' '}
-          {mainline.progress.totalTodoCount} 已完成
-        </span>
+        {action.scheduledDate && <span>{action.scheduledDate}</span>}
+        {(action.estimatedMinutes || action.energyRequired) && <span>{actionMeta(action)}</span>}
       </div>
+      {mainline.doneDefinition && <details className="task-context">
+        <summary>查看主线完成标准</summary>
+        <p>{mainline.doneDefinition}</p>
+      </details>}
       {action.blockerNote && action.status === 'blocked' && (
         <p className="blocker-note">卡住的原因：{action.blockerNote}</p>
       )}
-      {action.status === 'blocked' && mainline.status === 'active' && (
+      </div>
+      {action.status === 'blocked' && mainline.status === 'active' && !resolutionMode && (
         <button className="primary-button" disabled={saving} onClick={onResume}>
           恢复这件事
         </button>
       )}
-      {actionable && (
+      {actionable && !resolutionMode && (
         <div className="todo-primary-action">
           {current ? (
             <button
@@ -1668,21 +1664,19 @@ function TodoDetail({
               {current ? '现在做这件事' : '设为现在要做'}
             </button>
           )}
-          {!current && <p>设为当前 To-do 后，它会成为全局唯一的现在行动。</p>}
         </div>
       )}
-      {mainline.status === 'active' && (action.status === 'available' || action.status === 'blocked') &&
-        <AiSplitButton actionId={action.id} disabled={saving} />}
-      {current && (
-        <div className="resolution-links">
-          <button onClick={() => onResolve('split')}>拆小</button>
-          <button onClick={() => onResolve('block')}>卡住</button>
-          <button onClick={() => onResolve('abandon')}>放弃</button>
-          <button onClick={onRelease} disabled={saving}>
-            暂时放下
-          </button>
-        </div>
-      )}
+      <div className="task-secondary-actions" ref={secondaryActions}>
+        {!resolutionMode && mainline.status === 'active' && (action.status === 'available' || action.status === 'blocked') &&
+          <AiSplitButton actionId={action.id} disabled={saving} />}
+        {current && !resolutionMode && <ActionMenu key={action.id} ariaLabel="更多当前任务操作" disabled={saving}
+          items={[
+            { label: '拆小', onSelect: () => onResolve('split') },
+            { label: '卡住', onSelect: () => onResolve('block') },
+            { label: '暂时放下', onSelect: onRelease },
+            { label: '放弃', onSelect: () => onResolve('abandon'), danger: true },
+          ]} />}
+      </div>
       {resolutionMode && (
         <ResolutionEditor
           mode={resolutionMode}
@@ -1723,6 +1717,8 @@ function ResolutionEditor({
             ? '卡住的原因（可选）'
             : '放弃的原因（可选）'}
         <textarea
+          autoFocus
+          disabled={saving}
           value={value}
           onChange={(event) => setValue(event.target.value)}
           required={isSplit}
@@ -1734,7 +1730,7 @@ function ResolutionEditor({
         <button className="secondary-button" disabled={saving}>
           {isSplit ? '拆成更小一步' : '确认保存'}
         </button>
-        <button type="button" className="text-button" onClick={onCancel}>
+        <button type="button" className="text-button" disabled={saving} onClick={onCancel}>
           取消
         </button>
       </div>
@@ -1846,11 +1842,7 @@ export function ProfilePage({
       <div className="profile-page">
         <header className="profile-page-head">
           <div>
-            <p className="eyebrow">A PICTURE OF YOUR PROGRESS</p>
-            <h1>
-              正在形成的自己<span>。</span>
-            </h1>
-            <p>真实的行动，会留下痕迹。</p>
+            <h1>我的画像</h1>
           </div>
           {profile && (
             <div className="profile-fact-strip">
@@ -1926,7 +1918,6 @@ export function ProfilePage({
             </section>
             <section className="profile-underlay">
               <article className="about-card">
-                <p className="eyebrow">ABOUT ME</p>
                 <h2>关于我</h2>
                 <textarea
                   value={description}
@@ -1943,7 +1934,6 @@ export function ProfilePage({
                 </button>
               </article>
               <article className="current-profile-card">
-                <p className="eyebrow">CURRENT TO-DO</p>
                 <h2>{currentAction?.title ?? '暂时没有当前 To-do'}</h2>
                 <p>
                   {currentAction?.content ||
@@ -1963,7 +1953,6 @@ export function ProfilePage({
             <section className="knowledge-section">
               <div className="section-heading">
                 <div>
-                  <p className="eyebrow">KNOWLEDGE</p>
                   <h2>从主线中沉淀的知识</h2>
                 </div>
                 <p>知识始终连接它产生的主线，而不是脱离语境的标签。</p>
@@ -2112,7 +2101,6 @@ function ProfileExperiences({
     <section className="experience-section">
       <div className="section-heading">
         <div>
-          <p className="eyebrow">EXPERIENCE</p>
           <h2>已经完成的主线</h2>
         </div>
         <p>把你的感受和经验留在事实旁边。</p>
@@ -2232,11 +2220,7 @@ function SettingsPage({
       <div className="settings-page">
         <header className="workspace-heading">
           <div>
-            <p className="eyebrow">MAKE YOURSELF AT HOME</p>
-            <h1>
-              你的工作区<span>。</span>
-            </h1>
-            <p>让记录安心留下，让使用简单一点。</p>
+            <h1>设置</h1>
           </div>
           <GearSixIcon size={32} weight="thin" />
         </header>
@@ -2261,7 +2245,6 @@ function SettingsPage({
             <HardDriveIcon size={23} />
           </div>
           <div>
-            <p className="eyebrow">YOUR DATA, YOURS TO KEEP</p>
             <h2>所有积累，都属于你</h2>
             <p>主线、行动、收集、知识与完成记录，一起保存在 JSON 备份里。</p>
             <div className="settings-actions">
@@ -2475,7 +2458,6 @@ function FocusWindow() {
         <InlineLoading />
       ) : (
         <>
-          <p className="eyebrow">ONE SMALL STEP</p>
           {error && (
             <p className="page-error" role="alert">
               {error}

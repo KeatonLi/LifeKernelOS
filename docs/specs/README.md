@@ -14,6 +14,7 @@ Spec 是功能开发与验收的直接契约：它把 [PRD](../product/PRD.md) �
 
 | 编号 | 名称 | 产品位置 | 依赖 | 状态 |
 | --- | --- | --- | --- | --- |
+| [SPEC-0015](current/0015-minimal-action-interface.md) | 简约行动界面 | 主线、列表、今日、日历 | `SPEC-0010`、`SPEC-0012`、`SPEC-0013`、`SPEC-0014` | Implemented |
 | [SPEC-0014](current/0014-byok-ai-task-decomposition.md) | 用户 API Key 与 AI 任务拆解 | 桌面设置、任务详情 | `SPEC-0010`、`SPEC-0012`、`SPEC-0013` | Implemented |
 | [SPEC-0013](current/0013-basic-todo-and-calendar.md) | 基础 Todo 与日历 | 主线内多视图 | `SPEC-0010`、`SPEC-0012` | Implemented |
 | [SPEC-0012](current/0012-electron-desktop.md) | Electron 本地桌面行动工作区 | 桌面默认入口 | `SPEC-0010`、`SPEC-0011`、`SPEC-0005` | Implemented |
@@ -24,6 +25,8 @@ Spec 是功能开发与验收的直接契约：它把 [PRD](../product/PRD.md) �
 `SPEC-0010` 与 `SPEC-0011` 分别承接当前两个一级 Tab，`SPEC-0005` 作为跨页面辅助抽屉补齐入口。v0.8 的代码和自动化测试已经完成并进入 `Implemented`；浏览器人工验收和真实用户验证完成前不得标记为 `Verified`。
 
 桌面运行、无登录身份和导入恢复以 SPEC-0012 为准；SPEC-0008 保留兼容 Web 入口约束。
+
+2026-10-05 用户要求先完成简约界面再研发新功能；SPEC-0015 的日常页头、按钮层次、更多菜单、辅助字段与按需详情已进入 Implemented。84 项自动化回归、类型和生产/桌面构建通过；1360×900 与 900×640 浏览器四视图检查通过，实机边界与证据见该规格。既有领域、日期与 AI 规则继续有效。画像概览优先、回顾及新 AI 场景仍为 Proposed，不属于本轮实现范围。
 
 ## Foundation：基础能力规格
 

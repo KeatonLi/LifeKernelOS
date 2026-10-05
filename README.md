@@ -4,7 +4,7 @@ LifeKernelOS 是一个目标驱动的个人行动工具，让重要的事变成�
 
 默认客户端使用 **Electron + React + TypeScript**。打开即可用，无需登录、部署服务或联网。记录保存在本机；主线进度来自完成事实。
 
-![任务与月历](docs/images/todo-calendar.jpg)
+![简约主线工作区](docs/images/minimal-mainline.jpg)
 
 ## 本轮产品内容
 
@@ -15,7 +15,7 @@ LifeKernelOS 是一个目标驱动的个人行动工具，让重要的事变成�
 - **我的画像**：主线、完成事实、知识、自我描述和经历的可追溯图谱。
 - **AI 任务拆解**：配置自己的 API Key，查看并编辑建议、选择采纳；保留来源与原日期，结果面板支持安全撤销。
 - **桌面体验**：专注小窗、收集小窗、快捷键、自动保存、导出、确认后备份导入。
-- **视觉**：冷白与石墨黑，朱橙强调当前行动和主要操作；清楚的文字层级、低噪声侧栏，完成操作留在首屏。
+- **简约界面**：保留冷白、石墨黑与朱橙。紧凑页头、统一按钮层次，低频操作进入“更多”；时长与精力按需展开，任务详情选中后展示，小窗口仍可直接操作当前任务。
 
 当前已接入用户 Key 的任务拆解，基础 Todo 与日历继续独立使用。AI 仅在用户请求时提供建议，须确认后才修改任务；不替用户判断人格、能力或人生优先级。体验参考见[官方产品调研](docs/product/todo-reference-products.md)。
 
@@ -74,7 +74,7 @@ npm run build
 npm run test:desktop # 真实 Electron 启动、IPC、小窗及重启测试；需要图形环境
 ```
 
-PRD v0.11、ADR-0009/0010/0012 已接受；SPEC-0012/0013/0014 为 `Implemented`。68 项自动化回归、浏览器 Todo 闭环、类型与生产构建通过；新增 Key 隔离、错误恢复、采纳幂等与撤销保护。原生 CI 使用本机脚本服务测试模型请求流程，不代表真实模型质量已验收。当前执行环境禁止 Electron 所需的 Unix socket；真实三平台启动交由 CI，**真实 Key / 模型调用、系统密钥服务、原生对话框、全局快捷键与实机安装仍待人工验收**，未标记 `Verified`。
+PRD v0.11、ADR-0009/0010/0012 及 ADR-0011 的日常渐进展示范围已接受；SPEC-0012/0013/0014/0015 为 `Implemented`。85 项自动化回归、浏览器任务闭环、类型与生产构建通过；本轮验证了更多菜单、键盘与焦点、辅助字段保留、按需详情及编辑保护。界面截图覆盖 1360×900 和 900×640，使用独立示例数据。本轮未进行 Electron 实机验收；原生 CI 的本机脚本模型测试也不代表真实模型质量验收。**真实 Key / 模型调用、系统密钥服务、原生对话框、全局快捷键与实机安装仍待人工验收**，未标记 `Verified`。
 
 详见 [桌面验收记录](docs/development/desktop-acceptance.md) 与 [视觉 QA](design-qa.md)。界面预览使用独立示例工作区，不会在首次桌面启动时生成示例记录：
 
@@ -93,8 +93,8 @@ npm run dev:legacy
 
 ## 产品与协作事实源
 
-从 [AGENTS.md](AGENTS.md) 或 [llms.txt](llms.txt) 进入，按 [文档索引](docs/README.md) 路由。[PRD](docs/product/PRD.md) 记录产品范围，[ADR-0009](docs/architecture/decisions/0009-electron-local-desktop.md) 记录桌面选择，[SPEC-0012](docs/specs/current/0012-electron-desktop.md) 和 [SPEC-0013](docs/specs/current/0013-basic-todo-and-calendar.md) 记录可验证行为。用户 Key 与拆解见 [ADR-0012](docs/architecture/decisions/0012-local-byok-ai.md) / [SPEC-0014](docs/specs/current/0014-byok-ai-task-decomposition.md)。
+从 [AGENTS.md](AGENTS.md) 或 [llms.txt](llms.txt) 进入，按 [文档索引](docs/README.md) 路由。[PRD](docs/product/PRD.md) 记录产品范围，[ADR-0009](docs/architecture/decisions/0009-electron-local-desktop.md) 记录桌面选择，[SPEC-0012](docs/specs/current/0012-electron-desktop.md) 和 [SPEC-0013](docs/specs/current/0013-basic-todo-and-calendar.md) 记录可验证行为。用户 Key 与拆解见 [ADR-0012](docs/architecture/decisions/0012-local-byok-ai.md) / [SPEC-0014](docs/specs/current/0014-byok-ai-task-decomposition.md)；简约界面见 [SPEC-0015](docs/specs/current/0015-minimal-action-interface.md)。
 
 需求先进入 PRD/ADR/Spec，再实现与验证；`Implemented` 与 `Verified` 分开记录。`sources/` 保持只读。
 
-下一版产品方向见 [PRD v0.11 草案](docs/product/next-direction-prd.md)：目标驱动定位与用户 Key 拆解已经确认，纳入当前 PRD；更简约的渐进展示、事实回顾与画像调整继续保留为 `Proposed`。
+下一版产品方向见 [PRD v0.11 方向讨论](docs/product/next-direction-prd.md)：定位、用户 Key 拆解与日常简约界面已纳入当前 PRD。先体验并定稿本轮界面，再研发新功能；画像概览优先、事实回顾与新 AI 场景仍为 `Proposed`。
