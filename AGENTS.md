@@ -35,6 +35,7 @@
 ### 当前必须优先读取的文档
 
 - 产品事实源：[PRD v0.11](docs/product/PRD.md)
+- 最新产品评审：[PRD v0.12 行动积累与个人成长卡片](docs/product/goal-growth-prd.md) 与 [ADR-0013](docs/architecture/decisions/0013-goal-growth-and-automatic-ai.md)，均为 Proposed；用户当前只要求审核文档，不实施新功能。新的自动归类、行动解读、成长值和卡片优先级尚未替代当前 Accepted 边界。
 - 系统边界：[系统架构](docs/architecture/system-architecture.md)
 - 可执行设计：[详细技术设计](docs/architecture/technical-design.md)
 - 当前目标模型决策：[ADR-0008](docs/architecture/decisions/0008-mainline-groups-derived-todo-progress.md)

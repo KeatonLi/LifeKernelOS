@@ -18,6 +18,7 @@
 | 想确认什么 | 当前文档 |
 | --- | --- |
 | 产品定位、主线、快速收集箱、我的画像及价值问题 | [PRD v0.11](product/PRD.md) |
+| 最新产品提案：四目标、完成后自动归类、成长卡片与分析 | [PRD v0.12 评审稿](product/goal-growth-prd.md)，Proposed；[ADR-0013](architecture/decisions/0013-goal-growth-and-automatic-ai.md) 为配套提案 |
 | 当前实现缺口、待验收与后续功能建议 | [功能完成度分析](product/feature-gap-analysis.md) |
 | 系统边界和模块关系 | [系统架构](architecture/system-architecture.md) |
 | 数据模型、HTTP DTO、事务和交付切片 | [详细技术设计](architecture/technical-design.md) |

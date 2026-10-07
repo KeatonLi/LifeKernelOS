@@ -96,6 +96,8 @@ npm run dev:legacy
 
 ## 产品与协作事实源
 
+最新产品提案：[PRD v0.12：行动积累与个人成长卡片](docs/product/goal-growth-prd.md)。完成 Todo 后自动识别成长目标、归集完成事实、生成推进分析和个人总结，并用等级与里程碑呈现积累。该稿已进入评审，尚未开发；当前功能仍按 v0.11 基线运行。
+
 从 [AGENTS.md](AGENTS.md) 或 [llms.txt](llms.txt) 进入，按 [文档索引](docs/README.md) 路由。[PRD](docs/product/PRD.md) 记录产品范围，[ADR-0009](docs/architecture/decisions/0009-electron-local-desktop.md) 记录桌面选择，[SPEC-0012](docs/specs/current/0012-electron-desktop.md) 和 [SPEC-0013](docs/specs/current/0013-basic-todo-and-calendar.md) 记录可验证行为。用户 Key 与拆解见 [ADR-0012](docs/architecture/decisions/0012-local-byok-ai.md) / [SPEC-0014](docs/specs/current/0014-byok-ai-task-decomposition.md)；简约界面见 [SPEC-0015](docs/specs/current/0015-minimal-action-interface.md)。
 
 需求先进入 PRD/ADR/Spec，再实现与验证；`Implemented` 与 `Verified` 分开记录。`sources/` 保持只读。

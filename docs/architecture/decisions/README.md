@@ -18,6 +18,7 @@ ADR 记录影响多个 Spec、需要长期遵守的关键选择，以及做出�
 | [ADR-0010](0010-todo-calendar-views.md) | 基础 Todo 与日历共用任务事实 | Accepted | 日期、直接处理、多视图与 v6/v7 备份 |
 | [ADR-0011](0011-progressive-action-workspace.md) | 个人行动工作区采用渐进展示 | Accepted（日常范围） | 紧凑页头、统一按钮与更多、辅助字段及详情按需展示；画像概览、回顾、新 AI 场景仍 Proposed |
 | [ADR-0012](0012-local-byok-ai.md) | 用户 API Key 与桌面 AI 请求边界 | Accepted | 主进程密钥、明确请求和业务事务采纳/撤销 |
+| [ADR-0013](0013-goal-growth-and-automatic-ai.md) | 成长目标归集与完成后的自动 AI | Proposed | 配套 PRD v0.12 评审；尚未替代现有目标、画像与 AI 决策 |
 
 ## 状态规则
 

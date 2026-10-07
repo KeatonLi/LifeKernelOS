@@ -7,6 +7,8 @@
 > 核心变更：确认日常行动界面的简约化；保留冷白/石墨黑/朱橙与现有导航，先收敛页头、按钮及辅助字段，再研发新功能。已有用户 API Key 与明确采纳的 AI 拆解继续可用。
 > 产品决策：[ADR-0007 双 Tab 控制台信息架构](../architecture/decisions/0007-two-tab-console-information-architecture.md)、[ADR-0008 主线分组与派生 To-do 进度](../architecture/decisions/0008-mainline-groups-derived-todo-progress.md)
 
+> 新版待审核（2026-10-07）：[PRD v0.12：行动积累与个人成长卡片](goal-growth-prd.md)，提出四个成长目标、完成后 AI 自动归类、推进分析与游戏化反馈。该稿为 Proposed，已提交文档不等于审核通过；本文继续记录当前 Accepted 基线。
+
 方向讨论记录见 [方向草案](next-direction-prd.md)：定位、BYOK 任务拆解与日常界面简约化已由用户确认并进入本文；画像概览优先、回顾与新 AI 场景仍为 `Proposed`。本轮界面契约见 [SPEC-0015](../specs/current/0015-minimal-action-interface.md)，跨规格展示边界见 [ADR-0011](../architecture/decisions/0011-progressive-action-workspace.md)。
 
 ## 1. 产品是什么

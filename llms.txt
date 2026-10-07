@@ -26,6 +26,9 @@
 
 ## Product direction proposal
 
+- [PRD v0.12: action accumulation and personal growth cards](docs/product/goal-growth-prd.md): latest Proposed review draft, four configurable growth goals, automatic tagging after completion, evidence-linked AI analysis, and game-like progress. Documentation review only; no new behavior implemented or accepted.
+- [ADR-0013](docs/architecture/decisions/0013-goal-growth-and-automatic-ai.md): Proposed cross-spec boundaries for goal aggregation, completion events, automatic AI, and growth projections; existing Accepted decisions remain effective.
+
 - [PRD v0.11 direction discussion](docs/product/next-direction-prd.md): Goal-driven positioning, BYOK decomposition and minimal daily UI have been accepted in the current PRD. Profile overview priority, factual review and new AI scenarios remain Proposed.
 - [ADR-0011](docs/architecture/decisions/0011-progressive-action-workspace.md): Accepted progressive display for daily task views. Profile overview priority, review and new AI scenarios remain Proposed; the profile graph remains the main view.
 
