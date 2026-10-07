@@ -15,7 +15,7 @@
 | AI 主进程与本机脚本服务 | 鉴权、预览、幂等采纳、撤销、任务备份不含 Key、重启清会话 Key 通过 |
 | 导入真实 IPC | 测试替身提供文件对话框和确认结果；确认期间新写入返回 WORKSPACE_CHANGED，取消保留数据，重新确认后备份恢复，Key 配置保留 |
 | Windows x64 打包 ASAR | 从临时 cwd 加载，运行以上任务/AI/导入/重启闭环通过 |
-| GitHub 五目标原生检查与八包构建 | 由[完整运行](https://github.com/KeatonLi/LifeKernelOS/actions/runs/37572331361)记录实际结果，产物可在 Actions 下载 |
+| GitHub 五目标原生检查与八包构建 | [完整运行](https://github.com/KeatonLi/LifeKernelOS/actions/runs/37573813850)，实现提交 `6c308df`：五个检查与五个打包任务全部 success；五个产物含八个安装包及八个 SHA-256，可在 Actions 下载 |
 
 打包 ASAR 的 GUI 闭环使用锁定的 npm Electron 运行时；实际打包可执行文件由包检查另行验证架构、版本与内置 SQLite。测试替身不代表原生对话框的人工交互验收。真实模型质量、各系统密钥服务、快捷键、最小窗口操作及安装器实机安装仍待人工；当前安装包未签名，相关 Spec 保持 Implemented。
 

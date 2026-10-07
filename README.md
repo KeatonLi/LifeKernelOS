@@ -75,7 +75,7 @@ npm run build
 npm run test:desktop # 真实 Electron 启动、IPC、小窗及重启测试；需要图形环境
 ```
 
-2026-10-07：105 项业务、HTTP、DOM、迁移与恢复回归及 7 项打包/发布门禁回归通过。补齐收集箱错误重试与写入保护、画像草稿保留、原任务编辑绑定、导入确认版本保护、旧 Web 完成校验和 AI 撤销后重试事实；主线与画像进度使用一致聚合读取。Windows x64 的真实 Electron 启动、任务/AI 闭环、导入冲突与取消/恢复、退出后重启通过。四种 macOS / Windows 架构已配置原生 CI，完整打包结果以首次 Actions 执行和[验收记录](docs/development/desktop-acceptance.md)为准。
+2026-10-07：105 项业务、HTTP、DOM、迁移与恢复回归及 7 项打包/发布门禁回归通过。补齐收集箱错误重试与写入保护、画像草稿保留、原任务编辑绑定、导入确认版本保护、旧 Web 完成校验和 AI 撤销后重试事实；主线与画像进度使用一致聚合读取。[完整 GitHub 运行](https://github.com/KeatonLi/LifeKernelOS/actions/runs/37573813850)的五个原生检查和五个打包任务全部成功，macOS / Windows ARM64 与 x64、Linux x64 共八个安装包及独立 SHA-256 已上传；各目标通过架构、运行时/SQLite、ASAR 资源及任务/AI/导入/重启闭环。详细证据见[验收记录](docs/development/desktop-acceptance.md)。
 
 PRD v0.11、ADR-0009/0010/0012 及 ADR-0011 的日常渐进展示范围已接受；SPEC-0012/0013/0014/0015 为 `Implemented`。已有浏览器界面证据覆盖 1360×900 和 900×640、更多菜单、键盘与焦点、辅助字段保留及按需详情，使用独立示例数据。本机脚本模型测试不代表真实模型质量验收。**真实 Key / 模型调用、系统密钥服务、原生对话框交互、全局快捷键与实机安装仍待人工验收**，未标记 `Verified`。
 
