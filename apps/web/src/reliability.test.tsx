@@ -167,7 +167,7 @@ test('SPEC-0015：更多进入卡住流程，失败保留原因并按原行动�
   fireEvent.click(trigger);
   fireEvent.click(view.getByRole('menuitem', { name: '卡住' }));
   const input = view.getByLabelText('卡住的原因（可选）') as HTMLTextAreaElement;
-  await waitFor(() => assert.equal(document.activeElement, input));
+  await waitFor(() => assert.ok(document.activeElement === input, '卡住表单应聚焦原因输入'));
   assert.equal(view.queryByRole('menu'), null);
   fireEvent.change(input, { target: { value: '需要先拿到资料' } });
   fireEvent.click(view.getByRole('button', { name: '确认保存' }));
@@ -191,7 +191,7 @@ test('SPEC-0015：取消更多中的拆小不写任务，返回焦点且切任�
   fireEvent.change(view.getByLabelText('更小的一步'), { target: { value: '只整理一个文件' } });
   fireEvent.click(view.getByRole('button', { name: '取消' }));
   const trigger = view.getByRole('button', { name: '更多当前任务操作' });
-  await waitFor(() => assert.equal(document.activeElement, trigger));
+  await waitFor(() => assert.ok(document.activeElement === trigger, '取消处理后应聚焦更多按钮'));
   fireEvent.click(trigger);
   fireEvent.click(view.getByRole('button', { name: /任务 other/ }));
   await view.findByRole('heading', { name: '任务 other' });
@@ -371,7 +371,7 @@ test('SPEC-0012：收集抽屉 Escape 关闭并返回原键盘焦点', async () 
   await view.findByRole('dialog', { name: '快速收集箱' });
   fireEvent.keyDown(document, { key: 'Escape' });
   await waitFor(() => assert.equal(view.queryByRole('dialog', { name: '快速收集箱' }), null));
-  await waitFor(() => assert.equal(document.activeElement, launcher));
+  await waitFor(() => assert.ok(document.activeElement === launcher, '关闭收集抽屉后应聚焦原入口'));
 });
 
 test('SPEC-0012：已打开的收集抽屉同步其他窗口的新记录', async () => {
@@ -554,12 +554,12 @@ test('SPEC-0011：画像后台刷新保留自述、经历与知识草稿和键�
   await act(async () => dataChanged());
   await waitFor(() => assert.equal(view.getByText('步已完成').previousElementSibling!.textContent, '1'));
   assert.equal(read.mock.calls.length, 2);
-  assert.equal(view.getByPlaceholderText('写下你想如何理解自己，或暂时留白。'), description);
-  assert.equal(view.getByPlaceholderText('这条主线带给你的经历或认识…'), summary);
+  assert.ok(view.getByPlaceholderText('写下你想如何理解自己，或暂时留白。') === description, '刷新不能重新挂载自述输入');
+  assert.ok(view.getByPlaceholderText('这条主线带给你的经历或认识…') === summary, '刷新不能重新挂载经历输入');
   assert.equal(description.value, '尚未保存的自述');
   assert.equal(summary.value, '尚未保存的经历');
   assert.equal((view.getByLabelText('知识标题') as HTMLInputElement).value, '尚未保存的知识');
-  assert.equal(document.activeElement, summary);
+  assert.ok(document.activeElement === summary, '后台刷新应保留经历输入的焦点');
 });
 
 test('SPEC-0011：画像过期读取不能覆盖新事实或未编辑的自述', async () => {

@@ -253,9 +253,9 @@ test('SPEC-0013：浏览器 input 日期事件立即更新，编辑其他字段�
   await page.findByRole('heading', {name: '修改后的标题'});
   assert.equal(records[0].scheduledDate, '2026-10-08');
   // The saved heading can appear before the passive editor-close effect restores focus.
-  await waitFor(() => assert.equal(
-    document.activeElement,
-    page.getByRole('button', { name: '新建任务' }),
+  await waitFor(() => assert.ok(
+    document.activeElement === page.getByRole('button', { name: '新建任务' }),
+    '保存后焦点应返回新建任务按钮',
   ));
 });
 
@@ -487,23 +487,23 @@ test('SPEC-0015：选择与返回当前定位详情，关闭后键盘焦点回�
   row.focus();
   fireEvent.click(row);
   const inspector = page.getByRole('complementary', { name: '任务详情' });
-  await waitFor(() => assert.equal(document.activeElement, inspector));
-  assert.equal(scrollTargets.at(-1), inspector);
+  await waitFor(() => assert.ok(document.activeElement === inspector, '选择任务后焦点应进入详情'));
+  assert.ok(scrollTargets.at(-1) === inspector, '应滚动到任务详情');
   fireEvent.click(page.getByRole('button', { name: '关闭任务详情' }));
-  await waitFor(() => assert.equal(document.activeElement, row));
-  assert.equal(scrollTargets.at(-1), row);
+  await waitFor(() => assert.ok(document.activeElement === row, '关闭详情后焦点应返回任务行'));
+  assert.ok(scrollTargets.at(-1) === row, '应滚动到原任务行');
   fireEvent.change(page.getByLabelText('搜索任务'), { target: { value: 'focus-other' } });
   const returnCurrent = page.getByRole('button', { name: '返回当前任务' });
   returnCurrent.focus();
   fireEvent.click(returnCurrent);
   const currentInspector = page.getByRole('complementary', { name: '任务详情' });
-  await waitFor(() => assert.equal(document.activeElement, currentInspector));
-  assert.equal(scrollTargets.at(-1), currentInspector);
+  await waitFor(() => assert.ok(document.activeElement === currentInspector, '返回当前任务后焦点应进入详情'));
+  assert.ok(scrollTargets.at(-1) === currentInspector, '应滚动到当前任务详情');
   assert.equal((page.getByLabelText('搜索任务') as HTMLInputElement).value, 'focus-other');
   fireEvent.click(page.getByRole('button', { name: '关闭任务详情' }));
   const nextReturn = page.getByRole('button', { name: '返回当前任务' });
-  await waitFor(() => assert.equal(document.activeElement, nextReturn));
-  assert.equal(scrollTargets.at(-1), nextReturn);
+  await waitFor(() => assert.ok(document.activeElement === nextReturn, '关闭当前任务详情后焦点应返回入口'));
+  assert.ok(scrollTargets.at(-1) === nextReturn, '应滚动到当前任务入口');
 });
 
 test('SPEC-0015：可交互视图入口在编辑和写入期间禁用，保存后恢复且保留草稿', async () => {

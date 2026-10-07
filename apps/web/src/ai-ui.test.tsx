@@ -97,7 +97,7 @@ test('SPEC-0014：预览可编辑和勾选，应用只提交所选内容，结�
   fireEvent.click(view.getByRole('button', { name: '撤销本次拆解' }));
   await view.findByRole('heading', { name: '已撤销本次拆解' });
   fireEvent.keyDown(document, { key: 'Escape' });
-  assert.equal(view.queryByRole('dialog'), null); assert.equal(document.activeElement, opener);
+  assert.equal(view.queryByRole('dialog'), null); assert.ok(document.activeElement === opener, '关闭 AI 面板后应聚焦原入口');
 });
 test('SPEC-0014：取消后晚到建议不显示，错误保留补充要求，模型文本不执行 HTML', async () => {
   let release!: (value: Result) => void;
