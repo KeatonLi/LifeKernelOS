@@ -51,6 +51,7 @@ function parse<T>(schema: z.ZodType<T>, value: unknown): T {
   }
   return result.data;
 }
+const hasChanges = (value: object) => Object.values(value).some(item => item !== undefined);
 
 /** Explicit IPC use-case allowlist; user identity is supplied by the trusted worker. */
 export function dispatch(
@@ -118,7 +119,8 @@ export function dispatch(
                   title: text(100).optional(),
                   doneDefinition: text(300).nullable().optional(),
                 })
-                .strict(),
+                .strict()
+                .refine(hasChanges, '至少更新一项内容'),
               body,
             ),
           ),
@@ -162,7 +164,7 @@ export function dispatch(
           action: service.updateActionMetadata(
             id,
             resourceId,
-            parse(actionInput.partial(), body),
+            parse(actionInput.partial().refine(hasChanges, '至少更新一项内容'), body),
           ),
         };
       if (operation === 'resume' && method === 'POST')
@@ -216,7 +218,8 @@ export function dispatch(
                     ])
                     .optional(),
                 })
-                .strict(),
+                .strict()
+                .refine(hasChanges, '至少更新一项内容'),
               body,
             ),
           ),
@@ -235,7 +238,8 @@ export function dispatch(
               availableMinutes: minutes.nullable().optional(),
               energy: energy.nullable().optional(),
             })
-            .strict(),
+            .strict()
+            .refine(hasChanges, '至少记录一项当前状态'),
           body,
         ),
       ),

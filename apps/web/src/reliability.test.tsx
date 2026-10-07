@@ -13,7 +13,7 @@ Object.defineProperties(globalThis, {
 });
 const { render, fireEvent, waitFor, cleanup, act } = await import('@testing-library/react');
 const { MemoryRouter, useNavigate } = await import('react-router-dom');
-const { ExpectationsPage, ProfilePage, buildProfileFlow } = await import('./App.js');
+const { default: App, ExpectationsPage, ProfilePage, buildProfileFlow } = await import('./App.js');
 const { api, dataChanged } = await import('./api.js');
 import type { Capture, Mainline, GoalAction, Profile, ProfileGraphNode } from './api.js';
 
@@ -375,4 +375,225 @@ test('SPEC-0012：工作区读取故障显示重试，不能伪装成登录失�
   assert.equal(view.queryByLabelText('密码'), null);
   fireEvent.click(view.getByRole('button', { name: '重新打开' }));
   await view.findByRole('heading', { name: '主线' });
+});
+
+function capture(id = 'capture'): Capture {
+  return { id, userId: user.id, content: `记录 ${id}`, type: null, status: 'inbox', convertedActionId: null, createdAt: new Date().toISOString(), updatedAt: '' };
+}
+function captureView() {
+  mock.method(api, 'me', async () => ({ user }));
+  mock.method(api, 'goals', async () => ({ goals: [goal('a')] }));
+  return render(<MemoryRouter initialEntries={['/capture']}><App /></MemoryRouter>);
+}
+
+test('SPEC-0005：收集箱首次读取失败不显示清空，可重试且保留收集草稿', async () => {
+  let attempts = 0;
+  mock.method(api, 'captures', async () => {
+    if (++attempts === 1) throw new Error('收集箱未能读取');
+    return { captures: [capture()] };
+  });
+  const view = captureView();
+  const input = await view.findByLabelText('收集内容');
+  fireEvent.change(input, { target: { value: '读取失败时继续记下' } });
+  await view.findByRole('alert');
+  assert.equal(view.queryByText('收集箱已经清空。'), null);
+  fireEvent.click(view.getByRole('button', { name: '重试读取收集箱' }));
+  await view.findByText('记录 capture');
+  assert.equal(view.queryByRole('alert'), null);
+  assert.equal((view.getByLabelText('收集内容') as HTMLTextAreaElement).value, '读取失败时继续记下');
+});
+
+test('SPEC-0005：收集箱较早读取迟到不能覆盖最新记录', async () => {
+  let release!: (value: { captures: Capture[] }) => void;
+  let reads = 0;
+  mock.method(api, 'captures', async () => {
+    if (++reads === 1) return new Promise(resolve => { release = resolve; });
+    return { captures: [capture('latest')] };
+  });
+  const view = captureView();
+  await waitFor(() => assert.equal(reads, 1));
+  await act(async () => dataChanged());
+  await view.findByText('记录 latest');
+  await act(async () => release({ captures: [capture('old')] }));
+  assert.equal(view.queryByText('记录 old'), null);
+  assert.ok(view.getByText('记录 latest'));
+});
+
+test('SPEC-0005：保存期间不能重复提交或关闭，失败保留输入并可重试', async () => {
+  setupMainlines();
+  mock.method(api, 'goalActions', async () => ({ actions: [] }));
+  mock.method(api, 'captures', async () => ({ captures: [] }));
+  let rejectWrite!: (error: Error) => void;
+  const write = mock.method(api, 'createCapture', async () => new Promise<{ capture: Capture }>((_resolve, reject) => { rejectWrite = reject; }));
+  const view = mainlineView();
+  fireEvent.click(await view.findByRole('button', { name: '快速记下' }));
+  const input = await view.findByLabelText('收集内容') as HTMLTextAreaElement;
+  fireEvent.change(input, { target: { value: '不能丢掉的草稿' } });
+  const form = input.closest('form')!;
+  fireEvent.submit(form);
+  fireEvent.submit(form);
+  assert.equal(write.mock.calls.length, 1);
+  assert.equal(input.disabled, true);
+  assert.equal((view.getByRole('button', { name: '关闭' }) as HTMLButtonElement).disabled, true);
+  fireEvent.keyDown(document, { key: 'Escape' });
+  assert.ok(view.getByRole('dialog', { name: '快速收集箱' }));
+  fireEvent.mouseDown(view.container.querySelector('.capture-backdrop')!);
+  assert.ok(view.getByRole('dialog', { name: '快速收集箱' }));
+  await act(async () => rejectWrite(new Error('保存暂时失败')));
+  await view.findByRole('alert');
+  assert.equal(input.value, '不能丢掉的草稿');
+  assert.equal(input.disabled, false);
+  mock.method(api, 'createCapture', async () => ({ capture: capture('saved') }));
+  fireEvent.submit(form);
+  await waitFor(() => assert.equal(input.value, ''));
+});
+
+test('SPEC-0005：转换写入锁定整理操作，失败保留目标和标题', async () => {
+  mock.method(api, 'captures', async () => ({ captures: [capture('first'), capture('second')] }));
+  let rejectWrite!: (error: Error) => void;
+  const write = mock.method(api, 'convertCapture', async () => new Promise<{ capture: Capture; action: GoalAction }>((_resolve, reject) => { rejectWrite = reject; }));
+  const view = captureView();
+  fireEvent.click((await view.findAllByRole('button', { name: '转为 To-do' }))[0]);
+  const input = view.getByLabelText('To-do 标题') as HTMLInputElement;
+  fireEvent.change(input, { target: { value: '用户确认的标题' } });
+  fireEvent.submit(input.closest('form')!);
+  fireEvent.submit(input.closest('form')!);
+  assert.equal(write.mock.calls.length, 1);
+  for (const button of view.getAllByRole('button', { name: /归档|删除|取消|转为 To-do/ })) {
+    assert.equal((button as HTMLButtonElement).disabled, true);
+  }
+  assert.equal(input.disabled, true);
+  await act(async () => rejectWrite(new Error('目标主线已暂停')));
+  await view.findByRole('alert');
+  assert.equal(input.value, '用户确认的标题');
+  assert.equal((view.getByLabelText('归入主线') as HTMLSelectElement).value, 'a');
+  assert.ok(view.getByText('记录 first'));
+});
+
+test('SPEC-0005：整理目标被后台停用时保留选择，要求重新选主线', async () => {
+  mock.method(api, 'captures', async () => ({ captures: [capture()] }));
+  const view = captureView();
+  fireEvent.click(await view.findByRole('button', { name: '转为 To-do' }));
+  let goals = [goal('b')];
+  const read = mock.method(api, 'goals', async () => ({ goals }));
+  const write = mock.method(api, 'convertCapture', async (_id: string, input: { goalId: string; title: string }) => ({ capture: capture(), action: action(input.title, input.goalId) }));
+  await act(async () => dataChanged());
+  await waitFor(() => assert.equal(read.mock.calls.length, 1));
+  const target = view.getByLabelText('归入主线') as HTMLSelectElement;
+  assert.equal(target.value, 'a');
+  assert.ok(view.getByRole('option', { name: '原主线已不可用，请重新选择' }));
+  assert.equal((view.getByRole('button', { name: '转为 To-do' }) as HTMLButtonElement).disabled, true);
+  fireEvent.submit(target.closest('form')!);
+  assert.equal(write.mock.calls.length, 0);
+  fireEvent.change(target, { target: { value: 'b' } });
+  fireEvent.click(view.getByRole('button', { name: '转为 To-do' }));
+  await waitFor(() => assert.equal(write.mock.calls.length, 1));
+  assert.equal(write.mock.calls[0].arguments[1].goalId, 'b');
+});
+
+test('SPEC-0005：侧栏待整理数量不被抽屉加载前的旧读取回退', async () => {
+  setupMainlines();
+  mock.method(api, 'goalActions', async () => ({ actions: [] }));
+  let release!: (value: { captures: Capture[] }) => void;
+  let reads = 0;
+  mock.method(api, 'captures', async () => {
+    if (++reads === 1) return new Promise(resolve => { release = resolve; });
+    return { captures: [capture('new')] };
+  });
+  const view = mainlineView();
+  fireEvent.click(await view.findByRole('button', { name: '快速记下' }));
+  await view.findByText('记录 new');
+  assert.equal(view.container.querySelector('[aria-label="1 条待整理"]')?.textContent, '1');
+  await act(async () => release({ captures: [] }));
+  assert.equal(view.container.querySelector('[aria-label="1 条待整理"]')?.textContent, '1');
+});
+
+test('SPEC-0011：画像后台刷新保留自述、经历与知识草稿和键盘焦点', async () => {
+  setupMainlines();
+  mock.method(api, 'captures', async () => ({ captures: [] }));
+  const profile = emptyProfile();
+  profile.description = { content: '原描述', updatedAt: '' };
+  profile.goals = [{ goal: goal('a'), progress: goal('a').progress }];
+  profile.experiences = [{ goal: { ...goal('a'), status: 'completed' }, progress: goal('a').progress, reflection: { id: 'reflection', goalId: 'a', summary: '原总结', createdAt: '', updatedAt: '' } }];
+  const read = mock.method(api, 'profile', async () => ({ profile: structuredClone(profile) }));
+  const view = render(<MemoryRouter><ProfilePage user={user} onLogout={() => {}} /></MemoryRouter>);
+  const description = await view.findByPlaceholderText('写下你想如何理解自己，或暂时留白。') as HTMLTextAreaElement;
+  const summary = view.getByPlaceholderText('这条主线带给你的经历或认识…') as HTMLTextAreaElement;
+  fireEvent.change(description, { target: { value: '尚未保存的自述' } });
+  fireEvent.change(summary, { target: { value: '尚未保存的经历' } });
+  fireEvent.change(view.getByLabelText('知识标题'), { target: { value: '尚未保存的知识' } });
+  summary.focus();
+  profile.description.content = '其他窗口的新描述';
+  profile.experiences[0].reflection!.summary = '其他窗口的新总结';
+  await act(async () => dataChanged());
+  await waitFor(() => assert.equal(read.mock.calls.length, 2));
+  assert.equal(view.getByPlaceholderText('写下你想如何理解自己，或暂时留白。'), description);
+  assert.equal(view.getByPlaceholderText('这条主线带给你的经历或认识…'), summary);
+  assert.equal(description.value, '尚未保存的自述');
+  assert.equal(summary.value, '尚未保存的经历');
+  assert.equal((view.getByLabelText('知识标题') as HTMLInputElement).value, '尚未保存的知识');
+  assert.equal(document.activeElement, summary);
+});
+
+test('SPEC-0011：画像过期读取不能覆盖新事实或未编辑的自述', async () => {
+  setupMainlines();
+  mock.method(api, 'captures', async () => ({ captures: [] }));
+  let release!: (value: { profile: Profile }) => void;
+  let reads = 0;
+  mock.method(api, 'profile', async () => {
+    if (++reads === 1) return new Promise(resolve => { release = resolve; });
+    const profile = emptyProfile();
+    profile.description = { content: '最新描述', updatedAt: '' };
+    return { profile };
+  });
+  const view = render(<MemoryRouter><ProfilePage user={user} onLogout={() => {}} /></MemoryRouter>);
+  await waitFor(() => assert.equal(reads, 1));
+  await act(async () => dataChanged());
+  await view.findByDisplayValue('最新描述');
+  await act(async () => release({ profile: emptyProfile() }));
+  assert.ok(view.getByDisplayValue('最新描述'));
+});
+
+test('SPEC-0011：自述保存失败保留草稿，写入时锁定表单并防止重复保存', async () => {
+  setupMainlines();
+  mock.method(api, 'captures', async () => ({ captures: [] }));
+  const read = mock.method(api, 'profile', async () => ({ profile: emptyProfile() }));
+  let rejectWrite!: (error: Error) => void;
+  const write = mock.method(api, 'saveDescription', async () => new Promise<{ description: Profile['description'] }>((_resolve, reject) => { rejectWrite = reject; }));
+  const view = render(<MemoryRouter><ProfilePage user={user} onLogout={() => {}} /></MemoryRouter>);
+  const description = await view.findByPlaceholderText('写下你想如何理解自己，或暂时留白。') as HTMLTextAreaElement;
+  fireEvent.change(description, { target: { value: '失败后保留' } });
+  const button = view.getByRole('button', { name: '保存描述' });
+  fireEvent.click(button);
+  fireEvent.click(button);
+  assert.equal(write.mock.calls.length, 1);
+  assert.equal(description.disabled, true);
+  assert.equal((view.getByLabelText('知识标题') as HTMLInputElement).disabled, true);
+  await act(async () => rejectWrite(new Error('描述保存失败')));
+  await view.findByRole('alert');
+  assert.equal(description.value, '失败后保留');
+  assert.equal(description.disabled, false);
+  await act(async () => dataChanged());
+  await waitFor(() => assert.equal(read.mock.calls.length, 2));
+  assert.equal(description.value, '失败后保留');
+  assert.match(view.getByRole('alert').textContent!, /描述保存失败/);
+});
+
+test('SPEC-0015：主线编辑任务被后台替换后仍保留原草稿和保存目标', async () => {
+  setupMainlines();
+  mock.method(api, 'captures', async () => ({ captures: [] }));
+  let records = [action('original'), action('other')];
+  const read = mock.method(api, 'goalActions', async () => ({ actions: structuredClone(records) }));
+  const write = mock.method(api, 'updateAction', async () => { throw new Error('原任务已不存在'); });
+  const view = mainlineView();
+  fireEvent.click(await view.findByRole('button', { name: '编辑 To-do' }));
+  fireEvent.change(view.getByLabelText('To-do 标题'), { target: { value: '原任务的未保存内容' } });
+  records = [action('other')];
+  await act(async () => dataChanged());
+  await waitFor(() => assert.equal(read.mock.calls.length, 2));
+  assert.equal((view.getByLabelText('To-do 标题') as HTMLInputElement).value, '原任务的未保存内容');
+  fireEvent.click(view.getByRole('button', { name: '保存 To-do' }));
+  await view.findByRole('alert');
+  assert.equal(write.mock.calls[0].arguments[0], 'original');
+  assert.equal((view.getByLabelText('To-do 标题') as HTMLInputElement).value, '原任务的未保存内容');
 });

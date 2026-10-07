@@ -529,3 +529,21 @@ test('SPEC-0015：可交互视图入口在编辑和写入期间禁用，保存�
   await page.findByRole('heading', { name: '保存期间保持视图' });
   assert.equal(navigation.disabled, false);
 });
+
+test('SPEC-0015：列表编辑任务被后台替换后不重置草稿或改变保存目标', async () => {
+  const { records } = setup([action('original'), action('other')]);
+  const write = mock.method(api, 'updateAction', async () => { throw new ApiError('原任务已不存在', undefined, 'NOT_FOUND'); });
+  const page = view();
+  fireEvent.click(await page.findByRole('button', { name: /任务 original/ }));
+  fireEvent.click(page.getByRole('button', { name: '编辑任务' }));
+  fireEvent.change(page.getByLabelText('To-do 标题'), { target: { value: '原任务的草稿' } });
+  records.splice(0, 1);
+  await act(async () => dataChanged());
+  await waitFor(() => assert.equal(page.queryByRole('button', { name: /任务 original/ }), null));
+  assert.equal((page.getByLabelText('To-do 标题') as HTMLInputElement).value, '原任务的草稿');
+  assert.ok(page.getByRole('button', { name: '保存 To-do' }));
+  fireEvent.click(page.getByRole('button', { name: '保存 To-do' }));
+  await page.findByRole('alert');
+  assert.equal(write.mock.calls[0].arguments[0], 'original');
+  assert.equal((page.getByLabelText('To-do 标题') as HTMLInputElement).value, '原任务的草稿');
+});

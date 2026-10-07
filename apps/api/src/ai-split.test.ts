@@ -52,6 +52,16 @@ test('SPEC-0014：撤销恢复被卡住的原任务，不抹掉原因', async co
   const undo = f.service.undoAiSplit(f.user.id, result.operationId);
   assert.equal(undo.original.status, 'blocked'); assert.equal(undo.original.blockerNote, '不知道从哪里开始');
 });
+test('SPEC-0014：撤销后重启并重试采纳返回已撤销事实，不重复创建步骤', async context => {
+  const f = await fixture(context), input = f.input();
+  const applied = f.service.applyAiSplit(f.user.id, input);
+  const undone = f.service.undoAiSplit(f.user.id, applied.operationId);
+  f.reopen();
+  assert.deepEqual(f.service.applyAiSplit(f.user.id, input), undone);
+  assert.equal(f.service.listTodos(f.user.id).length, 3);
+  assert.equal(undone.original.status, 'available');
+  assert.ok(undone.actions.every(action => action.status === 'abandoned'));
+});
 for (const change of ['edit', 'complete', 'current', 'source', 'paused'] as const) {
   test(`SPEC-0014：${change} 后拒绝撤销，保留用户后续工作`, async context => {
     const f = await fixture(context), result = f.service.applyAiSplit(f.user.id, f.input());

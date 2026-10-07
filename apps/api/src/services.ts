@@ -59,6 +59,11 @@ type ActionRow = {
   updated_at: string;
 };
 
+type GoalProgressRow = FocusRow & {
+  total_todo_count: number;
+  completed_todo_count: number;
+};
+
 type ReflectionRow = {
   id: string;
   focus_id: string;
@@ -325,6 +330,7 @@ export class LifeKernelService {
       const row = this.getOwnedActionRow(userId, actionId);
       if (row.status === 'completed') return mapLegacyAction(row);
       if (row.status !== 'available') throw new AppError('ACTION_NOT_AVAILABLE', '只有 available 行动可以完成', 409);
+      if (this.getOwnedGoalRow(userId, row.focus_id).goal_status !== 'active') throw new AppError('GOAL_NOT_ACTIVE', '请先恢复这条主线。', 409);
       const updatedAt = now();
       this.sqlite.prepare('UPDATE actions SET status = ?, resolved_at = ?, updated_at = ? WHERE id = ? AND user_id = ?').run('completed', updatedAt, updatedAt, actionId, userId);
       const current = this.getCurrentContext(userId);
@@ -335,8 +341,7 @@ export class LifeKernelService {
   }
 
   listGoals(userId: string, status?: GoalStatus): GoalWithProgress[] {
-    const rows = status ? this.sqlite.prepare('SELECT * FROM focuses WHERE user_id = ? AND goal_status = ? ORDER BY updated_at DESC').all(userId, status) as FocusRow[] : this.sqlite.prepare("SELECT * FROM focuses WHERE user_id = ? ORDER BY CASE goal_status WHEN 'active' THEN 0 WHEN 'paused' THEN 1 ELSE 2 END, updated_at DESC").all(userId) as FocusRow[];
-    return rows.map((row) => ({ ...mapGoal(row), progress: this.getGoalProgress(userId, row.id, row.goal_status) }));
+    return this.readGoalsWithProgress(userId, status);
   }
 
   createGoal(userId: string, input: { title: string; doneDefinition?: string | null }): Goal {
@@ -504,7 +509,8 @@ export class LifeKernelService {
         { request_hash: string; applied_json: string; state: string } | undefined;
       if (receipt) {
         if (receipt.request_hash !== hash) throw new AppError('AI_OPERATION_CHANGED', '该拆解操作已应用，请刷新后查看结果。', 409);
-        return { ...JSON.parse(receipt.applied_json) as SplitResult, undone: receipt.state === 'undone' };
+        if (receipt.state === 'undone') return this.undoAiSplit(userId, input.operationId);
+        return JSON.parse(receipt.applied_json) as SplitResult;
       }
       const source = this.getSplitSource(userId, input.actionId);
       if (source.revision !== input.sourceRevision) throw new AppError('AI_SOURCE_CHANGED', '任务或主线已改变，请重新读取后再拆解。', 409);
@@ -658,14 +664,15 @@ export class LifeKernelService {
 
   getProfileView(userId: string): ProfileView {
     const read = this.sqlite.transaction(() => {
-      const goalRows = this.sqlite.prepare("SELECT * FROM focuses WHERE user_id = ? ORDER BY CASE goal_status WHEN 'active' THEN 0 WHEN 'paused' THEN 1 WHEN 'completed' THEN 2 ELSE 3 END, updated_at DESC").all(userId) as FocusRow[];
-      const goalsWithProgress = goalRows.map((row) => ({ goal: mapGoal(row), progress: this.getGoalProgress(userId, row.id, row.goal_status) }));
+      const goalsWithProgress = this.readGoalsWithProgress(userId, undefined, true)
+        .map(({ progress, ...goal }) => ({ goal, progress }));
       const completedActionCount = (this.sqlite.prepare('SELECT COUNT(*) AS count FROM actions WHERE user_id = ? AND status = ?').get(userId, 'completed') as { count: number }).count;
       const description = this.sqlite.prepare('SELECT content, updated_at FROM profile_descriptions WHERE user_id = ?').get(userId) as { content: string; updated_at: string } | undefined;
-      const reflectionQuery = this.sqlite.prepare('SELECT * FROM focus_reflections WHERE focus_id = ? AND user_id = ?');
+      const reflections = new Map((this.sqlite.prepare('SELECT * FROM focus_reflections WHERE user_id = ?').all(userId) as ReflectionRow[])
+        .map(row => [row.focus_id, mapReflection(row)]));
       const experiences = goalsWithProgress
         .filter(({ goal }) => goal.status === 'completed')
-        .map(({ goal, progress }) => ({ goal, progress, reflection: mapReflection(reflectionQuery.get(goal.id, userId) as ReflectionRow | undefined) }));
+        .map(({ goal, progress }) => ({ goal, progress, reflection: reflections.get(goal.id) ?? null }));
       const knowledgeItems = (this.sqlite.prepare(`SELECT * FROM knowledge_items WHERE user_id = ? ORDER BY CASE status WHEN 'needs_consolidation' THEN 0 WHEN 'in_progress' THEN 1 ELSE 2 END, created_at ASC`).all(userId) as KnowledgeRow[]).map(mapKnowledge);
       const selfNodeId = `self:${userId}`;
       const goalNodes = goalsWithProgress.map(({ goal, progress }) => ({
@@ -765,21 +772,31 @@ export class LifeKernelService {
     if (result.changes === 0) throw new AppError('RESOURCE_NOT_FOUND', '知识不存在', 404);
   }
 
-  private getGoalProgress(userId: string, goalId: string, goalStatus: GoalStatus): GoalProgress {
-    const row = this.sqlite
-      .prepare(`SELECT
-        COUNT(*) AS total_todo_count,
-        SUM(CASE WHEN status = 'completed' THEN 1 ELSE 0 END) AS completed_todo_count
-        FROM actions
-        WHERE user_id = ? AND focus_id = ? AND status IN ('available', 'completed', 'blocked')`)
-      .get(userId, goalId) as { total_todo_count: number; completed_todo_count: number | null };
-    const totalTodoCount = row.total_todo_count;
-    const completedTodoCount = row.completed_todo_count ?? 0;
-    return {
-      completedTodoCount,
-      totalTodoCount,
-      progressPercent: goalStatus === 'completed' ? 100 : totalTodoCount === 0 ? 0 : Math.round((completedTodoCount / totalTodoCount) * 100)
-    };
+  private readGoalsWithProgress(userId: string, status?: GoalStatus, profileOrder = false): GoalWithProgress[] {
+    const order = status ? 'focuses.updated_at DESC' : profileOrder
+      ? "CASE focuses.goal_status WHEN 'active' THEN 0 WHEN 'paused' THEN 1 WHEN 'completed' THEN 2 ELSE 3 END, focuses.updated_at DESC"
+      : "CASE focuses.goal_status WHEN 'active' THEN 0 WHEN 'paused' THEN 1 ELSE 2 END, focuses.updated_at DESC";
+    // One statement keeps Goal metadata and completion counts in the same SQLite snapshot.
+    const query = this.sqlite.prepare(`SELECT focuses.*,
+      COUNT(actions.id) AS total_todo_count,
+      COALESCE(SUM(CASE WHEN actions.status = 'completed' THEN 1 ELSE 0 END), 0) AS completed_todo_count
+      FROM focuses
+      LEFT JOIN actions ON actions.focus_id = focuses.id AND actions.user_id = focuses.user_id
+        AND actions.status IN ('available', 'completed', 'blocked')
+      WHERE focuses.user_id = ? ${status ? 'AND focuses.goal_status = ?' : ''}
+      GROUP BY focuses.id
+      ORDER BY ${order}`);
+    const rows = (status ? query.all(userId, status) : query.all(userId)) as GoalProgressRow[];
+    return rows.map(row => {
+      const totalTodoCount = row.total_todo_count;
+      const completedTodoCount = row.completed_todo_count;
+      const progress: GoalProgress = {
+        completedTodoCount,
+        totalTodoCount,
+        progressPercent: row.goal_status === 'completed' ? 100 : totalTodoCount === 0 ? 0 : Math.round((completedTodoCount / totalTodoCount) * 100),
+      };
+      return { ...mapGoal(row), progress };
+    });
   }
 
   private listAvailableActions(userId: string): Action[] {

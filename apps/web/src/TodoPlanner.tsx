@@ -68,6 +68,7 @@ export function TodoPlanner({
   const [calendarView, setCalendarView] = useState<'month' | 'week'>('month');
   const [selectedId, setSelectedId] = useState<string | null>(null);
   const [editor, setEditor] = useState<'new' | 'edit' | null>(null);
+  const [editorAction, setEditorAction] = useState<GoalAction | null>(null);
   const [editorGoalId, setEditorGoalId] = useState('');
   const [removeConfirm, setRemoveConfirm] = useState(false);
   const version = useRef(0);
@@ -253,6 +254,7 @@ export function TodoPlanner({
   }
   function startEditor(mode: 'new' | 'edit') {
     returnFocus.current = document.activeElement as HTMLElement;
+    setEditorAction(mode === 'edit' ? selected : null);
     setEditorGoalId(
       mode === 'edit' && selected
         ? selected.goalId
@@ -266,6 +268,7 @@ export function TodoPlanner({
   function closeEditor() {
     focusAfterClose.current = true;
     setEditor(null);
+    setEditorAction(null);
   }
   function pickDay(day: string) {
     setSelectedDay(day);
@@ -698,9 +701,9 @@ export function TodoPlanner({
                   </label>
                 )}
                 <TodoEditor
-                  key={`${editor}:${selected?.id ?? selectedDay}`}
+                  key={`${editor}:${editorAction?.id ?? selectedDay}`}
                   action={
-                    editor === 'edit' ? (selected ?? undefined) : undefined
+                    editor === 'edit' ? (editorAction ?? undefined) : undefined
                   }
                   initialDate={
                     view === 'calendar'
@@ -713,12 +716,13 @@ export function TodoPlanner({
                   onCancel={closeEditor}
                   onSaved={async (input) => {
                     if (!editorGoalId) return;
-                    let nextId = selected?.id;
+                    if (editor === 'edit' && !editorAction) return;
+                    let nextId = editorAction?.id;
                     const success = await write(async () => {
                       const result =
                         editor === 'new'
                           ? await api.createGoalAction(editorGoalId, input)
-                          : await api.updateAction(selected!.id, input);
+                          : await api.updateAction(editorAction!.id, input);
                       nextId = result.action.id;
                     }, '任务已保存。');
                     if (success) {

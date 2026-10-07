@@ -1,10 +1,13 @@
 // Runs the real main/preload/utility process against an isolated test workspace.
-const { app, BrowserWindow } = require('electron');
+const { app, BrowserWindow, dialog } = require('electron');
 const assert = require('node:assert/strict');
 const path = require('node:path');
 const { createServer } = require('node:http');
 const { randomUUID } = require('node:crypto');
-const root = path.resolve(__dirname, '..');
+const { writeFileSync } = require('node:fs');
+const root = process.env.LK_SMOKE_APP_ROOT
+  ? path.resolve(process.env.LK_SMOKE_APP_ROOT)
+  : path.resolve(__dirname, '..');
 app.setAppPath(root);
 const timeout = setTimeout(() => {
   console.error('Desktop smoke timed out');
@@ -136,6 +139,39 @@ app.on('browser-window-created', (_event, window) => {
           await request('POST', '/api/current/select', { actionId: next.id });
           console.log('AI SMOKE PASSED: session Key, real HTTP, preview, idempotent apply, undo and Key-free backup');
         } finally { await new Promise(resolve => provider.close(resolve)); }
+        // Exercise the real import IPC without requiring clicks in native dialogs.
+        const beforeImport = await request('GET', '/api/export');
+        assert.ok(process.env.LK_DATA_DIR, 'smoke must use an isolated workspace');
+        const importFile = path.join(process.env.LK_DATA_DIR, 'smoke-import.json');
+        writeFileSync(importFile, JSON.stringify(beforeImport));
+        const originalOpenDialog = dialog.showOpenDialog;
+        const originalMessageBox = dialog.showMessageBox;
+        try {
+          dialog.showOpenDialog = async () => ({ canceled: false, filePaths: [importFile] });
+          dialog.showMessageBox = async () => {
+            await request('POST', '/api/captures', { content: '导入确认期间另一窗口的新记录' });
+            return { response: 1 };
+          };
+          const conflicted = await window.webContents.executeJavaScript("window.lifeKernel.desktop('import')");
+          assert.equal(conflicted.ok, false);
+          assert.equal(conflicted.error.code, 'WORKSPACE_CHANGED');
+          const latest = await request('GET', '/api/export');
+          assert.equal(latest.data.captures.length, beforeImport.data.captures.length + 1);
+          dialog.showMessageBox = async () => ({ response: 0 });
+          const canceled = await window.webContents.executeJavaScript("window.lifeKernel.desktop('import')");
+          assert.equal(canceled.data.canceled, true);
+          assert.deepEqual((await request('GET', '/api/export')).data, latest.data);
+          dialog.showMessageBox = async () => ({ response: 1 });
+          const restored = await window.webContents.executeJavaScript("window.lifeKernel.desktop('import')");
+          assert.equal(restored.ok, true, JSON.stringify(restored));
+          assert.equal(restored.data.canceled, false);
+          assert.deepEqual((await request('GET', '/api/export')).data, beforeImport.data);
+          assert.equal((await ai({ kind: 'settings' })).hasApiKey, true, 'task import must preserve AI settings');
+          console.log('IMPORT SMOKE PASSED: stale confirmation conflict, cancellation, backed-up restore and Key isolation');
+        } finally {
+          dialog.showOpenDialog = originalOpenDialog;
+          dialog.showMessageBox = originalMessageBox;
+        }
         console.log(
           'DESKTOP SMOKE PASSED: startup, isolated preload, IPC, capture, conversion, focus window, completion and profile',
         );

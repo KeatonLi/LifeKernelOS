@@ -8,7 +8,7 @@ import {
   unlinkSync,
 } from 'node:fs';
 import { join } from 'node:path';
-import { randomUUID } from 'node:crypto';
+import { createHash, randomUUID } from 'node:crypto';
 import { z } from 'zod';
 import type { DatabaseContext } from '../../api/src/db.js';
 import { LifeKernelService } from '../../api/src/services.js';
@@ -30,7 +30,7 @@ const schema = z.object({
     goals: z.array(
       z.object({
         id,
-        userId: z.string(),
+        userId: z.string().min(1),
         title: z.string().trim().min(1).max(100),
         doneDefinition: nullableText(300),
         status: goalStatus,
@@ -41,7 +41,7 @@ const schema = z.object({
     actions: z.array(
       z.object({
         id,
-        userId: z.string(),
+        userId: z.string().min(1),
         goalId: id,
         parentActionId: id.nullable(),
         title: z.string().trim().min(1).max(200),
@@ -64,7 +64,7 @@ const schema = z.object({
     ),
     currentContext: z
       .object({
-        userId: z.string(),
+        userId: z.string().min(1),
         availableMinutes: minutes,
         energy,
         stateRecordedAt: date.nullable(),
@@ -96,7 +96,7 @@ const schema = z.object({
     captures: z.array(
       z.object({
         id,
-        userId: z.string(),
+        userId: z.string().min(1),
         content: z.string().trim().min(1).max(2000),
         type: z
           .enum(['idea', 'task', 'event', 'feeling', 'inspiration'])
@@ -140,6 +140,14 @@ export function validateImport(raw: unknown): ExportPayload {
     );
   };
   if (allIds.length !== new Set(allIds).size) invalid();
+  const owners = new Set([
+    ...data.goals.map(item => item.userId),
+    ...data.actions.map(item => item.userId),
+    ...data.captures.map(item => item.userId),
+    ...(data.currentContext ? [data.currentContext.userId] : []),
+  ]);
+  if (owners.size > 1) invalid();
+  if (Boolean(data.currentContext?.selectedActionId) !== Boolean(data.currentContext?.selectedAt)) invalid();
   if (
     new Set(data.goalReflections.map((item) => item.goalId)).size !==
     data.goalReflections.length
@@ -217,15 +225,22 @@ export function writeBackup(folder: string, payload: ExportPayload): string {
   for (const old of backups.slice(10)) unlinkSync(join(folder, old));
   return destination;
 }
+export function workspaceRevision(payload: ExportPayload): string {
+  return createHash('sha256').update(JSON.stringify(payload.data)).digest('hex');
+}
 export function restoreBackup(
   database: DatabaseContext,
   service: LifeKernelService,
   userId: string,
   raw: unknown,
   backupFolder: string,
+  expectedWorkspaceRevision?: string,
 ) {
   const payload = validateImport(raw);
-  writeBackup(backupFolder, service.exportData(userId));
+  const current = service.exportData(userId);
+  if (expectedWorkspaceRevision !== undefined && workspaceRevision(current) !== expectedWorkspaceRevision)
+    throw new AppError('WORKSPACE_CHANGED', '确认期间工作区已有新记录或修改。原数据未更改，请重新选择备份并核对后导入。', 409);
+  writeBackup(backupFolder, current);
   const data = payload.data;
   database.sqlite.transaction(() => {
     const sql = database.sqlite;
