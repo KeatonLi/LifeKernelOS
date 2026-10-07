@@ -7,7 +7,7 @@ import { join, resolve } from 'node:path';
 import { createDatabase } from '../../api/src/db.js';
 import { LifeKernelService } from '../../api/src/services.js';
 import { dispatch } from '../../api/src/commands.js';
-import { restoreBackup, validateImport, writeBackup } from './restore.js';
+import { restoreBackup, validateImport, writeBackup, workspaceRevision } from './restore.js';
 
 async function workspace(context: {
   after: (fn: () => Promise<void>) => void;
@@ -276,4 +276,53 @@ test('SPEC-0012：坏备份与事务插入失败保留全部原记录，最多 1
     () => validateImport({ ...before, schemaVersion: 99 }),
     code('INVALID_BACKUP'),
   );
+});
+
+test('SPEC-0012：混合来源身份和矛盾的当前选择在导入前拒绝，原记录保持完整', async context => {
+  const { folder, database, service, user } = await workspace(context);
+  const goal = service.createGoal(user.id, { title: '保留本地工作' });
+  const action = service.createGoalAction(user.id, goal.id, { title: '当前行动' });
+  service.createCapture(user.id, { content: '待整理' });
+  service.selectCurrentAction(user.id, action.id);
+  const original = service.exportData(user.id);
+  const mutations = [
+    (data: typeof original.data) => { data.goals[0].userId = 'another-user'; },
+    (data: typeof original.data) => { data.actions[0].userId = 'another-user'; },
+    (data: typeof original.data) => { data.captures[0].userId = 'another-user'; },
+    (data: typeof original.data) => { data.currentContext!.userId = 'another-user'; },
+    (data: typeof original.data) => { data.currentContext!.selectedAt = null; },
+    (data: typeof original.data) => { data.currentContext!.selectedActionId = null; },
+  ];
+  for (const mutate of mutations) {
+    const malformed = structuredClone(original);
+    mutate(malformed.data);
+    assert.throws(() => restoreBackup(database, service, user.id, malformed, join(folder, 'backups')), code('INVALID_BACKUP'));
+    assert.deepEqual(service.exportData(user.id).data, original.data);
+  }
+  // Legacy exports and a fully empty workspace remain importable.
+  const legacy = { ...structuredClone(original), schemaVersion: 6 };
+  assert.equal(validateImport(legacy).schemaVersion, 7);
+  const empty = { ...original, data: { goals: [], actions: [], captures: [], currentContext: null,
+    goalReflections: [], knowledgeItems: [], goalStatusEvents: [], profileDescription: null } };
+  assert.deepEqual(validateImport(empty).data, empty.data);
+});
+
+test('SPEC-0012：导入确认期间其他窗口写入会阻止旧确认，重新核对后可备份恢复', async context => {
+  const { folder, database, service, user } = await workspace(context);
+  const goal = service.createGoal(user.id, { title: '备份内容' });
+  service.createGoalAction(user.id, goal.id, { title: '原行动' });
+  const backup = service.exportData(user.id);
+  const confirmedRevision = workspaceRevision(backup);
+  assert.equal(workspaceRevision({ ...backup, exportedAt: '2000-01-01T00:00:00.000Z' }), confirmedRevision);
+  // A profile edit from another window is a workspace change, even with unchanged tasks.
+  service.upsertProfileDescription(user.id, '确认期间的新草稿已保存');
+  const latest = service.exportData(user.id);
+  assert.throws(() => restoreBackup(database, service, user.id, backup, join(folder, 'backups'), confirmedRevision), code('WORKSPACE_CHANGED'));
+  assert.deepEqual(service.exportData(user.id).data, latest.data);
+  assert.equal(readdirSync(folder).includes('backups'), false, 'conflict must not create a misleading import backup');
+  restoreBackup(database, service, user.id, backup, join(folder, 'backups'), workspaceRevision(latest));
+  assert.deepEqual(service.exportData(user.id).data, backup.data);
+  const [name] = readdirSync(join(folder, 'backups'));
+  const recovery = JSON.parse(readFileSync(join(folder, 'backups', name), 'utf8'));
+  assert.deepEqual(recovery.data, latest.data, 'the latest work is backed up before the accepted replacement');
 });

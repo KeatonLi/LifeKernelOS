@@ -25,7 +25,7 @@
 ## 3. 数据与领域规则
 
 1. Action 新增 `scheduledDate: string | null`。真实有效的 1900—9999 年 `YYYY-MM-DD`；不做 UTC 转换。旧记录为 null。
-2. available/blocked 可直接完成；completed 可撤销；abandoned 可恢复；superseded 仅保留历史。恢复及完成要求所属主线 active。
+2. available/blocked 可直接完成；completed 可撤销；abandoned 可恢复；superseded 仅保留历史。恢复及完成要求所属主线 active；兼容 Web 的旧完成接口也遵守这项约束，不能绕过暂停或结束状态。
 3. 状态变更带 expectedStatus，值不一致返回 ACTION_CHANGED。完成/移除只清理指向同一个任务的当前选择。撤销不自动选为当前。
 4. 移除需要用户确认，变为 abandoned，默认列表隐藏；恢复重新计入进度。不会删除 Capture、拆分来源或完成主线。
 5. 各视图使用同一 Action ID。主线和状态筛选后再应用搜索；默认未完成含 available/blocked。已移除独立筛选。

@@ -46,21 +46,34 @@ jobs:
       actions: read
       contents: write
     steps:
+      - uses: actions/checkout@v7.0.1
+        with:
+          persist-credentials: false
+      - uses: actions/setup-node@v7.0.0
+        with:
+          node-version: '24'
       - name: Download this run's installer artifacts
         env:
           GH_TOKEN: ${{ github.token }}
           GH_REPO: ${{ github.repository }}
         run: gh run download "$GITHUB_RUN_ID" --pattern 'LifeKernelOS-*' --dir release-assets
-      - name: Verify checksums and publish release
+      - name: Require all architectures, installer formats and matching checksums
+        run: node scripts/check-release-assets.mjs release-assets
+      - name: Publish release
         env:
           GH_TOKEN: ${{ github.token }}
           GH_REPO: ${{ github.repository }}
           RELEASE_TAG: ${{ github.ref_name }}
         run: |
-          for folder in release-assets/*; do (cd "$folder" && sha256sum --check *.sha256); done
           mapfile -d '' assets < <(find release-assets -type f -print0)
           test "${#assets[@]}" -gt 0
-          printf '%s\n' '本版本简化主线、任务列表、今日与日历界面：主要操作更明确，低频操作进入“更多”，时长与精力按需展开。' '保留本地任务、进度、画像图谱与用户 Key 的 AI 拆解；AI 建议须由用户明确生成和采纳。' '安装包未签名，macOS/Windows 可能需要在系统中确认运行。SHA-256 校验文件随安装包提供；当前没有自动升级或云同步。' '三平台自动化启动与数据检查通过后才发布；真实 Key/模型、系统密钥服务及实机安装体验仍需人工验收。' > release-notes.md
+          cat > release-notes.md <<'NOTES'
+          macOS（Apple Silicon ARM64 / Intel x64）：DMG 与 ZIP；Windows（ARM64 / x64）：NSIS 安装包；另保留 Linux x64 AppImage 与 tar.gz。请下载与你的系统和处理器匹配的文件。
+
+          安装包未签名，macOS/Windows 可能需要在系统中确认运行。每个安装包提供 SHA-256；当前没有自动升级或云同步。
+
+          五个原生目标的自动化、打包资源与闭环检查全部通过，并核对八个安装包及哈希后才发布。真实 Key/模型、系统密钥服务、原生对话框、全局快捷键与实机安装仍需人工验收。
+          NOTES
           flags=()
           if [[ "$RELEASE_TAG" == *-* ]]; then flags+=(--prerelease); fi
           gh release create "$RELEASE_TAG" "${assets[@]}" --verify-tag --title "LifeKernelOS $RELEASE_TAG" --notes-file release-notes.md --generate-notes "${flags[@]}"

@@ -3,7 +3,7 @@ import { createDatabase } from '../../api/src/db.js';
 import { LifeKernelService } from '../../api/src/services.js';
 import { dispatch } from '../../api/src/commands.js';
 import { AppError } from '../../api/src/types.js';
-import { readBackup, restoreBackup, writeBackup } from './restore.js';
+import { readBackup, restoreBackup, writeBackup, workspaceRevision } from './restore.js';
 import type { Result } from './bridge.js';
 import { z } from 'zod';
 import { splitApplySchema, splitUndoSchema } from '../../../shared/ai.js';
@@ -65,6 +65,7 @@ try {
           const payload = readBackup(String(message.payload));
           result = {
             payload,
+            workspaceRevision: workspaceRevision(service.exportData(user.id)),
             counts: {
               goals: payload.data.goals.length,
               actions: payload.data.actions.length,
@@ -73,15 +74,21 @@ try {
           };
           break;
         }
-        case 'import':
+        case 'import': {
+          const input = z.object({
+            payload: z.unknown(),
+            expectedWorkspaceRevision: z.string().regex(/^[a-f0-9]{64}$/),
+          }).strict().parse(message.payload);
           result = restoreBackup(
             database!,
             service,
             user.id,
-            message.payload,
+            input.payload,
             backupFolder,
+            input.expectedWorkspaceRevision,
           );
           break;
+        }
         case 'shutdown':
           database!.close();
           result = true;

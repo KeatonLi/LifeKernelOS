@@ -13,11 +13,26 @@ concurrency:
   cancel-in-progress: ${{ !startsWith(github.ref, 'refs/tags/') }}
 jobs:
   checks:
-    name: Check ${{ matrix.os }}
+    name: Check ${{ matrix.platform }}
     strategy:
       fail-fast: false
       matrix:
-        os: [ubuntu-latest, macos-latest, windows-latest]
+        include:
+          - os: ubuntu-24.04
+            platform: Linux-x64
+            arch: x64
+          - os: macos-15
+            platform: macOS-arm64
+            arch: arm64
+          - os: macos-15-intel
+            platform: macOS-x64
+            arch: x64
+          - os: windows-11-arm
+            platform: Windows-arm64
+            arch: arm64
+          - os: windows-2025
+            platform: Windows-x64
+            arch: x64
     runs-on: ${{ matrix.os }}
     timeout-minutes: 20
     steps:
@@ -27,22 +42,25 @@ jobs:
       - uses: actions/setup-node@v7.0.0
         with:
           node-version: '24'
+          architecture: ${{ matrix.arch }}
           cache: npm
+      - name: Locate official binary download caches
+        id: binary-caches
+        run: node scripts/desktop-cache-paths.mjs
+      - name: Restore official Electron archives
+        uses: actions/cache@v6.1.0
+        with:
+          path: ${{ steps.binary-caches.outputs.electron }}
+          key: desktop-electron-v1-${{ matrix.os }}-${{ matrix.arch }}-${{ hashFiles('package-lock.json') }}
       - run: npm ci
       - run: npm run docs:check
       - run: npm test
+      - name: Packaging and release gate regression tests
+        run: node --test scripts/desktop-packaging.test.mjs
       - run: npm run build
       - name: Prepare Linux Chromium sandbox
         if: runner.os == 'Linux'
-        run: |
-          node --input-type=module <<'JS'
-          import electron from 'electron';
-          import { dirname, join } from 'node:path';
-          import { execFileSync } from 'node:child_process';
-          const helper = join(dirname(electron), 'chrome-sandbox');
-          execFileSync('sudo', ['chown', 'root:root', helper], { stdio: 'inherit' });
-          execFileSync('sudo', ['chmod', '4755', helper], { stdio: 'inherit' });
-          JS
+        run: node scripts/prepare-electron-sandbox.mjs
       - name: Electron startup, IPC and restart
         if: runner.os == 'Linux'
         run: xvfb-run -a npm run test:desktop
@@ -58,17 +76,38 @@ jobs:
       fail-fast: false
       matrix:
         include:
-          - os: ubuntu-latest
+          - os: ubuntu-24.04
             platform: Linux-x64
+            arch: x64
+            target: linux
             args: --linux --x64
-          - os: macos-latest
-            platform: macOS-arm64-x64
-            args: --mac --arm64 --x64
-          - os: windows-latest
+            app-root: release/linux-unpacked/resources/app.asar
+          - os: macos-15
+            platform: macOS-arm64
+            arch: arm64
+            target: mac
+            args: --mac --arm64
+            app-root: release/mac-arm64/LifeKernelOS.app/Contents/Resources/app.asar
+          - os: macos-15-intel
+            platform: macOS-x64
+            arch: x64
+            target: mac
+            args: --mac --x64
+            app-root: release/mac/LifeKernelOS.app/Contents/Resources/app.asar
+          - os: windows-11-arm
+            platform: Windows-arm64
+            arch: arm64
+            target: win
+            args: --win --arm64
+            app-root: release/win-arm64-unpacked/resources/app.asar
+          - os: windows-2025
             platform: Windows-x64
+            arch: x64
+            target: win
             args: --win --x64
+            app-root: release/win-unpacked/resources/app.asar
     runs-on: ${{ matrix.os }}
-    timeout-minutes: 30
+    timeout-minutes: 40
     steps:
       - uses: actions/checkout@v7.0.1
         with:
@@ -76,13 +115,38 @@ jobs:
       - uses: actions/setup-node@v7.0.0
         with:
           node-version: '24'
+          architecture: ${{ matrix.arch }}
           cache: npm
+      - name: Locate official binary download caches
+        id: binary-caches
+        run: node scripts/desktop-cache-paths.mjs
+      - name: Reuse Electron archives from checks
+        uses: actions/cache@v6.1.0
+        with:
+          path: ${{ steps.binary-caches.outputs.electron }}
+          key: desktop-electron-v1-${{ matrix.os }}-${{ matrix.arch }}-${{ hashFiles('package-lock.json') }}
+      - name: Restore official electron-builder tool archives
+        uses: actions/cache@v6.1.0
+        with:
+          path: ${{ steps.binary-caches.outputs.builder-downloads }}
+          key: desktop-builder-downloads-v1-${{ matrix.os }}-${{ matrix.arch }}-${{ hashFiles('package-lock.json') }}
       - run: npm ci
       - run: npm run build
       - name: Package unsigned desktop
         run: npx electron-builder ${{ matrix.args }} --publish never
         env:
           CSC_IDENTITY_AUTO_DISCOVERY: 'false'
+      - name: Verify packaged binary architecture and application resources
+        run: node scripts/check-desktop-package.mjs ${{ matrix.target }} ${{ matrix.arch }}
+      - name: Prepare Linux Chromium sandbox
+        if: runner.os == 'Linux'
+        run: node scripts/prepare-electron-sandbox.mjs
+      - name: Packaged ASAR startup, IPC and restart from a temporary directory
+        if: runner.os == 'Linux'
+        run: xvfb-run -a npm run test:desktop -- "${{ matrix.app-root }}"
+      - name: Packaged ASAR startup, IPC and restart (macOS / Windows)
+        if: runner.os != 'Linux'
+        run: npm run test:desktop -- "${{ matrix.app-root }}"
       - name: Write installer SHA-256 checksums
         run: node scripts/package-checksums.mjs
       - uses: actions/upload-artifact@v7.0.1

@@ -52,7 +52,7 @@
     "vite": "^6.0.5"
   },
   "engines": {
-    "node": ">=22.13.0"
+    "node": "^22.22.2 || ^24.15.0 || >=26.0.0"
   },
   "main": "dist-desktop/main.cjs",
   "author": "LifeKernelOS",
@@ -83,6 +83,9 @@
       "target": [
         "nsis"
       ]
+    },
+    "nsis": {
+      "buildUniversalInstaller": false
     },
     "linux": {
       "target": [

@@ -374,14 +374,21 @@ function WorkspaceShell({
     setTimeout(() => returnFocus.current?.focus(), 0);
   }
   const [captureCount, setCaptureCount] = useState(0);
+  const captureCountVersion = useRef(0);
   const local = isDesktop() || user.email === 'local@lifekernel.desktop';
   const refreshCount = () => {
+    const version = ++captureCountVersion.current;
     api
       .captures()
-      .then(({ captures }) => setCaptureCount(captures.length))
+      .then(({ captures }) => {
+        if (version === captureCountVersion.current) setCaptureCount(captures.length);
+      })
       .catch(() => undefined);
   };
-  useEffect(refreshCount, []);
+  useEffect(() => {
+    refreshCount();
+    return () => { captureCountVersion.current++; };
+  }, []);
   useDataRefresh(refreshCount);
   useEffect(() => {
     const handler = (event: KeyboardEvent) => {
@@ -467,7 +474,10 @@ function WorkspaceShell({
         {children}
       </main>
       {captureOpen && (
-        <CaptureDrawer onClose={closeCapture} onCountChange={setCaptureCount} />
+        <CaptureDrawer onClose={closeCapture} onCountChange={(count) => {
+          captureCountVersion.current++;
+          setCaptureCount(count);
+        }} />
       )}
     </div></AiWorkspace>
   );
@@ -496,28 +506,42 @@ function CaptureDrawer({
   const [content, setContent] = useState('');
   const [saving, setSaving] = useState(false);
   const [error, setError] = useState('');
+  const [loading, setLoading] = useState(true);
+  const [initialized, setInitialized] = useState(false);
+  const [readError, setReadError] = useState('');
   const [convertingId, setConvertingId] = useState<string | null>(null);
   const [convertGoalId, setConvertGoalId] = useState('');
   const [convertTitle, setConvertTitle] = useState('');
   const drawerRef = useRef<HTMLElement>(null);
-  useDialogFocus(drawerRef, onClose, !standalone);
+  const requestVersion = useRef(0);
+  const writing = useRef(false);
+  const close = () => { if (!writing.current) onClose(); };
+  useDialogFocus(drawerRef, close, !standalone);
 
   async function load() {
+    const version = ++requestVersion.current;
+    setLoading(true);
+    setReadError('');
     try {
       const [{ captures: next }, { goals: nextGoals }] = await Promise.all([
         api.captures(),
         api.goals('active'),
       ]);
+      if (version !== requestVersion.current) return;
       setCaptures(next);
       setGoals(nextGoals);
+      setInitialized(true);
       onCountChange(next.length);
       setConvertGoalId((current) => current || nextGoals[0]?.id || '');
     } catch (reason) {
-      setError(messageFor(reason));
+      if (version === requestVersion.current) setReadError(messageFor(reason));
+    } finally {
+      if (version === requestVersion.current) setLoading(false);
     }
   }
   useEffect(() => {
     void load();
+    return () => { requestVersion.current++; };
   }, []);
   useDataRefresh(() => {
     void load();
@@ -525,6 +549,8 @@ function CaptureDrawer({
 
   async function submit(event: FormEvent) {
     event.preventDefault();
+    if (writing.current || !content.trim()) return;
+    writing.current = true;
     setSaving(true);
     setError('');
     try {
@@ -536,10 +562,13 @@ function CaptureDrawer({
     } catch (reason) {
       setError(messageFor(reason));
     } finally {
+      writing.current = false;
       setSaving(false);
     }
   }
   async function mutate(action: () => Promise<unknown>) {
+    if (writing.current) return;
+    writing.current = true;
     setSaving(true);
     setError('');
     try {
@@ -550,13 +579,14 @@ function CaptureDrawer({
     } catch (reason) {
       setError(messageFor(reason));
     } finally {
+      writing.current = false;
       setSaving(false);
     }
   }
   function beginConvert(capture: Capture) {
     setConvertingId(capture.id);
     setConvertTitle(capture.content.split('\n')[0]?.slice(0, 200) || '');
-    setConvertGoalId((current) => current || goals[0]?.id || '');
+    setConvertGoalId((current) => goals.some(goal => goal.id === current) ? current : goals[0]?.id || '');
   }
 
   return (
@@ -564,7 +594,7 @@ function CaptureDrawer({
       className={standalone ? 'capture-standalone' : 'capture-backdrop'}
       role="presentation"
       onMouseDown={(event) => {
-        if (event.target === event.currentTarget) onClose();
+        if (event.target === event.currentTarget) close();
       }}
     >
       <aside
@@ -578,7 +608,7 @@ function CaptureDrawer({
           <div>
             <h2>先记下，稍后整理</h2>
           </div>
-          <button className="icon-control" onClick={onClose} aria-label="关闭">
+          <button className="icon-control" onClick={close} disabled={saving} aria-label="关闭">
             <XIcon size={20} weight="bold" />
           </button>
         </header>
@@ -586,6 +616,7 @@ function CaptureDrawer({
           <textarea
             aria-label="收集内容"
             autoFocus
+            disabled={saving}
             value={content}
             onChange={(event) => setContent(event.target.value)}
             maxLength={2000}
@@ -602,13 +633,18 @@ function CaptureDrawer({
             </button>
           </div>
         </form>
-        {error && <p className="page-error">{error}</p>}
+        {error && <p className="page-error" role="alert">{error}</p>}
+        {readError && <div className="page-error" role="alert">
+          {readError}
+          <button className="secondary-button" disabled={loading || saving} onClick={() => void load()}>重试读取收集箱</button>
+        </div>}
         <section className="capture-inbox">
           <div className="capture-section-title">
             <h3>待整理</h3>
-            <span>{captures.length} 条</span>
+            {initialized && <span>{captures.length} 条</span>}
           </div>
-          {captures.length === 0 && (
+          {loading && !initialized && <InlineLoading />}
+          {initialized && captures.length === 0 && (
             <div className="capture-empty">
               <CheckCircleIcon size={28} weight="thin" />
               <p>收集箱已经清空。</p>
@@ -651,6 +687,7 @@ function CaptureDrawer({
                   className="capture-convert"
                   onSubmit={(event) => {
                     event.preventDefault();
+                    if (!goals.some(goal => goal.id === convertGoalId) || !convertTitle.trim()) return;
                     void mutate(() =>
                       api.convertCapture(capture.id, {
                         goalId: convertGoalId,
@@ -663,6 +700,7 @@ function CaptureDrawer({
                     To-do 标题
                     <input
                       value={convertTitle}
+                      disabled={saving}
                       onChange={(event) => setConvertTitle(event.target.value)}
                       maxLength={200}
                       required
@@ -672,10 +710,14 @@ function CaptureDrawer({
                     归入主线
                     <select
                       value={convertGoalId}
+                      disabled={saving}
                       onChange={(event) => setConvertGoalId(event.target.value)}
                       required
                     >
                       <option value="">选择主线</option>
+                      {convertGoalId && !goals.some(goal => goal.id === convertGoalId) && (
+                        <option value={convertGoalId} disabled>原主线已不可用，请重新选择</option>
+                      )}
                       {goals.map((goal) => (
                         <option key={goal.id} value={goal.id}>
                           {goal.title}
@@ -687,13 +729,14 @@ function CaptureDrawer({
                     <button
                       type="button"
                       className="text-button"
+                      disabled={saving}
                       onClick={() => setConvertingId(null)}
                     >
                       取消
                     </button>
                     <button
                       className="secondary-button"
-                      disabled={saving || !convertGoalId}
+                      disabled={saving || !goals.some(goal => goal.id === convertGoalId) || !convertTitle.trim()}
                     >
                       转为 To-do
                     </button>
@@ -704,12 +747,13 @@ function CaptureDrawer({
                   <button
                     className="text-link"
                     onClick={() => beginConvert(capture)}
-                    disabled={goals.length === 0}
+                    disabled={saving || goals.length === 0}
                   >
                     转为 To-do
                   </button>
                   <button
                     className="text-button"
+                    disabled={saving}
                     onClick={() =>
                       void mutate(() => api.archiveCapture(capture.id))
                     }
@@ -718,6 +762,7 @@ function CaptureDrawer({
                   </button>
                   <button
                     className="text-button danger-text"
+                    disabled={saving}
                     onClick={() => {
                       if (window.confirm('确定删除这条记录吗？'))
                         void mutate(() => api.deleteCapture(capture.id));
@@ -796,6 +841,7 @@ function MainlineBoard({
   const [editingTodo, setEditingTodo] = useState(false);
   const [showMainlineTools, setShowMainlineTools] = useState(false);
   const [resolutionMode, setResolutionMode] = useState<ResolutionMode>(null);
+  const [operationAction, setOperationAction] = useState<GoalAction | null>(null);
   const navigationLocked = loading || saving || editingTodo || showNewTodo || Boolean(resolutionMode);
 
   async function load(
@@ -871,7 +917,7 @@ function MainlineBoard({
     (action) => filter === 'all' || action.status === filter,
   );
   const selectedAction =
-    ((editingTodo || resolutionMode) ? actions.find((action) => action.id === selectedActionId) : undefined) ??
+    ((editingTodo || resolutionMode) ? operationAction : undefined) ??
     visibleActions.find((action) => action.id === selectedActionId) ??
     visibleActions[0] ??
     null;
@@ -1227,6 +1273,7 @@ function MainlineBoard({
                     editing={editingTodo}
                     resolutionMode={resolutionMode}
                     onEdit={() => {
+                      setOperationAction(selectedAction);
                       setEditingTodo(true);
                       setResolutionMode(null);
                     }}
@@ -1276,7 +1323,10 @@ function MainlineBoard({
                         setSaving(false);
                       }
                     }}
-                    onResolve={(mode) => setResolutionMode(mode)}
+                    onResolve={(mode) => {
+                      setOperationAction(selectedAction);
+                      setResolutionMode(mode);
+                    }}
                     onCancelResolution={() => setResolutionMode(null)}
                     onSubmitResolution={(value) =>
                       void resolveCurrent(resolutionMode!, value)
@@ -1753,51 +1803,71 @@ export function ProfilePage({
   const [saving, setSaving] = useState(false);
   const [notice, setNotice] = useState('');
   const [error, setError] = useState('');
+  const [readError, setReadError] = useState('');
   const [knowledgeTitle, setKnowledgeTitle] = useState('');
   const [knowledgeGoalId, setKnowledgeGoalId] = useState('');
   const [knowledgeNote, setKnowledgeNote] = useState('');
+  const requestVersion = useRef(0);
+  const descriptionDirty = useRef(false);
+  const writing = useRef(false);
 
   async function load() {
+    const version = ++requestVersion.current;
     setLoading(true);
-    setError('');
+    setReadError('');
     try {
       const [{ profile: next }, workspace] = await Promise.all([
         api.profile(),
         api.current(),
       ]);
+      if (version !== requestVersion.current) return;
       setProfile(next);
       setCurrentAction(workspace.currentAction);
-      setDescription(next.description?.content ?? '');
+      if (!descriptionDirty.current) setDescription(next.description?.content ?? '');
       setKnowledgeGoalId((current) => current || next.goals[0]?.goal.id || '');
     } catch (reason) {
-      setError(messageFor(reason));
+      if (version === requestVersion.current) setReadError(messageFor(reason));
     } finally {
-      setLoading(false);
+      if (version === requestVersion.current) setLoading(false);
     }
   }
   useEffect(() => {
     void load();
+    return () => { requestVersion.current++; };
   }, []);
   useDataRefresh(() => {
     void load();
   });
-  async function saveDescription() {
+  async function write(operation: () => Promise<void>) {
+    if (writing.current) return false;
+    writing.current = true;
     setSaving(true);
+    setError('');
+    setNotice('');
     try {
-      await api.saveDescription(description);
-      setNotice('“关于我”已保存。');
+      await operation();
       await load();
+      dataChanged();
+      return true;
     } catch (reason) {
       setError(messageFor(reason));
+      return false;
     } finally {
+      writing.current = false;
       setSaving(false);
     }
+  }
+  async function saveDescription() {
+    await write(async () => {
+      await api.saveDescription(description);
+      descriptionDirty.current = false;
+      setNotice('“关于我”已保存。');
+    });
   }
   async function createKnowledge(event: FormEvent) {
     event.preventDefault();
     if (!knowledgeGoalId) return;
-    setSaving(true);
-    try {
+    await write(async () => {
       await api.createKnowledge({
         goalId: knowledgeGoalId,
         title: knowledgeTitle,
@@ -1806,35 +1876,18 @@ export function ProfilePage({
       setKnowledgeTitle('');
       setKnowledgeNote('');
       setNotice('知识已加入画像。');
-      await load();
-    } catch (reason) {
-      setError(messageFor(reason));
-    } finally {
-      setSaving(false);
-    }
+    });
   }
   async function updateKnowledge(item: KnowledgeItem, status: KnowledgeStatus) {
-    setSaving(true);
-    try {
+    await write(async () => {
       await api.updateKnowledge(item.id, { status });
-      await load();
-    } catch (reason) {
-      setError(messageFor(reason));
-    } finally {
-      setSaving(false);
-    }
+    });
   }
   async function deleteKnowledge(item: KnowledgeItem) {
-    setSaving(true);
-    try {
+    await write(async () => {
       await api.deleteKnowledge(item.id);
       setNotice('知识已移出画像。');
-      await load();
-    } catch (reason) {
-      setError(messageFor(reason));
-    } finally {
-      setSaving(false);
-    }
+    });
   }
 
   return (
@@ -1861,9 +1914,9 @@ export function ProfilePage({
             </div>
           )}
         </header>
-        {error && (
+        {(error || readError) && (
           <div role="alert" className="page-error">
-            {error}
+            {error || readError}
             <button
               className="secondary-button"
               onClick={() => void load()}
@@ -1873,7 +1926,7 @@ export function ProfilePage({
             </button>
           </div>
         )}
-        {loading ? (
+        {loading && !profile ? (
           <InlineLoading />
         ) : !profile ? null : (
           <>
@@ -1921,7 +1974,11 @@ export function ProfilePage({
                 <h2>关于我</h2>
                 <textarea
                   value={description}
-                  onChange={(event) => setDescription(event.target.value)}
+                  disabled={saving}
+                  onChange={(event) => {
+                    descriptionDirty.current = true;
+                    setDescription(event.target.value);
+                  }}
                   maxLength={500}
                   placeholder="写下你想如何理解自己，或暂时留白。"
                 />
@@ -1978,6 +2035,7 @@ export function ProfilePage({
                   知识标题
                   <input
                     value={knowledgeTitle}
+                    disabled={saving}
                     onChange={(event) => setKnowledgeTitle(event.target.value)}
                     maxLength={80}
                     required
@@ -1988,6 +2046,7 @@ export function ProfilePage({
                   来源主线
                   <select
                     value={knowledgeGoalId}
+                    disabled={saving}
                     onChange={(event) => setKnowledgeGoalId(event.target.value)}
                     required
                   >
@@ -2003,6 +2062,7 @@ export function ProfilePage({
                   补充说明
                   <input
                     value={knowledgeNote}
+                    disabled={saving}
                     onChange={(event) => setKnowledgeNote(event.target.value)}
                     maxLength={300}
                     placeholder="可选"
@@ -2016,18 +2076,12 @@ export function ProfilePage({
             <ProfileExperiences
               profile={profile}
               saving={saving}
-              onSaved={async (goalId, summary) => {
-                setSaving(true);
-                try {
+              onSaved={(goalId, summary) =>
+                write(async () => {
                   await api.saveReflection(goalId, summary);
                   setNotice('经历总结已保存。');
-                  await load();
-                } catch (reason) {
-                  setError(messageFor(reason));
-                } finally {
-                  setSaving(false);
-                }
-              }}
+                })
+              }
             />
           </>
         )}
@@ -2094,7 +2148,7 @@ function ProfileExperiences({
 }: {
   profile: Profile;
   saving: boolean;
-  onSaved: (goalId: string, summary: string) => void;
+  onSaved: (goalId: string, summary: string) => Promise<boolean>;
 }) {
   if (!profile.experiences.length) return null;
   return (
@@ -2132,23 +2186,32 @@ function ExperienceCard({
   progress: number;
   summary: string;
   saving: boolean;
-  onSave: (summary: string) => void;
+  onSave: (summary: string) => Promise<boolean>;
 }) {
   const [value, setValue] = useState(summary);
-  useEffect(() => setValue(summary), [summary]);
+  const dirty = useRef(false);
+  useEffect(() => {
+    if (!dirty.current) setValue(summary);
+  }, [summary]);
   return (
     <article className="experience-card">
       <span className="status-label completed">已完成 · {progress}%</span>
       <h3>{title}</h3>
       <textarea
         value={value}
-        onChange={(event) => setValue(event.target.value)}
+        disabled={saving}
+        onChange={(event) => {
+          dirty.current = true;
+          setValue(event.target.value);
+        }}
         maxLength={500}
         placeholder="这条主线带给你的经历或认识…"
       />
       <button
         className="secondary-button"
-        onClick={() => onSave(value)}
+        onClick={async () => {
+          if (await onSave(value)) dirty.current = false;
+        }}
         disabled={saving}
       >
         保存总结
@@ -2343,7 +2406,7 @@ function useDialogFocus(
       if (event.key === 'Tab') {
         const elements = Array.from(
           ref.current?.querySelectorAll<HTMLElement>(
-            'button:not(:disabled), input, select, textarea, a[href]',
+            'button:not(:disabled), input:not(:disabled), select:not(:disabled), textarea:not(:disabled), a[href]',
           ) ?? [],
         );
         const first = elements[0],

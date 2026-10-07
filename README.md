@@ -21,7 +21,7 @@ LifeKernelOS 是一个目标驱动的个人行动工具，让重要的事变成�
 
 ## 启动桌面客户端
 
-需要 Node.js 22.13 或以上，建议 Node.js 24 LTS，以及桌面图形环境。
+需要 Node.js 22.22.2+（22 LTS）、24.15+（24 LTS）或 26+，建议 Node.js 24 LTS，以及桌面图形环境。
 
 ```bash
 npm ci
@@ -63,18 +63,21 @@ npm run package:dir  # 当前平台的应用目录，输出 release/
 npm run package      # 当前平台的安装包，不自动发布
 ```
 
-macOS：DMG/ZIP；Windows：NSIS；Linux：AppImage/tar.gz。各平台请在相应系统构建。main push 与 PR 自动运行三平台检查；main 检查通过后生成带 SHA-256 的未签名安装包。匹配 package.json 的 `v*` 标签在验证通过后自动发布 GitHub Release，详见 [CI/CD](docs/development/ci-cd.md)。签名与自动升级另行配置。
+macOS ARM64 / Intel x64：DMG/ZIP；Windows ARM64 / x64：独立 NSIS 安装包；另保留 Linux x64 AppImage/tar.gz。main push 与 PR 自动运行五个原生目标的检查；main 或手动运行在全部检查通过后打包，核对可执行文件架构、资源与打包 ASAR 启动，再生成 SHA-256。匹配 package.json 的 `v*` 标签在八个安装包及其哈希全部验证后发布 GitHub Release，详见 [CI/CD](docs/development/ci-cd.md)。当前未签名；签名与自动升级另行配置。
 
 ## 验证与当前状态
 
 ```bash
 npm run docs:check
 npm test
+node --test scripts/desktop-packaging.test.mjs # 安装包与发布门禁回归
 npm run build
 npm run test:desktop # 真实 Electron 启动、IPC、小窗及重启测试；需要图形环境
 ```
 
-PRD v0.11、ADR-0009/0010/0012 及 ADR-0011 的日常渐进展示范围已接受；SPEC-0012/0013/0014/0015 为 `Implemented`。85 项自动化回归、浏览器任务闭环、类型与生产构建通过；本轮验证了更多菜单、键盘与焦点、辅助字段保留、按需详情及编辑保护。界面截图覆盖 1360×900 和 900×640，使用独立示例数据。本轮未进行 Electron 实机验收；原生 CI 的本机脚本模型测试也不代表真实模型质量验收。**真实 Key / 模型调用、系统密钥服务、原生对话框、全局快捷键与实机安装仍待人工验收**，未标记 `Verified`。
+2026-10-07：105 项业务、HTTP、DOM、迁移与恢复回归及 7 项打包/发布门禁回归通过。补齐收集箱错误重试与写入保护、画像草稿保留、原任务编辑绑定、导入确认版本保护、旧 Web 完成校验和 AI 撤销后重试事实；主线与画像进度使用一致聚合读取。[完整 GitHub 运行](https://github.com/KeatonLi/LifeKernelOS/actions/runs/37573813850)的五个原生检查和五个打包任务全部成功，macOS / Windows ARM64 与 x64、Linux x64 共八个安装包及独立 SHA-256 已上传；各目标通过架构、运行时/SQLite、ASAR 资源及任务/AI/导入/重启闭环。详细证据见[验收记录](docs/development/desktop-acceptance.md)。
+
+PRD v0.11、ADR-0009/0010/0012 及 ADR-0011 的日常渐进展示范围已接受；SPEC-0012/0013/0014/0015 为 `Implemented`。已有浏览器界面证据覆盖 1360×900 和 900×640、更多菜单、键盘与焦点、辅助字段保留及按需详情，使用独立示例数据。本机脚本模型测试不代表真实模型质量验收。**真实 Key / 模型调用、系统密钥服务、原生对话框交互、全局快捷键与实机安装仍待人工验收**，未标记 `Verified`。
 
 详见 [桌面验收记录](docs/development/desktop-acceptance.md) 与 [视觉 QA](design-qa.md)。界面预览使用独立示例工作区，不会在首次桌面启动时生成示例记录：
 

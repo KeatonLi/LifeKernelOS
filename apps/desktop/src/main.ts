@@ -303,9 +303,10 @@ async function desktopCommand(
       return { ok: true, data: { canceled: true } };
     const validation = await rpc('validate-import', source.filePaths[0]);
     if (!validation.ok) return validation;
-    const { payload, counts } = validation.data as {
+    const { payload, counts, workspaceRevision } = validation.data as {
       payload: ExportPayload;
       counts: { goals: number; actions: number; captures: number };
+      workspaceRevision: string;
     };
     const confirmation = await dialog.showMessageBox(owner, {
       type: 'warning',
@@ -321,7 +322,7 @@ async function desktopCommand(
     if (confirmation.response !== 1)
       return { ok: true, data: { canceled: true } };
     ai.invalidate();
-    const result = await rpc('import', payload);
+    const result = await rpc('import', { payload, expectedWorkspaceRevision: workspaceRevision });
     if (result.ok) {
       broadcast();
       return { ok: true, data: { canceled: false, counts } };
