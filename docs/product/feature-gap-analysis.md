@@ -62,9 +62,9 @@ AI 实现依据：[命令与 DTO](../../shared/ai.ts)、[模型请求和预览](
 
 ## 本轮已落实的小优化
 
-- 导出采用独立 UUID 临时文件、排他创建、完整写入后原子替换，失败只清理本次暂存文件；多窗口同路径导出不再共用 `.tmp`。
+- 导出采用独立 UUID 临时文件、排他创建、完整写入后原子替换，失败只清理本次暂存文件；多窗口同路径写入串行，Windows 短暂文件锁采用有限重试，失败后可重新导出。
 - 导出默认文件名使用本地日期，与任务日期语义一致。
 - Actions 上传安装包关闭重复压缩；下载安装包的目录结构与 SHA-256 发布校验保持一致，依据 [upload-artifact 官方说明](https://github.com/actions/upload-artifact#altering-compressions-level-speed-v-size)。
 - 跨平台界面测试明确等待初次渲染完成，以简短错误校验 DOM 元素身份；全量测试最多并行两个文件进程，减少托管 runner 的资源争用，不放宽任务、焦点和草稿断言。
 
-本地验证：107 项业务/HTTP/DOM/恢复回归、类型检查、生产构建、Windows x64 真实 Electron 导出并发/取消与任务/AI/导入/重启闭环通过；工作流 actionlint 通过。原生人工验收仍按上节记录。
+验证命令包括全量业务/HTTP/DOM/恢复回归、类型检查、生产构建、Windows x64 真实 Electron 导出并发/取消与任务/AI/导入/重启闭环和 actionlint。最终结果见 main 的 Actions 运行；原生人工验收仍按上节记录。
