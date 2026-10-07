@@ -3,7 +3,7 @@ import { execFileSync } from 'node:child_process';
 import { open, readFile, readdir, stat } from 'node:fs/promises';
 import { createRequire } from 'node:module';
 import { tmpdir } from 'node:os';
-import { join, resolve } from 'node:path';
+import { join, normalize, resolve } from 'node:path';
 import { binaryArchitecture, installerNames, targetFor } from './desktop-artifacts.mjs';
 
 const [platform, arch, output = 'release'] = process.argv.slice(2);
@@ -56,7 +56,7 @@ async function verifyTree(folder) {
     if (entry.isDirectory()) await verifyTree(name);
     else if (entry.isFile()) {
       assert.ok(files.has(name), `Missing packaged resource: ${name}`);
-      assert.deepEqual(asar.extractFile(archive, name), await readFile(name), `Stale packaged resource: ${name}`);
+      assert.deepEqual(asar.extractFile(archive, normalize(name)), await readFile(name), `Stale packaged resource: ${name}`);
     }
   }
 }
