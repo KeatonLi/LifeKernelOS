@@ -45,7 +45,9 @@ test('SPEC-0010：同一主线新增和编辑后立即刷新列表及详情', as
     records = records.map(item => item.id === id ? { ...item, ...input } : item);
     return { action: records.find(item => item.id === id)! };
   });
-  const view = mainlineView();
+  let view!: ReturnType<typeof mainlineView>;
+  // Flush the initial mocked reads and React commit before querying the cold DOM.
+  await act(async () => { view = mainlineView(); });
   await view.findByRole('heading', { name: '任务 old' });
   fireEvent.click(view.getByRole('button', { name: '新建 To-do' }));
   fireEvent.change(view.getByLabelText('To-do 标题'), { target: { value: '新增步骤' } });

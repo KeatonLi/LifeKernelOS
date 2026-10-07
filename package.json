@@ -12,7 +12,7 @@
     "build": "npm run typecheck && vite build && npm run build:desktop",
     "start": "electron .",
     "db:seed": "node --import tsx apps/api/src/seed.ts",
-    "test": "node --import tsx --test apps/api/src/*.test.ts apps/web/src/*.test.tsx apps/desktop/src/*.test.ts",
+    "test": "node --import tsx --test --test-concurrency=2 apps/api/src/*.test.ts apps/web/src/*.test.tsx apps/desktop/src/*.test.ts",
     "test:web": "node --import tsx --test apps/web/src/*.test.tsx",
     "typecheck": "tsc --noEmit",
     "dev:legacy": "concurrently -k \"npm:dev:api\" \"npm:dev:web\"",

@@ -14,6 +14,8 @@
 
 五个目标均使用原生 CPU 架构的 Node 24 LTS 最新补丁，分别执行 npm ci、文档检查、领域/HTTP/DOM/迁移/恢复测试、打包与发布门禁回归、类型/生产构建，以及真实 Electron 启动、隔离 IPC 与重启测试。任何目标失败都会阻止后续打包。开发工具的 Node engines 为 `^22.22.2 || ^24.15.0 || >=26.0.0`，与锁定的 jsdom 要求一致。
 
+`npm test` 限制最多两个测试文件进程同时运行，避免多个 JSDOM 冷启动与密码哈希/迁移测试争用托管 runner 的 CPU 和内存。异步界面测试等待实际读取与渲染完成，元素身份断言只生成简短诊断，不递归展开 DOM / React 对象；任务内容、焦点和恢复校验保持严格。
+
 AI smoke 只调用临时本机脚本服务，验证网络鉴权、预览、重复采纳、撤销和重启后会话 Key 消失；CI 不需要用户 Key，不调用付费模型，也不代表建议质量或原生密钥服务已验收。
 
 Linux 托管 runner 在测试前下载锁定的 Electron 二进制，并将其 chrome-sandbox helper 配置为 root 所有、4755 权限，满足 Chromium SUID sandbox 的运行要求。只调整临时 CI runner 中该 helper，不关闭产品的 sandbox/contextIsolation，也不使用关闭沙箱的测试参数。
