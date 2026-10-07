@@ -56,7 +56,7 @@ node scripts/package-checksums.mjs
 
 macOS ARM64 的包检查参数为 `mac arm64`，asar 位于 `release/mac-arm64/LifeKernelOS.app/Contents/Resources/app.asar`；Intel macOS 使用 `mac x64` 与 `release/mac/…`。Windows ARM64 使用 `win arm64` 与 `release/win-arm64-unpacked/resources/app.asar`。Linux 执行 `node scripts/prepare-electron-sandbox.mjs` 后以 `xvfb-run -a` 运行 smoke。
 
-2026-10-07：原有三平台检查仅在 macOS 一个 runner 上交叉生成 Intel 与 ARM 包，Windows 缺少 ARM64。已改为上表原生矩阵，并补齐打包资源、架构、完整产物与哈希门禁。本地发布门禁 7/7 回归通过；实际原生桌面验证记录见 [桌面验收](desktop-acceptance.md)。本轮工作流尚未推送运行，macOS / Windows ARM64 与全部 GitHub runner 的执行结果须由首次 Actions 运行补录，不将配置存在视为五目标通过。
+2026-10-07：原有三平台检查仅在 macOS 一个 runner 上交叉生成 Intel 与 ARM 包，Windows 缺少 ARM64。已改为上表原生矩阵，并补齐打包资源、架构、完整产物与哈希门禁。本地发布门禁 7/7 与业务回归 105/105 通过；实际原生桌面验证记录见 [桌面验收](desktop-acceptance.md)。已推送 [PR #3](https://github.com/KeatonLi/LifeKernelOS/pull/3) 并手动触发 [完整检查与安装包矩阵](https://github.com/KeatonLi/LifeKernelOS/actions/runs/37572331361)，五目标的真实执行状态及安装包下载以该次 Actions 结果为准。不会仅凭配置存在宣称五目标通过。
 
 官方依据：GitHub 的 [runner 架构与标签](https://docs.github.com/en/actions/reference/runners/github-hosted-runners)、electron-builder 26 的 [平台与架构](https://www.electron.build/v26/docs/architecture/) 和 [NSIS 分架构配置](https://www.electron.build/v26/docs/nsis/)。
 
