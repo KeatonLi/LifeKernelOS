@@ -42,6 +42,8 @@ main 与手动运行在全部检查通过后生成上表五个目标的八个未
 
 ## 版本发布
 
+安装包已由各平台打包工具压缩，Actions 上传使用 `compression-level: 0`，避免为 EXE / DMG / ZIP / AppImage / tar.gz 再做一次 CPU 压缩。上传目录结构、逐文件 SHA-256 和发布门禁保持一致。配置依据见 [upload-artifact 官方说明](https://github.com/actions/upload-artifact#altering-compressions-level-speed-v-size)。
+
 [Desktop release](../../.github/workflows/release.yml) 由 `v*` 标签触发；标签必须精确匹配 package.json，并指向 main 历史中的提交。再调用相同的五目标原生检查/打包；全部成功后下载本次运行的安装包，再创建 GitHub Release。预发布标签 alpha/beta/rc 自动标记 prerelease。
 
 发布前的 [产物门禁](../../scripts/check-release-assets.mjs) 要求五个 Actions 产物目录齐全，且每个目录只有对应版本、系统、架构的预期安装包和哈希。八个安装包必须非空，哈希内容与文件名必须逐项精确匹配；缺少 Windows ARM64、漏传某个格式/哈希、安装包被篡改、版本过期或额外未知文件都阻止发布。回归见 [打包测试](../../scripts/desktop-packaging.test.mjs)。

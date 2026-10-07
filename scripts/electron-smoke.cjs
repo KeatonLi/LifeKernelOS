@@ -4,7 +4,7 @@ const assert = require('node:assert/strict');
 const path = require('node:path');
 const { createServer } = require('node:http');
 const { randomUUID } = require('node:crypto');
-const { writeFileSync } = require('node:fs');
+const { writeFileSync, readFileSync, readdirSync } = require('node:fs');
 const root = process.env.LK_SMOKE_APP_ROOT
   ? path.resolve(process.env.LK_SMOKE_APP_ROOT)
   : path.resolve(__dirname, '..');
@@ -142,6 +142,24 @@ app.on('browser-window-created', (_event, window) => {
         // Exercise the real import IPC without requiring clicks in native dialogs.
         const beforeImport = await request('GET', '/api/export');
         assert.ok(process.env.LK_DATA_DIR, 'smoke must use an isolated workspace');
+        const exportFile = path.join(process.env.LK_DATA_DIR, 'smoke-export.json');
+        const originalSaveDialog = dialog.showSaveDialog;
+        try {
+          dialog.showSaveDialog = async () => ({ canceled: false, filePath: exportFile });
+          const exports = await window.webContents.executeJavaScript(
+            "Promise.all([window.lifeKernel.desktop('export'), window.lifeKernel.desktop('export')])",
+          );
+          assert.ok(exports.every(result => result.ok && !result.data.canceled), JSON.stringify(exports));
+          assert.deepEqual(JSON.parse(readFileSync(exportFile, 'utf8')).data, beforeImport.data);
+          assert.ok(!readdirSync(process.env.LK_DATA_DIR).some(name => name.endsWith('.tmp')));
+          dialog.showSaveDialog = async () => ({ canceled: true });
+          const canceled = await window.webContents.executeJavaScript("window.lifeKernel.desktop('export')");
+          assert.equal(canceled.data.canceled, true);
+          assert.deepEqual(JSON.parse(readFileSync(exportFile, 'utf8')).data, beforeImport.data);
+          console.log('EXPORT SMOKE PASSED: concurrent atomic exports, complete JSON and cancellation');
+        } finally {
+          dialog.showSaveDialog = originalSaveDialog;
+        }
         const importFile = path.join(process.env.LK_DATA_DIR, 'smoke-import.json');
         writeFileSync(importFile, JSON.stringify(beforeImport));
         const originalOpenDialog = dialog.showOpenDialog;

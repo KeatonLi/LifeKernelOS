@@ -13,7 +13,7 @@ import {
   type IpcMainInvokeEvent,
   type UtilityProcess,
 } from 'electron';
-import { readFile, writeFile, rename, mkdir } from 'node:fs/promises';
+import { readFile, mkdir } from 'node:fs/promises';
 import { writeFileSync } from 'node:fs';
 import { join, resolve, extname, sep } from 'node:path';
 import { requestSchema, type BusinessRequest } from '../../api/src/commands.js';
@@ -21,6 +21,8 @@ import type { ExportPayload } from '../../api/src/types.js';
 import type { DesktopCommand, Result } from './bridge.js';
 import { AiSettingsStore } from './ai-settings.js';
 import { AiController } from './ai.js';
+import { writeJsonExport } from './export-file.js';
+import { localDay } from '../../../shared/calendar.js';
 
 protocol.registerSchemesAsPrivileged([
   {
@@ -279,18 +281,14 @@ async function desktopCommand(
   if (command === 'export') {
     const destination = await dialog.showSaveDialog(owner, {
       title: '保存全部记录',
-      defaultPath: `lifekernel-${new Date().toISOString().slice(0, 10)}.json`,
+      defaultPath: `lifekernel-${localDay()}.json`,
       filters: [{ name: 'LifeKernel JSON', extensions: ['json'] }],
     });
     if (destination.canceled || !destination.filePath)
       return { ok: true, data: { canceled: true } };
     const result = await rpc('export');
     if (!result.ok) return result;
-    const temporary = `${destination.filePath}.tmp`;
-    await writeFile(temporary, JSON.stringify(result.data, null, 2), {
-      mode: 0o600,
-    });
-    await rename(temporary, destination.filePath);
+    await writeJsonExport(destination.filePath, result.data);
     return { ok: true, data: { canceled: false } };
   }
   if (command === 'import') {
