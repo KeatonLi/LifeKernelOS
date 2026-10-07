@@ -167,7 +167,7 @@ test('SPEC-0015：更多进入卡住流程，失败保留原因并按原行动�
   fireEvent.click(trigger);
   fireEvent.click(view.getByRole('menuitem', { name: '卡住' }));
   const input = view.getByLabelText('卡住的原因（可选）') as HTMLTextAreaElement;
-  assert.ok(document.activeElement === input);
+  await waitFor(() => assert.equal(document.activeElement, input));
   assert.equal(view.queryByRole('menu'), null);
   fireEvent.change(input, { target: { value: '需要先拿到资料' } });
   fireEvent.click(view.getByRole('button', { name: '确认保存' }));
@@ -191,7 +191,7 @@ test('SPEC-0015：取消更多中的拆小不写任务，返回焦点且切任�
   fireEvent.change(view.getByLabelText('更小的一步'), { target: { value: '只整理一个文件' } });
   fireEvent.click(view.getByRole('button', { name: '取消' }));
   const trigger = view.getByRole('button', { name: '更多当前任务操作' });
-  assert.ok(document.activeElement === trigger);
+  await waitFor(() => assert.equal(document.activeElement, trigger));
   fireEvent.click(trigger);
   fireEvent.click(view.getByRole('button', { name: /任务 other/ }));
   await view.findByRole('heading', { name: '任务 other' });
@@ -203,7 +203,7 @@ test('SPEC-0015：编辑期间锁定选择，背景刷新保留草稿并保存�
   setupMainlines();
   mock.method(api, 'captures', async () => ({ captures: [] }));
   let records = [action('a'), { ...action('b'), status: 'completed' as const }];
-  mock.method(api, 'goalActions', async () => ({ actions: structuredClone(records) }));
+  const read = mock.method(api, 'goalActions', async () => ({ actions: structuredClone(records) }));
   const writes: Array<{ id: string; title: string }> = [];
   mock.method(api, 'updateAction', async (id: string, input: { title: string }) => {
     writes.push({ id, title: input.title });
@@ -219,7 +219,11 @@ test('SPEC-0015：编辑期间锁定选择，背景刷新保留草稿并保存�
   fireEvent.click(view.getByRole('button', { name: '已完成' }));
   fireEvent.click(view.getByRole('button', { name: /任务 b/ }));
   await act(async () => dataChanged());
-  await waitFor(() => assert.equal((view.getByLabelText('To-do 标题') as HTMLInputElement).value, '任务 A 的草稿'));
+  await waitFor(() => {
+    assert.equal(read.mock.calls.length, 2);
+    assert.equal((view.getByRole('button', { name: '保存 To-do' }) as HTMLButtonElement).disabled, false);
+    assert.equal((view.getByLabelText('To-do 标题') as HTMLInputElement).value, '任务 A 的草稿');
+  });
   fireEvent.click(view.getByRole('button', { name: '保存 To-do' }));
   await view.findByRole('heading', { name: '任务 A 的草稿' });
   assert.deepEqual(writes, [{ id: 'a', title: '任务 A 的草稿' }]);
@@ -241,7 +245,7 @@ test('SPEC-0015：切换主线读取期间不能进入旧任务编辑器', async
   assert.equal(view.queryByLabelText('To-do 标题'), null);
   await act(async () => finishLoad({ actions: [action('b', 'b')] }));
   await view.findByRole('heading', { name: '任务 b' });
-  assert.equal((view.getByRole('button', { name: '编辑 To-do' }) as HTMLButtonElement).disabled, false);
+  await waitFor(() => assert.equal((view.getByRole('button', { name: '编辑 To-do' }) as HTMLButtonElement).disabled, false));
 });
 
 test('SPEC-0015：处理表单刷新后仍校验原当前任务，冲突保留原因', async () => {
@@ -249,7 +253,13 @@ test('SPEC-0015：处理表单刷新后仍校验原当前任务，冲突保留�
   mock.method(api, 'captures', async () => ({ captures: [] }));
   let current = action('a');
   mock.method(api, 'current', async () => ({ context: null, contextIsStale: false, currentAction: current, strictMatches: [], allAvailable: [] }));
-  mock.method(api, 'goalActions', async () => ({ actions: [action('a'), action('b')] }));
+  const records = [action('a'), action('b')];
+  let finishRefresh!: (value: { actions: GoalAction[] }) => void;
+  const refreshing = new Promise<{ actions: GoalAction[] }>(resolve => { finishRefresh = resolve; });
+  let reads = 0;
+  const read = mock.method(api, 'goalActions', async () =>
+    ++reads === 2 ? refreshing : { actions: structuredClone(records) },
+  );
   const writes: string[] = [];
   mock.method(api, 'blockCurrent', async (id: string) => {
     writes.push(id);
@@ -263,7 +273,21 @@ test('SPEC-0015：处理表单刷新后仍校验原当前任务，冲突保留�
   fireEvent.change(input, { target: { value: '原任务的原因' } });
   current = action('b');
   await act(async () => dataChanged());
-  fireEvent.click(view.getByRole('button', { name: '确认保存' }));
+  const submit = view.getByRole('button', { name: '确认保存' }) as HTMLButtonElement;
+  // dataChanged schedules a debounced read; act alone does not wait for that refresh.
+  await waitFor(() => {
+    assert.equal(read.mock.calls.length, 2);
+    assert.equal(submit.disabled, true);
+  });
+  fireEvent.click(submit);
+  assert.deepEqual(writes, [], 'refreshing form must not submit');
+  await act(async () => finishRefresh({ actions: records }));
+  await waitFor(() => {
+    assert.match(view.getByRole('button', { name: /任务 b/ }).textContent!, /现在做/);
+    assert.equal(submit.disabled, false);
+  });
+  assert.equal((input as HTMLTextAreaElement).value, '原任务的原因');
+  fireEvent.click(submit);
   await view.findByRole('alert');
   assert.deepEqual(writes, ['a']);
   assert.equal((view.getByLabelText('卡住的原因（可选）') as HTMLTextAreaElement).value, '原任务的原因');
@@ -478,7 +502,8 @@ test('SPEC-0005：整理目标被后台停用时保留选择，要求重新选�
   const read = mock.method(api, 'goals', async () => ({ goals }));
   const write = mock.method(api, 'convertCapture', async (_id: string, input: { goalId: string; title: string }) => ({ capture: capture(), action: action(input.title, input.goalId) }));
   await act(async () => dataChanged());
-  await waitFor(() => assert.equal(read.mock.calls.length, 1));
+  await view.findByRole('option', { name: '原主线已不可用，请重新选择' });
+  assert.equal(read.mock.calls.length, 1);
   const target = view.getByLabelText('归入主线') as HTMLSelectElement;
   assert.equal(target.value, 'a');
   assert.ok(view.getByRole('option', { name: '原主线已不可用，请重新选择' }));
@@ -525,8 +550,10 @@ test('SPEC-0011：画像后台刷新保留自述、经历与知识草稿和键�
   summary.focus();
   profile.description.content = '其他窗口的新描述';
   profile.experiences[0].reflection!.summary = '其他窗口的新总结';
+  profile.factSummary.completedActionCount = 1;
   await act(async () => dataChanged());
-  await waitFor(() => assert.equal(read.mock.calls.length, 2));
+  await waitFor(() => assert.equal(view.getByText('步已完成').previousElementSibling!.textContent, '1'));
+  assert.equal(read.mock.calls.length, 2);
   assert.equal(view.getByPlaceholderText('写下你想如何理解自己，或暂时留白。'), description);
   assert.equal(view.getByPlaceholderText('这条主线带给你的经历或认识…'), summary);
   assert.equal(description.value, '尚未保存的自述');
@@ -590,7 +617,11 @@ test('SPEC-0015：主线编辑任务被后台替换后仍保留原草稿和保�
   fireEvent.change(view.getByLabelText('To-do 标题'), { target: { value: '原任务的未保存内容' } });
   records = [action('other')];
   await act(async () => dataChanged());
-  await waitFor(() => assert.equal(read.mock.calls.length, 2));
+  await waitFor(() => {
+    assert.equal(read.mock.calls.length, 2);
+    assert.equal(view.queryByRole('button', { name: /任务 original/ }), null);
+    assert.equal((view.getByRole('button', { name: '保存 To-do' }) as HTMLButtonElement).disabled, false);
+  });
   assert.equal((view.getByLabelText('To-do 标题') as HTMLInputElement).value, '原任务的未保存内容');
   fireEvent.click(view.getByRole('button', { name: '保存 To-do' }));
   await view.findByRole('alert');

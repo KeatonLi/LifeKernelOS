@@ -24,6 +24,22 @@ main 与手动运行在全部检查通过后生成上表五个目标的八个未
 
 [SHA-256 脚本](../../scripts/package-checksums.mjs) 以流式读取生成每个安装包的 `.sha256`，避免将整个大文件一次读入内存。Actions 产物保留 14 天；只上传安装包及哈希。PR 只验证，避免为每个 PR 构建全部安装包。新的同分支检查取消旧任务，版本发布不取消。
 
+## 官方二进制下载缓存
+
+`actions/setup-node` 的 npm 缓存继续负责 npm 包；另使用官方 [actions/cache v6.1.0](https://github.com/actions/cache) 缓存 Electron 与 electron-builder 的下载 archive，减少检查阶段和打包阶段以及后续运行的重复网络下载。缓存目录由两阶段共用的 [路径脚本](../../scripts/desktop-cache-paths.mjs) 在 npm ci 前计算，匹配锁定的 `@electron/get` 和 electron-builder 的真实默认目录：
+
+| 系统 | Electron 下载目录 | electron-builder 工具下载目录 |
+| --- | --- | --- |
+| Linux | `$XDG_CACHE_HOME/electron`，默认 `~/.cache/electron` | `$XDG_CACHE_HOME/electron-builder/downloads`，默认 `~/.cache/electron-builder/downloads` |
+| macOS | `~/Library/Caches/electron` | `~/Library/Caches/electron-builder/downloads` |
+| Windows | `%LOCALAPPDATA%/electron/Cache` | `%LOCALAPPDATA%/electron-builder/Cache/downloads` |
+
+缓存 key 精确包含 runner 镜像标签、CPU 架构、package-lock 的 SHA-256 和缓存版本前缀，不使用跨系统、跨架构或跨锁文件的回退。Electron 的 checks / packages key 相同；成功的 checks 保存 archive 后，相应 packages 可直接复用。工具 archive 在 packages 结束后保存供后续运行使用，checks 不下载这些打包工具。
+
+仅缓存官方下载目录；不缓存 `node_modules`、应用数据、Key、打包产物或已解压的 builder 工具。后者每次从 archive 按内置 SHA-256 校验后重新解压；Electron 的缓存命中也继续通过 `@electron/get` 正常校验。缓存缺失或被清理时仍正常下载，npm ci、构建及测试保持必跑。首次冷安装及缓存实际节省时间须以 Actions 日志为准，不将缓存配置视为性能验收。
+
+缓存访问遵循 GitHub 的 [分支与触发事件作用域](https://docs.github.com/en/actions/reference/workflows-and-actions/dependency-caching)；不额外扩大 PR 写缓存权限。2026-10-07 本地核对 Windows 路径与已安装供应方一致，`@electron/get` 3 / 5 均从同一官方 Electron ZIP 离线命中且通过 SHA-256；仅复制 builder `downloads` 到新目录后，真实 builder 成功重新校验并解压 7zip 工具。
+
 ## 版本发布
 
 [Desktop release](../../.github/workflows/release.yml) 由 `v*` 标签触发；标签必须精确匹配 package.json，并指向 main 历史中的提交。再调用相同的五目标原生检查/打包；全部成功后下载本次运行的安装包，再创建 GitHub Release。预发布标签 alpha/beta/rc 自动标记 prerelease。

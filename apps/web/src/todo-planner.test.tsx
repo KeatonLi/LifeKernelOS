@@ -252,7 +252,11 @@ test('SPEC-0013：浏览器 input 日期事件立即更新，编辑其他字段�
   fireEvent.click(page.getByRole('button', {name: '保存 To-do'}));
   await page.findByRole('heading', {name: '修改后的标题'});
   assert.equal(records[0].scheduledDate, '2026-10-08');
-  assert.equal(document.activeElement?.textContent, '新建任务');
+  // The saved heading can appear before the passive editor-close effect restores focus.
+  await waitFor(() => assert.equal(
+    document.activeElement,
+    page.getByRole('button', { name: '新建任务' }),
+  ));
 });
 
 test('SPEC-0013：搜索与主线筛选操作同一份任务，不改变记录', async () => {
@@ -483,22 +487,22 @@ test('SPEC-0015：选择与返回当前定位详情，关闭后键盘焦点回�
   row.focus();
   fireEvent.click(row);
   const inspector = page.getByRole('complementary', { name: '任务详情' });
-  assert.equal(document.activeElement, inspector);
+  await waitFor(() => assert.equal(document.activeElement, inspector));
   assert.equal(scrollTargets.at(-1), inspector);
   fireEvent.click(page.getByRole('button', { name: '关闭任务详情' }));
-  assert.equal(document.activeElement, row);
+  await waitFor(() => assert.equal(document.activeElement, row));
   assert.equal(scrollTargets.at(-1), row);
   fireEvent.change(page.getByLabelText('搜索任务'), { target: { value: 'focus-other' } });
   const returnCurrent = page.getByRole('button', { name: '返回当前任务' });
   returnCurrent.focus();
   fireEvent.click(returnCurrent);
   const currentInspector = page.getByRole('complementary', { name: '任务详情' });
-  assert.equal(document.activeElement, currentInspector);
+  await waitFor(() => assert.equal(document.activeElement, currentInspector));
   assert.equal(scrollTargets.at(-1), currentInspector);
   assert.equal((page.getByLabelText('搜索任务') as HTMLInputElement).value, 'focus-other');
   fireEvent.click(page.getByRole('button', { name: '关闭任务详情' }));
   const nextReturn = page.getByRole('button', { name: '返回当前任务' });
-  assert.equal(document.activeElement, nextReturn);
+  await waitFor(() => assert.equal(document.activeElement, nextReturn));
   assert.equal(scrollTargets.at(-1), nextReturn);
 });
 
@@ -527,7 +531,7 @@ test('SPEC-0015：可交互视图入口在编辑和写入期间禁用，保存�
   assert.equal((page.getByLabelText('搜索任务') as HTMLInputElement).disabled, true);
   await act(async () => resolveSave({ action: records[0] }));
   await page.findByRole('heading', { name: '保存期间保持视图' });
-  assert.equal(navigation.disabled, false);
+  await waitFor(() => assert.equal(navigation.disabled, false));
 });
 
 test('SPEC-0015：列表编辑任务被后台替换后不重置草稿或改变保存目标', async () => {
@@ -539,7 +543,10 @@ test('SPEC-0015：列表编辑任务被后台替换后不重置草稿或改变�
   fireEvent.change(page.getByLabelText('To-do 标题'), { target: { value: '原任务的草稿' } });
   records.splice(0, 1);
   await act(async () => dataChanged());
-  await waitFor(() => assert.equal(page.queryByRole('button', { name: /任务 original/ }), null));
+  await waitFor(() => {
+    assert.equal(page.queryByRole('button', { name: /任务 original/ }), null);
+    assert.equal((page.getByRole('button', { name: '保存 To-do' }) as HTMLButtonElement).disabled, false);
+  });
   assert.equal((page.getByLabelText('To-do 标题') as HTMLInputElement).value, '原任务的草稿');
   assert.ok(page.getByRole('button', { name: '保存 To-do' }));
   fireEvent.click(page.getByRole('button', { name: '保存 To-do' }));

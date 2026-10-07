@@ -44,6 +44,14 @@ jobs:
           node-version: '24'
           architecture: ${{ matrix.arch }}
           cache: npm
+      - name: Locate official binary download caches
+        id: binary-caches
+        run: node scripts/desktop-cache-paths.mjs
+      - name: Restore official Electron archives
+        uses: actions/cache@v6.1.0
+        with:
+          path: ${{ steps.binary-caches.outputs.electron }}
+          key: desktop-electron-v1-${{ matrix.os }}-${{ matrix.arch }}-${{ hashFiles('package-lock.json') }}
       - run: npm ci
       - run: npm run docs:check
       - run: npm test
@@ -109,6 +117,19 @@ jobs:
           node-version: '24'
           architecture: ${{ matrix.arch }}
           cache: npm
+      - name: Locate official binary download caches
+        id: binary-caches
+        run: node scripts/desktop-cache-paths.mjs
+      - name: Reuse Electron archives from checks
+        uses: actions/cache@v6.1.0
+        with:
+          path: ${{ steps.binary-caches.outputs.electron }}
+          key: desktop-electron-v1-${{ matrix.os }}-${{ matrix.arch }}-${{ hashFiles('package-lock.json') }}
+      - name: Restore official electron-builder tool archives
+        uses: actions/cache@v6.1.0
+        with:
+          path: ${{ steps.binary-caches.outputs.builder-downloads }}
+          key: desktop-builder-downloads-v1-${{ matrix.os }}-${{ matrix.arch }}-${{ hashFiles('package-lock.json') }}
       - run: npm ci
       - run: npm run build
       - name: Package unsigned desktop
