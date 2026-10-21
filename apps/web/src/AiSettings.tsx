@@ -1,5 +1,9 @@
+import { Input } from './components/ui/input.js';
+import { Button } from './components/ui/button.js';
 import { useEffect, useRef, useState, type FormEvent } from 'react';
-import { SparkleIcon } from '@phosphor-icons/react';
+import {
+  Sparkles as SparkleIcon,
+} from 'lucide-react';
 import { ai, aiAvailable } from './api.js';
 import { DEFAULT_AI, type AiSettings } from '../../../shared/ai.js';
 
@@ -83,38 +87,38 @@ export function AiSettingsPanel() {
         {settings?.warning && <p role="alert" className="form-error">{settings.warning}</p>}
         <form className="ai-settings-form" onSubmit={save}>
           <fieldset disabled={busy || !settings}>
-            <label>服务地址（Base URL）<input type="url" required maxLength={2000} value={baseUrl}
+            <label>服务地址（Base URL）<Input type="url" required maxLength={2000} value={baseUrl}
               onChange={event => setBaseUrl(event.target.value)} placeholder="https://api.deepseek.com" autoComplete="off" /></label>
-            <label>模型名称<input required maxLength={200} value={model} onChange={event => setModel(event.target.value)}
+            <label>模型名称<Input required maxLength={200} value={model} onChange={event => setModel(event.target.value)}
               placeholder="填写服务商提供的模型名" autoComplete="off" /></label>
-            <label>API Key<input type="password" maxLength={4096} value={key} onChange={event => setKey(event.target.value)}
+            <label>API Key<Input type="password" maxLength={4096} value={key} onChange={event => setKey(event.target.value)}
               placeholder={settings?.hasApiKey ? '已配置；留空保留，输入新 Key 替换' : '输入自己的 API Key'}
               autoComplete="new-password" spellCheck={false} /></label>
-            <label className="ai-check"><input type="checkbox" checked={persist} disabled={!settings?.canPersistKey}
+            <label className="ai-check"><Input type="checkbox" checked={persist} disabled={!settings?.canPersistKey}
               onChange={event => setPersist(event.target.checked)} />在这台设备安全保存 Key</label>
           </fieldset>
           <p>{settings?.canPersistKey ? '取消勾选则仅本次运行有效。更换服务地址时需要重新输入 Key。'
             : '当前系统安全存储不可用，Key 仅保留到客户端退出。'} Key 不包含在任务备份中。</p>
           <div className="ai-actions">
-            <button className="primary-button" disabled={busy || !settings}>{saving ? '正在保存…' : '保存 AI 配置'}</button>
-            <button type="button" className="secondary-button" disabled={busy || dirty || !settings?.hasApiKey}
-              onClick={() => void test()}>测试连接</button>
-            {testing && <button type="button" className="text-button" onClick={() => {
+            <Button variant="default" className="primary-button" disabled={busy || !settings}>{saving ? '正在保存…' : '保存 AI 配置'}</Button>
+            <Button variant="ghost" type="button" className="secondary-button" disabled={busy || dirty || !settings?.hasApiKey}
+              onClick={() => void test()}>测试连接</Button>
+            {testing && <Button variant="ghost" type="button" className="text-button" onClick={() => {
               const id = requestId.current; requestId.current = null; setTesting(false); setNotice('已取消连接测试。');
               if (id) void ai({ kind: 'cancel', requestId: id }).catch(() => undefined);
-            }}>取消测试</button>}
+            }}>取消测试</Button>}
           </div>
         </form>
         <p className="ai-info">测试使用已保存的配置，只发送一条测试消息；生成时发送面板展示的任务内容。是否计费取决于你所选的服务。</p>
         {settings?.hasApiKey && <div className="ai-actions">
           {removeConfirm ? <><span>确认移除这台设备的 Key？</span>
-            <button className="danger-button" disabled={busy} onClick={() => void remove()}>确认移除 Key</button>
-            <button className="text-button" disabled={busy} onClick={() => setRemoveConfirm(false)}>取消</button></>
-            : <button className="text-button" disabled={busy || dirty} onClick={() => setRemoveConfirm(true)}>移除 Key</button>}
+            <Button variant="destructive" className="danger-button" disabled={busy} onClick={() => void remove()}>确认移除 Key</Button>
+            <Button variant="ghost" className="text-button" disabled={busy} onClick={() => setRemoveConfirm(false)}>取消</Button></>
+            : <Button variant="ghost" className="text-button" disabled={busy || dirty} onClick={() => setRemoveConfirm(true)}>移除 Key</Button>}
         </div>}
         {notice && <p role="status" className="ai-notice">{notice}</p>}
         {error && <><p role="alert" className="form-error">{error}</p>
-          <button className="text-button" disabled={busy} onClick={() => void reload()}>重新读取配置</button></>}
+          <Button variant="ghost" className="text-button" disabled={busy} onClick={() => void reload()}>重新读取配置</Button></>}
       </>}
     </div>
   </section>;

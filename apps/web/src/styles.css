@@ -1,7 +1,8 @@
+@import "./styles/nova.css";
 /* Neutral work surfaces; orange is reserved for action and selection. */
 :root {
   font-family:
-    'Manrope Variable', 'PingFang SC', 'Microsoft YaHei', system-ui, sans-serif;
+    'Geist Variable', 'PingFang SC', 'Microsoft YaHei', system-ui, sans-serif;
   font-synthesis: none;
   color: var(--ink);
   background: var(--canvas);
@@ -2320,3 +2321,8 @@ kbd {
   .todo-detail { border-radius: 0 0 8px 8px; }
   .todo-detail.is-current { min-height: 360px; }
 }
+
+/* Nova primitives, with explicit business-size variants. */
+[data-slot="button"] { height: auto; min-height: 32px; white-space: normal; }
+[data-slot="input"], [data-slot="textarea"] { border-radius: var(--radius); }
+.action-menu-trigger { min-height: 28px; }

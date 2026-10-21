@@ -1,5 +1,9 @@
+import { MotionSurface } from './components/ui/motion-surface.js';
+import { Button } from './components/ui/button.js';
 import { useEffect, useId, useRef, useState, type KeyboardEvent } from 'react';
-import { CaretDownIcon } from '@phosphor-icons/react';
+import {
+  ChevronDown as CaretDownIcon,
+} from 'lucide-react';
 
 export function ActionMenu({
   label = '更多',
@@ -113,7 +117,7 @@ export function ActionMenu({
 
   return (
     <div className="action-menu" ref={rootRef}>
-      <button
+      <Button variant="ghost"
         type="button"
         className="action-menu-trigger text-button"
         ref={triggerRef}
@@ -135,9 +139,9 @@ export function ActionMenu({
         }}
       >
         {label}<CaretDownIcon size={13} aria-hidden="true" />
-      </button>
+      </Button>
       {isOpen && (
-        <div
+        <MotionSurface
           id={menuId}
           role="menu"
           aria-label={ariaLabel}
@@ -146,7 +150,7 @@ export function ActionMenu({
           onKeyDown={handleMenuKey}
         >
           {items.map((item, index) => (
-            <button
+            <Button variant="ghost"
               type="button"
               key={`${item.label}-${index}`}
               role="menuitem"
@@ -160,9 +164,9 @@ export function ActionMenu({
               }}
             >
               {item.label}
-            </button>
+            </Button>
           ))}
-        </div>
+        </MotionSurface>
       )}
     </div>
   );

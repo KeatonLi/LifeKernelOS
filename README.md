@@ -65,6 +65,8 @@ npm run package      # 当前平台的安装包，不自动发布
 
 macOS ARM64 / Intel x64：DMG/ZIP；Windows ARM64 / x64：独立 NSIS 安装包；另保留 Linux x64 AppImage/tar.gz。main push 与 PR 自动运行五个原生目标的检查；main 或手动运行在全部检查通过后打包，核对可执行文件架构、资源与打包 ASAR 启动，再生成 SHA-256。匹配 package.json 的 `v*` 标签在八个安装包及其哈希全部验证后发布 GitHub Release，详见 [CI/CD](docs/development/ci-cd.md)。当前未签名；签名与自动升级另行配置。
 
+前端基础控件沿用 ClipJar 的 shadcn/ui Nova、Lucide、Motion 和 Zustand，保留朱橙主题；[迁移范围与截图](docs/development/frontend-components.md)。
+
 ## 验证与当前状态
 
 ```bash

@@ -77,7 +77,11 @@ if (
 }
 const server = await createServer({
   root: resolve(import.meta.dirname, '..'),
-  server: { host: '0.0.0.0', port: 4173, strictPort: true },
+  server: {
+    host: '0.0.0.0',
+    port: Number(process.env.LK_PREVIEW_PORT ?? 4173),
+    strictPort: true,
+  },
   plugins: [
     {
       name: 'local-desktop-preview',

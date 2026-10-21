@@ -1,3 +1,7 @@
+import { useWorkspaceUI } from './stores/workspace-ui.js';
+import { Textarea } from './components/ui/textarea.js';
+import { Input } from './components/ui/input.js';
+import { Button } from './components/ui/button.js';
 import {
   useEffect,
   lazy,
@@ -17,30 +21,30 @@ import {
   useNavigate,
 } from 'react-router-dom';
 import {
-  ArchiveIcon,
-  ArrowUpRightIcon,
-  ClockIcon,
-  CommandIcon,
-  CornersOutIcon,
-  HardDriveIcon,
-  PushPinIcon,
-  SparkleIcon,
-  ArrowRightIcon,
-  BookOpenTextIcon,
-  CaretDownIcon,
-  CheckCircleIcon,
-  CheckIcon,
-  CircleNotchIcon,
-  DotsThreeIcon,
-  GearSixIcon,
-  GraphIcon,
-  ListBulletsIcon,
-  PencilSimpleIcon,
-  PlusIcon,
-  TargetIcon,
-  UserCircleIcon,
-  XIcon,
-} from '@phosphor-icons/react';
+  Archive as ArchiveIcon,
+  ArrowUpRight as ArrowUpRightIcon,
+  Clock as ClockIcon,
+  Command as CommandIcon,
+  Maximize2 as CornersOutIcon,
+  HardDrive as HardDriveIcon,
+  Pin as PushPinIcon,
+  Sparkles as SparkleIcon,
+  ArrowRight as ArrowRightIcon,
+  BookOpenText as BookOpenTextIcon,
+  ChevronDown as CaretDownIcon,
+  CircleCheck as CheckCircleIcon,
+  Check as CheckIcon,
+  LoaderCircle as CircleNotchIcon,
+  Ellipsis as DotsThreeIcon,
+  Settings as GearSixIcon,
+  Network as GraphIcon,
+  List as ListBulletsIcon,
+  Pencil as PencilSimpleIcon,
+  Plus as PlusIcon,
+  Target as TargetIcon,
+  CircleUser as UserCircleIcon,
+  X as XIcon,
+} from 'lucide-react';
 import {
   api,
   ApiError,
@@ -102,19 +106,19 @@ export default function App() {
         <Brand />
         <h1>工作区暂时没有打开</h1>
         <p role="alert">{startupError}</p>
-        <button
+        <Button variant="default"
           className="primary-button"
           onClick={() => setAttempt((value) => value + 1)}
         >
           重新打开
-        </button>
+        </Button>
       </div>
     );
 
   if (!ready)
     return (
       <div className="loading-screen">
-        <CircleNotchIcon size={22} className="spin" weight="bold" />
+        <CircleNotchIcon size={22} className="spin" />
         <span>正在连接 LifeKernelOS</span>
       </div>
     );
@@ -233,12 +237,12 @@ function Home({ user }: { user: User | null }) {
     <main className="home-page">
       <header className="home-header">
         <Brand />
-        <button
+        <Button variant="ghost"
           className="text-button"
           onClick={() => navigate(user ? '/expectations' : '/login')}
         >
           {user ? '进入系统' : '登录'}
-        </button>
+        </Button>
       </header>
       <section className="home-hero">
         <p className="eyebrow">LIFE KERNEL / 0.7</p>
@@ -248,12 +252,12 @@ function Home({ user }: { user: User | null }) {
           推进成看得见的自己。
         </h1>
         <p>把想做的事情拆成 To-do。现在只做一件，积累会留在你的画像里。</p>
-        <button
+        <Button variant="default"
           className="primary-button home-cta"
           onClick={() => navigate(user ? '/expectations' : '/login')}
         >
-          进入主线 <ArrowRightIcon size={18} weight="bold" />
-        </button>
+          进入主线 <ArrowRightIcon size={18} />
+        </Button>
       </section>
       <section className="home-steps" aria-label="产品流程">
         <div className="home-step">
@@ -307,7 +311,7 @@ function Login({ onAuthenticated }: { onAuthenticated: (user: User) => void }) {
         <form onSubmit={submit}>
           <label>
             账号
-            <input
+            <Input
               value={email}
               onChange={(event) => setEmail(event.target.value)}
               autoComplete="email"
@@ -315,7 +319,7 @@ function Login({ onAuthenticated }: { onAuthenticated: (user: User) => void }) {
           </label>
           <label>
             密码
-            <input
+            <Input
               value={password}
               type="password"
               onChange={(event) => setPassword(event.target.value)}
@@ -323,10 +327,10 @@ function Login({ onAuthenticated }: { onAuthenticated: (user: User) => void }) {
             />
           </label>
           {error && <p className="form-error">{error}</p>}
-          <button className="primary-button full-width" disabled={saving}>
+          <Button variant="default" className="primary-button full-width" disabled={saving}>
             {saving ? '正在登录…' : '进入 LifeKernelOS'}{' '}
-            <ArrowRightIcon size={18} weight="bold" />
-          </button>
+            <ArrowRightIcon size={18} />
+          </Button>
         </form>
         <p className="login-hint">
           使用服务端配置的账号登录。桌面客户端无需登录。
@@ -363,7 +367,9 @@ function WorkspaceShell({
 }) {
   const navigate = useNavigate();
   const [loggingOut, setLoggingOut] = useState(false);
-  const [captureOpen, setCaptureOpen] = useState(false);
+  const captureOpen = useWorkspaceUI((state) => state.captureOpen);
+  const setCaptureOpen = useWorkspaceUI((state) => state.setCaptureOpen);
+  useEffect(() => () => setCaptureOpen(false), [setCaptureOpen]);
   const returnFocus = useRef<HTMLElement | null>(null);
   function openCapture() {
     returnFocus.current = document.activeElement as HTMLElement | null;
@@ -430,7 +436,7 @@ function WorkspaceShell({
             <span>我的画像</span>
           </NavLink>
         </nav>
-        <button className="capture-launcher" onClick={openCapture}>
+        <Button variant="ghost" className="capture-launcher" onClick={openCapture}>
           <PlusIcon size={18} />
           <span>快速记下</span>
           {captureCount > 0 && (
@@ -438,7 +444,7 @@ function WorkspaceShell({
               {captureCount}
             </strong>
           )}
-        </button>
+        </Button>
         <span className="shortcut-hint">
           <CommandIcon size={12} /> K 快速记下
         </span>
@@ -459,13 +465,13 @@ function WorkspaceShell({
                 <span className="saved-dot" /> 记录自动保存
               </small>
             ) : (
-              <button
+              <Button variant="ghost"
                 className="text-button"
                 onClick={logout}
                 disabled={loggingOut}
               >
                 {loggingOut ? '退出中' : '退出登录'}
-              </button>
+              </Button>
             )}
           </div>
         </div>
@@ -608,12 +614,12 @@ function CaptureDrawer({
           <div>
             <h2>先记下，稍后整理</h2>
           </div>
-          <button className="icon-control" onClick={close} disabled={saving} aria-label="关闭">
-            <XIcon size={20} weight="bold" />
-          </button>
+          <Button variant="ghost" className="icon-control" onClick={close} disabled={saving} aria-label="关闭">
+            <XIcon size={20} />
+          </Button>
         </header>
         <form className="capture-form" onSubmit={submit}>
-          <textarea
+          <Textarea
             aria-label="收集内容"
             autoFocus
             disabled={saving}
@@ -625,18 +631,18 @@ function CaptureDrawer({
           />
           <div>
             <span>{content.trim().length} / 2000</span>
-            <button
+            <Button variant="default"
               className="primary-button"
               disabled={saving || !content.trim()}
             >
-              <PlusIcon size={16} weight="bold" /> 保存
-            </button>
+              <PlusIcon size={16} /> 保存
+            </Button>
           </div>
         </form>
         {error && <p className="page-error" role="alert">{error}</p>}
         {readError && <div className="page-error" role="alert">
           {readError}
-          <button className="secondary-button" disabled={loading || saving} onClick={() => void load()}>重试读取收集箱</button>
+          <Button variant="ghost" className="secondary-button" disabled={loading || saving} onClick={() => void load()}>重试读取收集箱</Button>
         </div>}
         <section className="capture-inbox">
           <div className="capture-section-title">
@@ -646,7 +652,7 @@ function CaptureDrawer({
           {loading && !initialized && <InlineLoading />}
           {initialized && captures.length === 0 && (
             <div className="capture-empty">
-              <CheckCircleIcon size={28} weight="thin" />
+              <CheckCircleIcon size={28} />
               <p>收集箱已经清空。</p>
             </div>
           )}
@@ -698,7 +704,7 @@ function CaptureDrawer({
                 >
                   <label>
                     To-do 标题
-                    <input
+                    <Input
                       value={convertTitle}
                       disabled={saving}
                       onChange={(event) => setConvertTitle(event.target.value)}
@@ -726,32 +732,32 @@ function CaptureDrawer({
                     </select>
                   </label>
                   <div>
-                    <button
+                    <Button variant="ghost"
                       type="button"
                       className="text-button"
                       disabled={saving}
                       onClick={() => setConvertingId(null)}
                     >
                       取消
-                    </button>
-                    <button
+                    </Button>
+                    <Button variant="ghost"
                       className="secondary-button"
                       disabled={saving || !goals.some(goal => goal.id === convertGoalId) || !convertTitle.trim()}
                     >
                       转为 To-do
-                    </button>
+                    </Button>
                   </div>
                 </form>
               ) : (
                 <div className="capture-actions">
-                  <button
+                  <Button variant="ghost"
                     className="text-link"
                     onClick={() => beginConvert(capture)}
                     disabled={saving || goals.length === 0}
                   >
                     转为 To-do
-                  </button>
-                  <button
+                  </Button>
+                  <Button variant="ghost"
                     className="text-button"
                     disabled={saving}
                     onClick={() =>
@@ -759,8 +765,8 @@ function CaptureDrawer({
                     }
                   >
                     归档
-                  </button>
-                  <button
+                  </Button>
+                  <Button variant="destructive"
                     className="text-button danger-text"
                     disabled={saving}
                     onClick={() => {
@@ -769,7 +775,7 @@ function CaptureDrawer({
                     }}
                   >
                     删除
-                  </button>
+                  </Button>
                 </div>
               )}
               {goals.length === 0 && (
@@ -799,10 +805,10 @@ export function ExpectationsPage({ user, onLogout }: { user: User; onLogout: () 
   const viewSwitch = (disabled: boolean) => (
     <nav className="workspace-views" aria-label="任务视图">
       {choices.map(({id, label}) => (
-        <button key={id} disabled={disabled} aria-current={view === id ? 'page' : undefined}
+        <Button variant="ghost" key={id} disabled={disabled} aria-current={view === id ? 'page' : undefined}
           onClick={() => navigate(id === 'mainline' ? '/expectations' : `/expectations?view=${id}`)}>
           {label}
-        </button>
+        </Button>
       ))}
     </nav>
   );
@@ -1016,13 +1022,13 @@ function MainlineBoard({
         {error && (
           <div role="alert" className="page-error">
             {error}
-            <button
+            <Button variant="ghost"
               className="secondary-button"
               onClick={() => void load(loadTarget.current, selectedActionId)}
               disabled={loading}
             >
               重试
-            </button>
+            </Button>
           </div>
         )}
         {loading && !mainline ? (
@@ -1088,11 +1094,11 @@ function MainlineBoard({
                 {mainline.doneDefinition && <p>{mainline.doneDefinition}</p>}
               </div>
               <div className="mainline-hero-actions">
-                <button className="text-button" disabled={navigationLocked}
+                <Button variant="ghost" className="text-button" disabled={navigationLocked}
                   onClick={() => setShowNewGoal(true)}>
                   <PlusIcon size={16} /> 新建主线
-                </button>
-                <button
+                </Button>
+                <Button variant="ghost"
                   className="icon-control"
                   disabled={navigationLocked}
                   onClick={() => setShowMainlineTools((current) => !current)}
@@ -1100,7 +1106,7 @@ function MainlineBoard({
                   aria-expanded={showMainlineTools}
                 >
                   <DotsThreeIcon size={22} />
-                </button>
+                </Button>
               </div>
               <ProgressLine progress={mainline.progress.progressPercent} />
               <div className="progress-copy">
@@ -1153,7 +1159,7 @@ function MainlineBoard({
             )}
             {notice && (
               <p className="page-notice">
-                <CheckCircleIcon size={16} weight="fill" /> {notice}
+                <CheckCircleIcon size={16} /> {notice}
               </p>
             )}
             <div className="board-caption">
@@ -1162,7 +1168,7 @@ function MainlineBoard({
                   {currentAction ? '已有当前行动' : '选择任务，开始行动'}
               </span>
               {currentAction && (
-                <button
+                <Button variant="ghost"
                   className="text-link"
                   disabled={navigationLocked}
                   onClick={() => {
@@ -1171,7 +1177,7 @@ function MainlineBoard({
                   }}
                 >
                   <CornersOutIcon size={15} /> 专注小窗
-                </button>
+                </Button>
               )}
             </div>
             <section className="todo-board">
@@ -1180,7 +1186,7 @@ function MainlineBoard({
                   <div>
                     <h2>任务 <span className="pane-count">{actions.length}</span></h2>
                   </div>
-                  <button
+                  <Button variant="ghost"
                     className="text-button add-task-button"
                     disabled={navigationLocked || mainline.status !== 'active'}
                     onClick={() => {
@@ -1190,7 +1196,7 @@ function MainlineBoard({
                     aria-label="新建 To-do"
                   >
                     <PlusIcon size={16} /> 添加任务
-                  </button>
+                  </Button>
                 </div>
                 {showNewTodo && (
                   <TodoEditor
@@ -1215,27 +1221,27 @@ function MainlineBoard({
                   />
                 )}
                 <div className="task-filters" aria-label="行动筛选">
-                  <button
+                  <Button variant="ghost"
                     className={filter === 'all' ? 'active' : ''}
                     disabled={navigationLocked}
                     onClick={() => setFilter('all')}
                   >
                     全部 <span>{actions.length}</span>
-                  </button>
-                  <button
+                  </Button>
+                  <Button variant="ghost"
                     className={filter === 'available' ? 'active' : ''}
                     disabled={navigationLocked}
                     onClick={() => setFilter('available')}
                   >
                     待进行
-                  </button>
-                  <button
+                  </Button>
+                  <Button variant="ghost"
                     className={filter === 'completed' ? 'active' : ''}
                     disabled={navigationLocked}
                     onClick={() => setFilter('completed')}
                   >
                     已完成
-                  </button>
+                  </Button>
                 </div>
                 <ol className="todo-list">
                   {visibleActions.map((action, index) => (
@@ -1334,7 +1340,7 @@ function MainlineBoard({
                   />
                 ) : (
                   <div className="todo-detail-empty">
-                    <TargetIcon size={38} weight="thin" />
+                    <TargetIcon size={38} />
                     <h2>选一条 To-do</h2>
                     <p>内容、完成标准和下一步操作会显示在这里。</p>
                   </div>
@@ -1399,7 +1405,7 @@ function MainlineEditor({
     >
       <label>
         主线名称
-        <input
+        <Input
           autoFocus
           value={title}
           onChange={(event) => setTitle(event.target.value)}
@@ -1410,7 +1416,7 @@ function MainlineEditor({
       </label>
       <label>
         完成定义 <span>可选</span>
-        <input
+        <Input
           value={definition}
           onChange={(event) => setDefinition(event.target.value)}
           maxLength={300}
@@ -1419,12 +1425,12 @@ function MainlineEditor({
       </label>
       {error && <p className="form-error">{error}</p>}
       <div className="editor-actions">
-        <button className="primary-button" disabled={saving}>
-          <PlusIcon size={17} weight="bold" /> 建立主线
-        </button>
-        <button type="button" className="secondary-button" onClick={onCancel}>
+        <Button variant="default" className="primary-button" disabled={saving}>
+          <PlusIcon size={17} /> 建立主线
+        </Button>
+        <Button variant="ghost" type="button" className="secondary-button" onClick={onCancel}>
           取消
-        </button>
+        </Button>
       </div>
     </form>
   );
@@ -1456,7 +1462,7 @@ function MainlineTools({
       >
         <label>
           主线名称
-          <input
+          <Input
             value={title}
             onChange={(event) => setTitle(event.target.value)}
             maxLength={100}
@@ -1464,56 +1470,56 @@ function MainlineTools({
         </label>
         <label>
           完成定义
-          <input
+          <Input
             value={definition}
             onChange={(event) => setDefinition(event.target.value)}
             maxLength={300}
           />
         </label>
         <div className="editor-actions">
-          <button className="secondary-button" disabled={saving}>
+          <Button variant="ghost" className="secondary-button" disabled={saving}>
             保存信息
-          </button>
-          <button type="button" className="text-button" onClick={onCancel}>
+          </Button>
+          <Button variant="ghost" type="button" className="text-button" onClick={onCancel}>
             收起
-          </button>
+          </Button>
         </div>
       </form>
       <div className="status-actions">
         {mainline.status === 'active' && (
           <>
-            <button onClick={() => onStatus('paused')} disabled={saving}>
+            <Button variant="ghost" onClick={() => onStatus('paused')} disabled={saving}>
               暂停
-            </button>
-            <button onClick={() => setConfirming(true)} disabled={saving}>
+            </Button>
+            <Button variant="ghost" onClick={() => setConfirming(true)} disabled={saving}>
               完成主线
-            </button>
-            <button onClick={() => onStatus('abandoned')} disabled={saving}>
+            </Button>
+            <Button variant="ghost" onClick={() => onStatus('abandoned')} disabled={saving}>
               放弃
-            </button>
+            </Button>
           </>
         )}
         {mainline.status === 'paused' && (
           <>
-            <button onClick={() => onStatus('active')} disabled={saving}>
+            <Button variant="ghost" onClick={() => onStatus('active')} disabled={saving}>
               恢复
-            </button>
-            <button onClick={() => onStatus('abandoned')} disabled={saving}>
+            </Button>
+            <Button variant="ghost" onClick={() => onStatus('abandoned')} disabled={saving}>
               放弃
-            </button>
+            </Button>
           </>
         )}
         {(mainline.status === 'completed' ||
           mainline.status === 'abandoned') && (
-          <button onClick={() => onStatus('active')} disabled={saving}>
+          <Button variant="ghost" onClick={() => onStatus('active')} disabled={saving}>
             重新打开
-          </button>
+          </Button>
         )}
       </div>
       {confirming && (
         <div className="completion-confirm">
           <p>这条主线的结果已经达成了吗？完成后会保留全部行动记录。</p>
-          <button
+          <Button variant="default"
             className="primary-button"
             disabled={saving}
             onClick={() => {
@@ -1522,10 +1528,10 @@ function MainlineTools({
             }}
           >
             确认完成
-          </button>
-          <button className="text-button" onClick={() => setConfirming(false)}>
+          </Button>
+          <Button variant="ghost" className="text-button" onClick={() => setConfirming(false)}>
             继续推进
-          </button>
+          </Button>
         </div>
       )}
     </section>
@@ -1571,10 +1577,10 @@ function TodoRow({
     <li
       className={`todo-row ${selected ? 'selected' : ''} status-${action.status}`}
     >
-      <button disabled={disabled} onClick={onSelect}>
+      <Button variant="ghost" disabled={disabled} onClick={onSelect}>
         <span className="todo-index">
           {action.status === 'completed' ? (
-            <CheckIcon size={16} weight="bold" />
+            <CheckIcon size={16} />
           ) : (
             index
           )}
@@ -1584,7 +1590,7 @@ function TodoRow({
           <small>{action.content || actionMeta(action)}</small>
         </span>
         <span className="todo-state">{statusLabel}</span>
-      </button>
+      </Button>
     </li>
   );
 }
@@ -1662,14 +1668,14 @@ function TodoDetail({
                   ? '已放弃'
                   : '主线 To-do'}
         </span>
-        <button
+        <Button variant="ghost"
           className="icon-control"
           onClick={onEdit}
           disabled={saving || Boolean(resolutionMode)}
           aria-label="编辑 To-do"
         >
-          <PencilSimpleIcon size={18} weight="bold" />
-        </button>
+          <PencilSimpleIcon size={18} />
+        </Button>
       </div>
       <div className="todo-detail-body">
       <h2>{action.title}</h2>
@@ -1690,29 +1696,29 @@ function TodoDetail({
       )}
       </div>
       {action.status === 'blocked' && mainline.status === 'active' && !resolutionMode && (
-        <button className="primary-button" disabled={saving} onClick={onResume}>
+        <Button variant="default" className="primary-button" disabled={saving} onClick={onResume}>
           恢复这件事
-        </button>
+        </Button>
       )}
       {actionable && !resolutionMode && (
         <div className="todo-primary-action">
           {current ? (
-            <button
+            <Button variant="default"
               className="primary-button large"
               disabled={saving}
               onClick={onComplete}
             >
-              <CheckCircleIcon size={20} weight="fill" /> 完成这件事
-            </button>
+              <CheckCircleIcon size={20} /> 完成这件事
+            </Button>
           ) : (
-            <button
+            <Button variant="default"
               className="primary-button large"
               disabled={saving}
               onClick={onMakeCurrent}
             >
-              <TargetIcon size={20} weight="bold" />{' '}
+              <TargetIcon size={20} />{' '}
               {current ? '现在做这件事' : '设为现在要做'}
-            </button>
+            </Button>
           )}
         </div>
       )}
@@ -1766,7 +1772,7 @@ function ResolutionEditor({
           : mode === 'block'
             ? '卡住的原因（可选）'
             : '放弃的原因（可选）'}
-        <textarea
+        <Textarea
           autoFocus
           disabled={saving}
           value={value}
@@ -1777,12 +1783,12 @@ function ResolutionEditor({
         />
       </label>
       <div className="editor-actions">
-        <button className="secondary-button" disabled={saving}>
+        <Button variant="ghost" className="secondary-button" disabled={saving}>
           {isSplit ? '拆成更小一步' : '确认保存'}
-        </button>
-        <button type="button" className="text-button" disabled={saving} onClick={onCancel}>
+        </Button>
+        <Button variant="ghost" type="button" className="text-button" disabled={saving} onClick={onCancel}>
           取消
-        </button>
+        </Button>
       </div>
     </form>
   );
@@ -1917,13 +1923,13 @@ export function ProfilePage({
         {(error || readError) && (
           <div role="alert" className="page-error">
             {error || readError}
-            <button
+            <Button variant="ghost"
               className="secondary-button"
               onClick={() => void load()}
               disabled={loading}
             >
               重试
-            </button>
+            </Button>
           </div>
         )}
         {loading && !profile ? (
@@ -1932,23 +1938,23 @@ export function ProfilePage({
           <>
             {notice && (
               <p className="page-notice">
-                <CheckCircleIcon size={16} weight="fill" /> {notice}
+                <CheckCircleIcon size={16} /> {notice}
               </p>
             )}
             <section className="profile-graph-stage">
               {profile.factSummary.goalCount === 0 ? (
                 <div className="profile-graph-empty">
-                  <GraphIcon size={42} weight="thin" />
+                  <GraphIcon size={42} />
                   <h2>画像会从第一条主线开始形成。</h2>
                   <p>
                     建立主线、完成 To-do 或记录知识后，它们的关系会出现在这里。
                   </p>
-                  <button
+                  <Button variant="default"
                     className="primary-button"
                     onClick={() => navigate('/expectations')}
                   >
-                    去建立主线 <ArrowRightIcon size={17} weight="bold" />
-                  </button>
+                    去建立主线 <ArrowRightIcon size={17} />
+                  </Button>
                 </div>
               ) : (
                 <Suspense fallback={<InlineLoading />}>
@@ -1972,7 +1978,7 @@ export function ProfilePage({
             <section className="profile-underlay">
               <article className="about-card">
                 <h2>关于我</h2>
-                <textarea
+                <Textarea
                   value={description}
                   disabled={saving}
                   onChange={(event) => {
@@ -1982,13 +1988,13 @@ export function ProfilePage({
                   maxLength={500}
                   placeholder="写下你想如何理解自己，或暂时留白。"
                 />
-                <button
+                <Button variant="ghost"
                   className="secondary-button"
                   onClick={saveDescription}
                   disabled={saving}
                 >
                   保存描述
-                </button>
+                </Button>
               </article>
               <article className="current-profile-card">
                 <h2>{currentAction?.title ?? '暂时没有当前 To-do'}</h2>
@@ -1998,13 +2004,13 @@ export function ProfilePage({
                       ? '这条 To-do 还没有补充内容。'
                       : '回到主线页，从一个可执行的 To-do 开始。')}
                 </p>
-                <button
+                <Button variant="ghost"
                   className="text-link"
                   onClick={() => navigate('/expectations')}
                 >
                   {currentAction ? '打开当前 To-do' : '去主线页'}{' '}
-                  <ArrowRightIcon size={16} weight="bold" />
-                </button>
+                  <ArrowRightIcon size={16} />
+                </Button>
               </article>
             </section>
             <section className="knowledge-section">
@@ -2033,7 +2039,7 @@ export function ProfilePage({
               <form className="knowledge-create" onSubmit={createKnowledge}>
                 <label>
                   知识标题
-                  <input
+                  <Input
                     value={knowledgeTitle}
                     disabled={saving}
                     onChange={(event) => setKnowledgeTitle(event.target.value)}
@@ -2060,7 +2066,7 @@ export function ProfilePage({
                 </label>
                 <label>
                   补充说明
-                  <input
+                  <Input
                     value={knowledgeNote}
                     disabled={saving}
                     onChange={(event) => setKnowledgeNote(event.target.value)}
@@ -2068,9 +2074,9 @@ export function ProfilePage({
                     placeholder="可选"
                   />
                 </label>
-                <button className="secondary-button" disabled={saving}>
-                  <PlusIcon size={17} weight="bold" /> 记录知识
-                </button>
+                <Button variant="ghost" className="secondary-button" disabled={saving}>
+                  <PlusIcon size={17} /> 记录知识
+                </Button>
               </form>
             </section>
             <ProfileExperiences
@@ -2109,9 +2115,9 @@ function KnowledgeCard({
       <div>
         <span className="knowledge-icon">
           {item.status === 'consolidated' ? (
-            <CheckCircleIcon size={18} weight="fill" />
+            <CheckCircleIcon size={18} />
           ) : (
-            <BookOpenTextIcon size={18} weight="bold" />
+            <BookOpenTextIcon size={18} />
           )}
         </span>
         <h3>{item.title}</h3>
@@ -2128,14 +2134,14 @@ function KnowledgeCard({
           <option value="needs_consolidation">待沉淀</option>
           <option value="consolidated">已沉淀</option>
         </select>
-        <button
+        <Button variant="ghost"
           className="icon-control"
           onClick={onDelete}
           disabled={saving}
           aria-label={`删除 ${item.title}`}
         >
-          <XIcon size={16} weight="bold" />
-        </button>
+          <XIcon size={16} />
+        </Button>
       </footer>
     </article>
   );
@@ -2197,7 +2203,7 @@ function ExperienceCard({
     <article className="experience-card">
       <span className="status-label completed">已完成 · {progress}%</span>
       <h3>{title}</h3>
-      <textarea
+      <Textarea
         value={value}
         disabled={saving}
         onChange={(event) => {
@@ -2207,7 +2213,7 @@ function ExperienceCard({
         maxLength={500}
         placeholder="这条主线带给你的经历或认识…"
       />
-      <button
+      <Button variant="ghost"
         className="secondary-button"
         onClick={async () => {
           if (await onSave(value)) dirty.current = false;
@@ -2215,7 +2221,7 @@ function ExperienceCard({
         disabled={saving}
       >
         保存总结
-      </button>
+      </Button>
     </article>
   );
 }
@@ -2285,11 +2291,11 @@ function SettingsPage({
           <div>
             <h1>设置</h1>
           </div>
-          <GearSixIcon size={32} weight="thin" />
+          <GearSixIcon size={32} />
         </header>
         {message && (
           <p role="status" className="page-notice">
-            <CheckCircleIcon size={16} weight="fill" /> {message}
+            <CheckCircleIcon size={16} /> {message}
           </p>
         )}
         {error && (
@@ -2311,22 +2317,22 @@ function SettingsPage({
             <h2>所有积累，都属于你</h2>
             <p>主线、行动、收集、知识与完成记录，一起保存在 JSON 备份里。</p>
             <div className="settings-actions">
-              <button
+              <Button variant="default"
                 className="primary-button"
                 onClick={() => void fileAction('export')}
                 disabled={saving}
               >
                 <ArchiveIcon size={17} />{' '}
                 {saving ? '正在处理…' : '导出全部记录'}
-              </button>
+              </Button>
               {isDesktop() && (
-                <button
+                <Button variant="ghost"
                   className="secondary-button"
                   onClick={() => void fileAction('import')}
                   disabled={saving}
                 >
                   从备份恢复
-                </button>
+                </Button>
               )}
             </div>
           </div>
@@ -2344,18 +2350,18 @@ function SettingsPage({
             </p>
             {isDesktop() && (
               <div className="settings-actions">
-                <button
+                <Button variant="ghost"
                   className="text-link"
                   onClick={() => void folder('data-folder')}
                 >
                   打开数据目录 <ArrowUpRightIcon size={15} />
-                </button>
-                <button
+                </Button>
+                <Button variant="ghost"
                   className="text-link"
                   onClick={() => void folder('backup-folder')}
                 >
                   查看自动备份 <ArrowUpRightIcon size={15} />
-                </button>
+                </Button>
               </div>
             )}
           </div>
@@ -2504,7 +2510,7 @@ function FocusWindow() {
         <Brand compact />
         <span>此刻，只做一件事</span>
         {isDesktop() && (
-          <button
+          <Button variant="ghost"
             className={`icon-control ${pinned ? 'active' : ''}`}
             aria-label="窗口置顶"
             onClick={() => {
@@ -2513,8 +2519,8 @@ function FocusWindow() {
                 .catch((reason) => setError(messageFor(reason)));
             }}
           >
-            <PushPinIcon size={18} weight={pinned ? 'fill' : 'regular'} />
-          </button>
+            <PushPinIcon size={18} />
+          </Button>
         )}
       </header>
       {loading ? (
@@ -2536,25 +2542,25 @@ function FocusWindow() {
               <p className="focus-meta">
                 <ClockIcon size={16} /> {actionMeta(action)}
               </p>
-              <button
+              <Button variant="default"
                 className="primary-button full-width large"
                 disabled={saving}
                 onClick={() => void complete()}
               >
-                <CheckCircleIcon size={20} weight="fill" />{' '}
+                <CheckCircleIcon size={20} />{' '}
                 {saving ? '正在保存…' : '完成这件事'}
-              </button>
+              </Button>
             </>
           ) : (
             <div className="focus-finished">
-              <CheckCircleIcon size={46} weight="thin" />
+              <CheckCircleIcon size={46} />
               <h1>{notice ? '向前走了一步。' : '留一点空间给此刻。'}</h1>
               <p>{notice || '到主线中选择一件现在要做的事。'}</p>
             </div>
           )}
-          <button className="focus-back text-link" onClick={main}>
+          <Button variant="ghost" className="focus-back text-link" onClick={main}>
             回到主线 <ArrowUpRightIcon size={15} />
-          </button>
+          </Button>
         </>
       )}
       <footer>不必急着做下一件，每一步都算数。</footer>
@@ -2565,7 +2571,7 @@ function FocusWindow() {
 function InlineLoading() {
   return (
     <div className="inline-loading">
-      <CircleNotchIcon size={22} className="spin" weight="bold" />{' '}
+      <CircleNotchIcon size={22} className="spin" />{' '}
       正在读取你的记录…
     </div>
   );

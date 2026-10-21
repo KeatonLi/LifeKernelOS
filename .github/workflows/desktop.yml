@@ -58,6 +58,11 @@ jobs:
       - name: Packaging and release gate regression tests
         run: node --test scripts/desktop-packaging.test.mjs
       - run: npm run build
+      - name: Browser component regressions
+        if: runner.os == 'Linux'
+        run: |
+          npx playwright install --with-deps chromium
+          npm run test:ui
       - name: Prepare Linux Chromium sandbox
         if: runner.os == 'Linux'
         run: node scripts/prepare-electron-sandbox.mjs

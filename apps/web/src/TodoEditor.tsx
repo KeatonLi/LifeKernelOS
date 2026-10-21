@@ -1,5 +1,10 @@
+import { Textarea } from './components/ui/textarea.js';
+import { Input } from './components/ui/input.js';
+import { Button } from './components/ui/button.js';
 import { useState } from 'react';
-import { CaretDownIcon } from '@phosphor-icons/react';
+import {
+  ChevronDown as CaretDownIcon,
+} from 'lucide-react';
 import type { GoalAction, AvailableMinutes } from './api.js';
 const minuteOptions = [
   { value: 5, label: '5 分钟' },
@@ -57,7 +62,7 @@ export function TodoEditor({
     >
       <label>
         To-do 标题
-        <input
+        <Input
           autoFocus
           disabled={saving}
           value={title}
@@ -68,7 +73,7 @@ export function TodoEditor({
       </label>
       <label>
         <span className="editor-field-label">内容 <small>可选</small></span>
-        <textarea
+        <Textarea
           disabled={saving}
           value={content}
           onChange={(event) => setContent(event.target.value)}
@@ -79,7 +84,7 @@ export function TodoEditor({
       <label>
         <span className="editor-field-label">安排日期 <small>可选</small></span>
         <div className="date-input-row">
-          <input
+          <Input
             type="date"
             name="scheduledDate"
             aria-label="安排日期"
@@ -91,14 +96,14 @@ export function TodoEditor({
             onInput={(event) => setScheduledDate(event.currentTarget.value)}
           />
           {scheduledDate && (
-            <button
+            <Button variant="ghost"
               type="button"
               className="text-link"
               disabled={saving}
               onClick={() => setScheduledDate('')}
             >
               清除日期
-            </button>
+            </Button>
           )}
         </div>
       </label>
@@ -152,17 +157,17 @@ export function TodoEditor({
         </div>
       </details>
       <div className="editor-actions">
-        <button className="primary-button" disabled={saving}>
+        <Button variant="default" className="primary-button" disabled={saving}>
           {action ? '保存 To-do' : '加入主线'}
-        </button>
-        <button
+        </Button>
+        <Button variant="ghost"
           type="button"
           className="text-button"
           disabled={saving}
           onClick={onCancel}
         >
           取消
-        </button>
+        </Button>
       </div>
     </form>
   );

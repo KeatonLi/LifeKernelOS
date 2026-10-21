@@ -192,3 +192,7 @@ And 我的画像仍以可追溯图谱为主画面
 
 - 主线任务编辑与处理、列表任务编辑绑定用户进入表单时的原任务快照。后台删除或替换原任务后保留草稿，保存仍提交原任务 ID，由业务层返回不存在或冲突；不能回退到其他任务后误写。
 - `reliability.test.tsx` 与 `todo-planner.test.tsx` 分别覆盖原任务被替换的主线和列表编辑场景；`npm run test:web` 56/56 与 `npm run typecheck` 通过。本次修复不改变任务事实、导航或视觉范围，状态保持 Implemented。
+
+### 2026-10-21 基础组件统一
+
+用户要求沿用 ClipJar 的基础组件选型；采用 [ADR-0014](../../architecture/decisions/0014-shared-frontend-components.md)。本轮是现有交互的实现方案变更，保留场景 A–G 与冷白/石墨黑/朱橙风格；不实现 PRD v0.12 的 Proposed 能力。迁移后的自动化和界面结果另记，不将本规格自动升级为 Verified。

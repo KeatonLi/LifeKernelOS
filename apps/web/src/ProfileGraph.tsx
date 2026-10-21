@@ -8,11 +8,11 @@ import {
   type NodeProps,
 } from '@xyflow/react';
 import {
-  UserCircleIcon,
-  TargetIcon,
-  CheckCircleIcon,
-  BookOpenTextIcon,
-} from '@phosphor-icons/react';
+  CircleUser as UserCircleIcon,
+  Target as TargetIcon,
+  CircleCheck as CheckCircleIcon,
+  BookOpenText as BookOpenTextIcon,
+} from 'lucide-react';
 import type { Profile, ProfileGraphNode } from './api.js';
 import { buildProfileFlow } from './profile-flow.js';
 
@@ -22,13 +22,13 @@ function ProfileFlowNode({ data }: NodeProps) {
   const source = (data as unknown as FlowData).source;
   const icon =
     source.type === 'self' ? (
-      <UserCircleIcon size={32} weight="regular" />
+      <UserCircleIcon size={32} />
     ) : source.type === 'goal' ? (
-      <TargetIcon size={23} weight="bold" />
+      <TargetIcon size={23} />
     ) : source.status === 'consolidated' ? (
-      <CheckCircleIcon size={19} weight="fill" />
+      <CheckCircleIcon size={19} />
     ) : (
-      <BookOpenTextIcon size={19} weight="bold" />
+      <BookOpenTextIcon size={19} />
     );
   return (
     <div className={`profile-flow-node profile-flow-${source.type}`}>

@@ -1,6 +1,13 @@
+import { Textarea } from './components/ui/textarea.js';
+import { Input } from './components/ui/input.js';
+import { Button } from './components/ui/button.js';
 import { createContext, useContext, useEffect, useRef, useState, type ReactNode } from 'react';
 import { useNavigate } from 'react-router-dom';
-import { SparkleIcon, XIcon, CheckCircleIcon } from '@phosphor-icons/react';
+import {
+  Sparkles as SparkleIcon,
+  X as XIcon,
+  CircleCheck as CheckCircleIcon,
+} from 'lucide-react';
 import { ai, aiAvailable, dataChanged } from './api.js';
 import { splitStepsSchema, type AiSettings, type SplitSource, type AiPreview, type SplitStep, type SplitResult } from '../../../shared/ai.js';
 
@@ -15,8 +22,8 @@ export function AiWorkspace({ children }: { children: ReactNode }) {
 export function AiSplitButton({ actionId, disabled = false }: { actionId: string; disabled?: boolean }) {
   const open = useContext(OpenAiTask);
   if (!aiAvailable()) return null;
-  return <button className="text-button ai-task-button" disabled={disabled} onClick={() => open(actionId)}>
-    <SparkleIcon size={17} />AI 拆解</button>;
+  return <Button variant="ghost" className="text-button ai-task-button" disabled={disabled} onClick={() => open(actionId)}>
+    <SparkleIcon size={17} />AI 拆解</Button>;
 }
 
 export function AiTaskDialog({ actionId, onClose }: { actionId: string; onClose: () => void }) {
@@ -113,7 +120,7 @@ export function AiTaskDialog({ actionId, onClose }: { actionId: string; onClose:
   return <div className="ai-backdrop" onMouseDown={event => { if (event.target === event.currentTarget) close(); }}>
     <section className="ai-dialog" ref={dialog} role="dialog" aria-modal="true" aria-labelledby="ai-task-title">
       <header className="ai-dialog-header"><h2 id="ai-task-title">AI 拆解任务</h2>
-        <button className="icon-control" aria-label="关闭 AI 拆解" disabled={writing} onClick={close}><XIcon size={20} /></button></header>
+        <Button variant="ghost" className="icon-control" aria-label="关闭 AI 拆解" disabled={writing} onClick={close}><XIcon size={20} /></Button></header>
       <div className="ai-dialog-body">
         {loading && <p role="status">正在读取任务和配置…</p>}
         {source && <div className="ai-source"><strong>{source.action.title}</strong>
@@ -125,22 +132,22 @@ export function AiTaskDialog({ actionId, onClose }: { actionId: string; onClose:
         {settings && !result && <p className="ai-info ai-destination">发送到 {settings.baseUrl} · {settings.model}。仅发送上方任务、主线上下文和你补充的要求。</p>}
         {settings?.warning && <p className="form-error">{settings.warning}</p>}
         {!loading && settings && !settings.hasApiKey && !result && <div className="ai-empty">
-          <p>先添加自己的 API Key，即可请求任务拆解。</p><button className="secondary-button" onClick={() => { close(); navigate('/settings'); }}>前往 AI 设置</button></div>}
+          <p>先添加自己的 API Key，即可请求任务拆解。</p><Button variant="ghost" className="secondary-button" onClick={() => { close(); navigate('/settings'); }}>前往 AI 设置</Button></div>}
         {source && settings?.hasApiKey && !result && <>
-          <label>补充要求（可选）<textarea maxLength={1000} value={instruction} disabled={generating || writing}
+          <label>补充要求（可选）<Textarea maxLength={1000} value={instruction} disabled={generating || writing}
             onChange={event => setInstruction(event.target.value)} placeholder="例如：每一步适合用 15 分钟开始，先做出最小可运行版本" /></label>
-          <div className="ai-actions"><button className="secondary-button" disabled={generating || writing || loading} onClick={() => void generate()}>
-            <SparkleIcon size={17} />{generating ? '正在生成…' : preview ? '重新生成建议' : '生成拆解建议'}</button>
-            {generating && <button className="text-button" onClick={cancel}>取消生成</button>}</div>
+          <div className="ai-actions"><Button variant="ghost" className="secondary-button" disabled={generating || writing || loading} onClick={() => void generate()}>
+            <SparkleIcon size={17} />{generating ? '正在生成…' : preview ? '重新生成建议' : '生成拆解建议'}</Button>
+            {generating && <Button variant="ghost" className="text-button" onClick={cancel}>取消生成</Button>}</div>
           {preview && <p className="ai-info">建议可编辑和选择；重新生成会替换当前建议。应用前任务不会改变。</p>}
         </>}
         {!result && preview && <div className="ai-step-list" aria-label="拆解建议">
           {steps.map((step, index) => <div className="ai-step" key={index}>
-            <label className="ai-check"><input type="checkbox" checked={step.selected} disabled={generating || writing}
+            <label className="ai-check"><Input type="checkbox" checked={step.selected} disabled={generating || writing}
               onChange={event => setSteps(current => current.map((item, i) => i === index ? { ...item, selected: event.target.checked } : item))} />选择步骤 {index + 1}</label>
-            <label>步骤 {index + 1} 标题<input maxLength={200} value={step.title} disabled={generating || writing}
+            <label>步骤 {index + 1} 标题<Input maxLength={200} value={step.title} disabled={generating || writing}
               onChange={event => setSteps(current => current.map((item, i) => i === index ? { ...item, title: event.target.value } : item))} /></label>
-            <label>步骤 {index + 1} 内容<textarea maxLength={2000} value={step.content ?? ''} disabled={generating || writing}
+            <label>步骤 {index + 1} 内容<Textarea maxLength={2000} value={step.content ?? ''} disabled={generating || writing}
               onChange={event => setSteps(current => current.map((item, i) => i === index ? { ...item, content: event.target.value } : item))} /></label>
           </div>)}
         </div>}
@@ -151,15 +158,15 @@ export function AiTaskDialog({ actionId, onClose }: { actionId: string; onClose:
         </div>}
         {notice && <p role="status" className="ai-notice">{notice}</p>}
         {error && <><p role="alert" className="form-error">{error}</p>
-          {!result && <button className="text-button" disabled={generating || writing || loading} onClick={() => void reload()}>重新读取任务和配置</button>}</>}
+          {!result && <Button variant="ghost" className="text-button" disabled={generating || writing || loading} onClick={() => void reload()}>重新读取任务和配置</Button>}</>}
       </div>
       <footer className="ai-dialog-footer">
         {!result && preview ? <><p>应用所选步骤会替换原任务，可在此面板撤销。</p>
-          <button className="primary-button" disabled={writing || generating || loading || !steps.some(step => step.selected)} onClick={() => void apply()}>
-            {writing ? '正在应用…' : '应用所选步骤'}</button></>
-          : result && !result.undone ? <><button className="secondary-button" disabled={writing} onClick={() => void undo()}>{writing ? '正在撤销…' : '撤销本次拆解'}</button>
-            <button className="primary-button" disabled={writing} onClick={close}>完成</button></>
-            : <button className="secondary-button" disabled={writing} onClick={close}>关闭</button>}
+          <Button variant="default" className="primary-button" disabled={writing || generating || loading || !steps.some(step => step.selected)} onClick={() => void apply()}>
+            {writing ? '正在应用…' : '应用所选步骤'}</Button></>
+          : result && !result.undone ? <><Button variant="ghost" className="secondary-button" disabled={writing} onClick={() => void undo()}>{writing ? '正在撤销…' : '撤销本次拆解'}</Button>
+            <Button variant="default" className="primary-button" disabled={writing} onClick={close}>完成</Button></>
+            : <Button variant="ghost" className="secondary-button" disabled={writing} onClick={close}>关闭</Button>}
       </footer>
     </section>
   </div>;

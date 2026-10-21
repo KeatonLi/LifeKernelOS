@@ -8,6 +8,7 @@ Development 文档定义人和 AI 如何协作交付 LifeKernelOS。这里不描
 | --- | --- |
 | [SDD 交付协议](SDD.md) | Spec 生命周期、AI 工作循环、追溯方式和完成定义 |
 | [自动检查与桌面发布](ci-cd.md) | macOS / Windows ARM64、x64 与 Linux x64 原生检查、预览安装包和标签发布 |
+| [前端基础组件](frontend-components.md) | 组件来源、迁移边界和浏览器回归 |
 | [Electron 桌面验收](desktop-acceptance.md) | 自动化、浏览器证据与仍需实机验证的场景 |
 
 ## AI 的最小交付循环

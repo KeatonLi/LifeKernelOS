@@ -1,17 +1,19 @@
+import { Input } from './components/ui/input.js';
+import { Button } from './components/ui/button.js';
 import { useEffect, useRef, useState, type ReactNode } from 'react';
 import { useNavigate } from 'react-router-dom';
 import {
-  ArchiveIcon,
-  ArrowCounterClockwiseIcon,
-  CaretLeftIcon,
-  CaretRightIcon,
-  CheckCircleIcon,
-  MagnifyingGlassIcon,
-  PencilSimpleIcon,
-  PlusIcon,
-  TargetIcon,
-  XIcon,
-} from '@phosphor-icons/react';
+  Archive as ArchiveIcon,
+  Undo2 as ArrowCounterClockwiseIcon,
+  ChevronLeft as CaretLeftIcon,
+  ChevronRight as CaretRightIcon,
+  CircleCheck as CheckCircleIcon,
+  Search as MagnifyingGlassIcon,
+  Pencil as PencilSimpleIcon,
+  Plus as PlusIcon,
+  Target as TargetIcon,
+  X as XIcon,
+} from 'lucide-react';
 import {
   api,
   ApiError,
@@ -286,7 +288,7 @@ export function TodoPlanner({
         {todo.status === 'abandoned' ? (
           <ArchiveIcon size={19} />
         ) : (
-          <input
+          <Input
             type="checkbox"
             aria-label={`${todo.status === 'completed' ? '撤销完成' : '完成'} ${todo.title}`}
             checked={todo.status === 'completed'}
@@ -299,14 +301,14 @@ export function TodoPlanner({
             }
           />
         )}
-        <button className="planner-row-copy" disabled={navigationLocked} onClick={(event) => choose(todo, event.currentTarget)}>
+        <Button variant="ghost" className="planner-row-copy" disabled={navigationLocked} onClick={(event) => choose(todo, event.currentTarget)}>
           <strong>{todo.title}</strong>
           <small>
             {goalMap.get(todo.goalId)?.title ?? '主线'}
             {todo.status === 'blocked' ? ' · 已卡住' : ''}
             {todo.id === currentId ? ' · 现在做' : ''}
           </small>
-        </button>
+        </Button>
         <span
           className={`planner-date ${todo.scheduledDate && todo.scheduledDate < today && todo.status !== 'completed' ? 'past' : ''}`}
         >
@@ -350,7 +352,7 @@ export function TodoPlanner({
       {error && (
         <div className="page-error" role="alert">
           {error}
-          <button
+          <Button variant="ghost"
             className="secondary-button"
             disabled={loading}
             onClick={() => {
@@ -359,28 +361,28 @@ export function TodoPlanner({
             }}
           >
             重试
-          </button>
+          </Button>
         </div>
       )}
       {notice && (
         <div className="page-notice" role="status">
-          <CheckCircleIcon size={16} weight="fill" />
+          <CheckCircleIcon size={16} />
           {notice}
           {undoAction && (
-            <button
+            <Button variant="ghost"
               className="text-link"
               disabled={saving}
               onClick={() => void changeStatus(undoAction, 'available')}
             >
               撤销
-            </button>
+            </Button>
           )}
         </div>
       )}
       <div className="planner-toolbar">
         <label className="planner-search">
           <MagnifyingGlassIcon size={18} />
-          <input
+          <Input
             type="search"
             disabled={navigationLocked}
             aria-label="搜索任务"
@@ -422,7 +424,7 @@ export function TodoPlanner({
           <option value="completed">已完成</option>
           <option value="abandoned">已移除</option>
         </select>
-        <button
+        <Button variant="default"
           ref={newTaskButton}
           className="primary-button"
           disabled={
@@ -430,9 +432,9 @@ export function TodoPlanner({
           }
           onClick={() => startEditor('new')}
         >
-          <PlusIcon size={18} weight="bold" />
+          <PlusIcon size={18} />
           新建任务
-        </button>
+        </Button>
       </div>
       {!initialized ? (
         loading ? (
@@ -442,15 +444,15 @@ export function TodoPlanner({
         ) : null
       ) : !goals.length ? (
         <div className="planner-zero">
-          <TargetIcon size={36} weight="thin" />
+          <TargetIcon size={36} />
           <h2>先建一条主线</h2>
           <p>任务按主线整理。</p>
-          <button
+          <Button variant="default"
             className="primary-button"
             onClick={() => navigate('/expectations')}
           >
             去建立主线
-          </button>
+          </Button>
         </div>
       ) : (
         <>
@@ -459,14 +461,14 @@ export function TodoPlanner({
           <div className="planner-selection-hint">
             {!selected && <span>选择任务查看详情</span>}
             {currentTodo && selected?.id !== currentTodo.id && (
-              <button
+              <Button variant="ghost"
                 ref={currentTaskButton}
                 className="text-button"
                 disabled={saving}
                 onClick={(event) => choose(currentTodo, event.currentTarget)}
               >
                 返回当前任务
-              </button>
+              </Button>
             )}
           </div>
         )}
@@ -489,7 +491,7 @@ export function TodoPlanner({
                     </h2>
                   </div>
                   <div className="calendar-controls">
-                    <button
+                    <Button variant="ghost"
                       className="secondary-button"
                       disabled={navigationLocked}
                       onClick={() => {
@@ -498,8 +500,8 @@ export function TodoPlanner({
                       }}
                     >
                       今天
-                    </button>
-                    <button
+                    </Button>
+                    <Button variant="ghost"
                       className="icon-control"
                       disabled={
                         navigationLocked || !isCalendarDate(previousPeriod)
@@ -514,8 +516,8 @@ export function TodoPlanner({
                       }}
                     >
                       <CaretLeftIcon size={18} />
-                    </button>
-                    <button
+                    </Button>
+                    <Button variant="ghost"
                       className="icon-control"
                       disabled={navigationLocked || !isCalendarDate(nextPeriod)}
                       aria-label={
@@ -528,9 +530,9 @@ export function TodoPlanner({
                       }}
                     >
                       <CaretRightIcon size={18} />
-                    </button>
+                    </Button>
                     <div className="calendar-mode" aria-label="日历范围">
-                      <button
+                      <Button variant="ghost"
                         disabled={navigationLocked}
                         aria-pressed={calendarView === 'month'}
                         onClick={() => {
@@ -539,8 +541,8 @@ export function TodoPlanner({
                         }}
                       >
                         月
-                      </button>
-                      <button
+                      </Button>
+                      <Button variant="ghost"
                         disabled={navigationLocked}
                         aria-pressed={calendarView === 'week'}
                         onClick={() => {
@@ -549,7 +551,7 @@ export function TodoPlanner({
                         }}
                       >
                         周
-                      </button>
+                      </Button>
                     </div>
                   </div>
                 </div>
@@ -587,7 +589,7 @@ export function TodoPlanner({
                                 key={day}
                                 className={`calendar-cell ${selectedDay === day ? 'selected' : ''} ${day.slice(0, 7) !== anchor.slice(0, 7) && calendarView === 'month' ? 'outside' : ''}`}
                               >
-                                <button
+                                <Button variant="ghost"
                                   disabled={
                                     navigationLocked || !isCalendarDate(day)
                                   }
@@ -596,12 +598,12 @@ export function TodoPlanner({
                                   onClick={() => pickDay(day)}
                                 >
                                   {Number(day.split('-')[2])}
-                                </button>
+                                </Button>
                                 <div className="calendar-events">
                                   {records
                                     .slice(0, previewCount)
                                     .map((todo) => (
-                                      <button
+                                      <Button variant="ghost"
                                         disabled={navigationLocked}
                                         key={todo.id}
                                         title={todo.title}
@@ -616,16 +618,16 @@ export function TodoPlanner({
                                         }}
                                       >
                                         {todo.title}
-                                      </button>
+                                      </Button>
                                     ))}
                                   {records.length > previewCount && (
-                                    <button
+                                    <Button variant="ghost"
                                       className="calendar-more"
                                       disabled={navigationLocked}
                                       onClick={() => pickDay(day)}
                                     >
                                       还有 {records.length - previewCount} 条
-                                    </button>
+                                    </Button>
                                   )}
                                 </div>
                               </div>
@@ -655,12 +657,12 @@ export function TodoPlanner({
                   todayTasks,
                   '今天还没有安排任务。',
                 )}
-                <button
+                <Button variant="ghost"
                   className="text-link unplanned-link"
                   onClick={() => navigate('/expectations?view=list')}
                 >
                   查看任务列表与未安排任务
-                </button>
+                </Button>
               </>
             ) : (
               group(
@@ -762,21 +764,21 @@ export function TodoPlanner({
                         ]}
                       />
                     )}
-                    <button
+                    <Button variant="ghost"
                       className="icon-control"
                       aria-label="编辑任务"
                       disabled={saving}
                       onClick={() => startEditor('edit')}
                     >
                       <PencilSimpleIcon size={18} />
-                    </button>
-                    <button
+                    </Button>
+                    <Button variant="ghost"
                       className="icon-control"
                       aria-label="关闭任务详情"
                       onClick={closeDetails}
                     >
                       <XIcon size={18} />
-                    </button>
+                    </Button>
                   </div>
                 </div>
                 <h2>{selected.title}</h2>
@@ -804,7 +806,7 @@ export function TodoPlanner({
                 )}
                 {selected.status !== 'superseded' && (
                   <div className="inspector-task-actions">
-                    <button
+                    <Button variant="default"
                       className="primary-button"
                       disabled={saving || !canChange}
                       onClick={() =>
@@ -832,12 +834,12 @@ export function TodoPlanner({
                           完成任务
                         </>
                       )}
-                    </button>
+                    </Button>
                   </div>
                 )}
                 <div className="inspector-secondary-actions">
                   {selected.status === 'available' && selected.id !== currentId && (
-                      <button
+                      <Button variant="ghost"
                         className="text-button"
                         disabled={saving || !canChange}
                         onClick={() =>
@@ -849,7 +851,7 @@ export function TodoPlanner({
                       >
                         <TargetIcon size={17} />
                         设为现在要做
-                      </button>
+                      </Button>
                     )}
                 {canChange && (selected.status === 'available' || selected.status === 'blocked') &&
                   <AiSplitButton actionId={selected.id} disabled={saving} />}
@@ -866,7 +868,7 @@ export function TodoPlanner({
                     aria-label="确认移除任务"
                   >
                     <p>移除「{selected.title}」？之后可在“已移除”中恢复。</p>
-                    <button
+                    <Button variant="destructive"
                       className="danger-button"
                       disabled={saving}
                       onClick={async () => {
@@ -876,14 +878,14 @@ export function TodoPlanner({
                       }}
                     >
                       确认移除
-                    </button>
-                    <button
+                    </Button>
+                    <Button variant="ghost"
                       className="secondary-button"
                       disabled={saving}
                       onClick={() => setRemoveConfirm(false)}
                     >
                       取消
-                    </button>
+                    </Button>
                   </div>
                 )}
               </>
@@ -903,14 +905,14 @@ export function TodoPlanner({
                     这一天没有任务。
                   </p>
                 )}
-                <button
+                <Button variant="ghost"
                   className="secondary-button"
                   disabled={!activeGoals.length || saving}
                   onClick={() => startEditor('new')}
                 >
                   <PlusIcon size={17} />
                   在这天新建任务
-                </button>
+                </Button>
               </>
             ) : null}
           </aside>

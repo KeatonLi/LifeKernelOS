@@ -19,6 +19,7 @@ ADR 记录影响多个 Spec、需要长期遵守的关键选择，以及做出�
 | [ADR-0011](0011-progressive-action-workspace.md) | 个人行动工作区采用渐进展示 | Accepted（日常范围） | 紧凑页头、统一按钮与更多、辅助字段及详情按需展示；画像概览、回顾、新 AI 场景仍 Proposed |
 | [ADR-0012](0012-local-byok-ai.md) | 用户 API Key 与桌面 AI 请求边界 | Accepted | 主进程密钥、明确请求和业务事务采纳/撤销 |
 | [ADR-0013](0013-goal-growth-and-automatic-ai.md) | 成长目标归集与完成后的自动 AI | Proposed | 配套 PRD v0.12 评审；尚未替代现有目标、画像与 AI 决策 |
+| [ADR-0014](0014-shared-frontend-components.md) | 统一前端基础组件 | Accepted | Nova 基础控件、Lucide 与纯界面状态边界；保留现有产品风格与业务事实 |
 
 ## 状态规则
 
